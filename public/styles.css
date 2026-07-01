@@ -1,0 +1,400 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background:
+    radial-gradient(circle at top, #243b70, #101322 55%, #070911);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app {
+  width: 100%;
+  max-width: 430px;
+  padding: 20px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+}
+
+.hidden {
+  display: none;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 34px;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: #d8def8;
+  line-height: 1.4;
+}
+
+.small-title {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 12px;
+  color: #9fb4ff;
+  font-weight: bold;
+}
+
+label {
+  display: block;
+  margin-top: 16px;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+input {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-size: 18px;
+  outline: none;
+}
+
+button {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  padding: 15px 18px;
+  margin-top: 16px;
+  font-size: 17px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.primary-btn {
+  background: #74ff7a;
+  color: #07200a;
+}
+
+.secondary-btn {
+  background: #ffffff;
+  color: #141827;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.qr-box {
+  background: white;
+  color: #141827;
+  border-radius: 20px;
+  padding: 16px;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.qr-box img {
+  width: 180px;
+  height: 180px;
+}
+
+.qr-box p {
+  font-size: 12px;
+  word-break: break-all;
+  margin-bottom: 0;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #d8def8;
+  margin: 20px 0 4px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.role-text,
+.waiting-text,
+.answer-status {
+  color: #d8def8;
+}
+
+.players-list,
+.answers-list,
+.ranking-list,
+#themeVotesList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.players-list li,
+.answers-list li,
+.ranking-list li,
+#themeVotesList li {
+  background: rgba(255, 255, 255, 0.12);
+  padding: 12px 14px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+}
+
+.players-list li,
+.ranking-list li,
+#themeVotesList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.leader-tag {
+  background: #ffd45c;
+  color: #201500;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.theme-btn {
+  min-height: 82px;
+  margin-top: 0;
+  background: rgba(255, 255, 255, 0.95);
+  color: #141827;
+}
+
+.theme-btn.selected {
+  background: #74ff7a;
+  color: #07200a;
+}
+
+.vote-box {
+  margin-top: 22px;
+}
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #d8def8;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.timer-track {
+  width: 100%;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+
+.timer-fill {
+  width: 100%;
+  height: 100%;
+  background: #74ff7a;
+  transition: width 0.15s linear;
+}
+
+.options-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.option-btn {
+  margin-top: 0;
+  background: white;
+  color: #141827;
+  text-align: left;
+}
+
+.option-btn.selected {
+  background: #ffd45c;
+  color: #201500;
+}
+
+.answer-status {
+  margin-top: 16px;
+  margin-bottom: 0;
+  text-align: center;
+  font-weight: bold;
+}
+
+.correct-pill,
+.wrong-pill {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+.correct-pill {
+  background: #74ff7a;
+  color: #07200a;
+}
+
+.wrong-pill {
+  background: #ff7676;
+  color: #2c0000;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: #ffffff;
+  color: #141827;
+  padding: 14px 18px;
+  border-radius: 999px;
+  font-weight: bold;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  max-width: 90%;
+  text-align: center;
+}
+
+.heads-word-card {
+  background: white;
+  color: #141827;
+  border-radius: 24px;
+  padding: 24px 18px;
+  text-align: center;
+  margin: 22px 0;
+}
+
+.heads-category {
+  color: #52607a;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.heads-word {
+  color: #141827;
+  font-size: 42px;
+  margin: 0;
+}
+
+.heads-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.heads-controls.hidden {
+  display: none;
+}
+
+.heads-controls button {
+  margin-top: 0;
+}
+
+.correct-btn {
+  background: #74ff7a;
+  color: #07200a;
+}
+
+.pass-btn {
+  background: #ffffff;
+  color: #141827;
+}
+
+.word-letters-box {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0;
+}
+
+.word-letter {
+  width: 52px;
+  height: 52px;
+  background: white;
+  color: #141827;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  font-weight: bold;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
+}
+
+.word-chip {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.game-selection-box {
+  margin-top: 24px;
+}
+
+.game-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 14px;
+  border-radius: 16px;
+  margin-bottom: 10px;
+}
+
+.game-option input {
+  width: auto;
+  margin-top: 4px;
+  transform: scale(1.3);
+}
+
+.game-option span {
+  display: grid;
+  gap: 4px;
+}
+
+.game-option small {
+  color: #d8def8;
+  font-size: 13px;
+}
+
+.game-option input:disabled+span {
+  opacity: 0.55;
+}

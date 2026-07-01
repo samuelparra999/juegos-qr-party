@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Juegos QR Party</title>
+
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+  <main class="app">
+
+    <!-- Pantalla inicial -->
+    <section id="homeScreen" class="card">
+      <h1>Juegos QR Party</h1>
+
+      <p class="subtitle">
+        Crea una partida, comparte el PIN y juega con tus amigos.
+      </p>
+
+      <div class="qr-box">
+        <img id="qrImage" alt="Código QR para entrar a juegos" />
+        <p id="qrUrl"></p>
+      </div>
+
+      <label for="playerName">Tu nombre</label>
+      <input id="playerName" type="text" maxlength="20" placeholder="Ej: Samuel" />
+
+      <button id="createGameBtn" class="primary-btn">
+        Crear partida
+      </button>
+
+      <div class="divider">
+        <span>o</span>
+      </div>
+
+      <label for="pinInput">PIN de partida</label>
+      <input id="pinInput" type="text" maxlength="6" inputmode="numeric" placeholder="Ej: 482913" />
+
+      <button id="joinGameBtn" class="secondary-btn">
+        Unirme con PIN
+      </button>
+    </section>
+
+    <!-- Lobby -->
+    <section id="lobbyScreen" class="card hidden">
+      <p class="small-title">Sala de espera</p>
+
+      <h2>PIN: <span id="pinDisplay"></span></h2>
+
+      <p id="roleText" class="role-text"></p>
+
+      <button id="copyLinkBtn" class="secondary-btn">
+        Copiar enlace
+      </button>
+
+      <h3>Jugadores conectados</h3>
+      
+      <ul id="playersList" class="players-list"></ul>
+      
+      <div id="gameSelectionBox" class="game-selection-box">
+        <h3>Juegos de la partida</h3>
+      
+        <label class="game-option">
+          <input id="gameKnowledge" class="game-checkbox-input" type="checkbox" value="knowledge" />
+          <span>
+            <strong>Trivia de conocimiento</strong>
+            <small>Preguntas por tema.</small>
+          </span>
+        </label>
+      
+        <label id="gameFriendRow" class="game-option">
+          <input id="gameFriend" class="game-checkbox-input" type="checkbox" value="friend" />
+          <span>
+            <strong>Trivia de amigos</strong>
+            <small id="friendGameHelp">Se desbloquea con 3 jugadores.</small>
+          </span>
+        </label>
+      
+        <label class="game-option">
+          <input id="gameHeads" class="game-checkbox-input" type="checkbox" value="heads" />
+          <span>
+            <strong>Heads Up</strong>
+            <small>Adivina palabras con pistas.</small>
+          </span>
+        </label>
+      
+        <label class="game-option">
+          <input id="gameWord" class="game-checkbox-input" type="checkbox" value="word" />
+          <span>
+            <strong>Word Connect</strong>
+            <small>Forma palabras con letras.</small>
+          </span>
+        </label>
+      </div>
+      
+      <button id="startGameBtn" class="primary-btn hidden">
+        Iniciar partida
+      </button>
+
+      <p id="waitingText" class="waiting-text">
+        Esperando a que el líder inicie...
+      </p>
+    </section>
+
+    <!-- Votación de tema -->
+    <section id="themeScreen" class="card hidden">
+      <p class="small-title">Votación de tema</p>
+
+      <h2>Elige el tema de la trivia</h2>
+
+      <p class="subtitle">
+        Cuando todos voten, la trivia comienza automáticamente.
+      </p>
+
+      <div id="themeOptions" class="theme-grid"></div>
+
+      <div class="vote-box">
+        <h3>Votos</h3>
+        <ul id="themeVotesList"></ul>
+      </div>
+    </section>
+
+    <!-- Trivia de conocimiento -->
+    <section id="triviaScreen" class="card hidden">
+      <p class="small-title" id="triviaThemeText">Trivia</p>
+
+      <div class="question-header">
+        <span id="questionCounter"></span>
+        <span id="timerText"></span>
+      </div>
+
+      <div class="timer-track">
+        <div id="timerFill" class="timer-fill"></div>
+      </div>
+
+      <h2 id="questionText"></h2>
+
+      <div id="optionsList" class="options-list"></div>
+
+      <p id="answerStatus" class="answer-status"></p>
+    </section>
+
+    <!-- Resultado de pregunta de conocimiento -->
+    <section id="resultScreen" class="card hidden">
+      <p class="small-title">Resultado de pregunta</p>
+
+      <h2 id="correctAnswerText"></h2>
+
+      <h3>Respuestas</h3>
+      <ul id="answersList" class="answers-list"></ul>
+
+      <h3>Tabla de posiciones</h3>
+      <ul id="roundRankingList" class="ranking-list"></ul>
+    </section>
+
+    <!-- Trivia de amigos -->
+    <section id="friendScreen" class="card hidden">
+      <p class="small-title">Trivia de amigos</p>
+
+      <div class="question-header">
+        <span id="friendQuestionCounter"></span>
+        <span id="friendTimerText"></span>
+      </div>
+
+      <div class="timer-track">
+        <div id="friendTimerFill" class="timer-fill"></div>
+      </div>
+
+      <h2 id="friendQuestionText"></h2>
+
+      <p class="subtitle">
+        Vota por la persona del grupo que mejor encaje. No puedes votar por ti mismo.
+      </p>
+
+      <div id="friendOptionsList" class="options-list"></div>
+
+      <p id="friendAnswerStatus" class="answer-status"></p>
+    </section>
+
+    <!-- Resultado de trivia de amigos -->
+    <section id="friendResultScreen" class="card hidden">
+      <p class="small-title">Resultado de amigos</p>
+
+      <h2 id="friendResultTitle"></h2>
+
+      <h3>Votos</h3>
+      <ul id="friendAnswersList" class="answers-list"></ul>
+
+      <h3>Tabla acumulada</h3>
+      <ul id="friendRankingList" class="ranking-list"></ul>
+    </section>
+
+    <!-- Instrucciones de Heads Up -->
+    <section id="headsIntroScreen" class="card hidden">
+      <p class="small-title">Heads Up</p>
+
+      <h2>Instrucciones</h2>
+
+      <p class="subtitle">
+        En cada turno, un jugador deberá adivinar palabras. Ese jugador no verá la
+        palabra real, solo verá una incógnita como <strong>Palabra 1</strong>,
+        <strong>Palabra 2</strong>, etc.
+      </p>
+
+      <p class="subtitle">
+        Los demás jugadores sí verán la palabra real y deberán darle pistas sin decir
+        la respuesta directamente.
+      </p>
+
+      <p class="subtitle">
+        Cuando el jugador de turno diga la respuesta correcta, los demás jugadores
+        votan <strong>Correcto</strong>. Si hay mayoría, la palabra se marca como
+        acertada y se revela.
+      </p>
+
+      <p class="subtitle">
+        El jugador de turno solo tendrá el botón <strong>Pasar</strong>.
+      </p>
+
+      <button id="startHeadsUpBtn" class="primary-btn hidden">
+        Empezar Heads Up
+      </button>
+
+      <p id="headsIntroWaitingText" class="waiting-text">
+        Esperando a que el líder empiece Heads Up...
+      </p>
+    </section>
+
+    <!-- Heads Up -->
+    <section id="headsScreen" class="card hidden">
+      <p class="small-title">Heads Up</p>
+
+      <div class="question-header">
+        <span id="headsTurnCounter"></span>
+        <span id="headsTimerText"></span>
+      </div>
+
+      <div class="timer-track">
+        <div id="headsTimerFill" class="timer-fill"></div>
+      </div>
+
+      <h2 id="headsTurnTitle"></h2>
+
+      <div class="heads-word-card">
+        <p id="headsCategoryText" class="heads-category"></p>
+        <h1 id="headsWordText" class="heads-word"></h1>
+      </div>
+
+      <p id="headsInstructionText" class="subtitle"></p>
+
+      <div id="headsControls" class="heads-controls hidden">
+        <button id="headsCorrectBtn" class="correct-btn hidden">
+          Correcto
+        </button>
+
+        <button id="headsPassBtn" class="pass-btn hidden">
+          Pasar
+        </button>
+      </div>
+
+      <p id="headsStatusText" class="answer-status"></p>
+    </section>
+
+    <!-- Resultado de turno de Heads Up -->
+    <section id="headsResultScreen" class="card hidden">
+      <p class="small-title">Resultado de Heads Up</p>
+
+      <h2 id="headsResultTitle"></h2>
+
+      <ul class="answers-list">
+        <li>
+          <strong>Correctas:</strong>
+          <span id="headsCorrectCount"></span>
+        </li>
+
+        <li>
+          <strong>Pasadas:</strong>
+          <span id="headsPassCount"></span>
+        </li>
+
+        <li>
+          <strong>Puntos del turno:</strong>
+          <span id="headsTurnScore"></span>
+        </li>
+      </ul>
+
+      <h3>Tabla acumulada</h3>
+      <ul id="headsRankingList" class="ranking-list"></ul>
+    </section>
+
+    <!-- Instrucciones de Word Connect -->
+    <section id="wordIntroScreen" class="card hidden">
+      <p class="small-title">Word Connect</p>
+
+      <h2>Instrucciones</h2>
+
+      <p class="subtitle">
+        En esta ronda aparecerán varias letras. Cada jugador debe formar palabras
+        usando solo esas letras.
+      </p>
+
+      <p class="subtitle">
+        Las palabras válidas suman puntos. Mientras más larga sea la palabra,
+        más puntos gana.
+      </p>
+
+      <p class="subtitle">
+        No puedes repetir palabras. La ronda termina cuando se acaba el tiempo.
+      </p>
+
+      <button id="startWordConnectBtn" class="primary-btn hidden">
+        Empezar Word Connect
+      </button>
+
+      <p id="wordIntroWaitingText" class="waiting-text">
+        Esperando a que el líder empiece Word Connect...
+      </p>
+    </section>
+
+    <!-- Word Connect -->
+    <section id="wordScreen" class="card hidden">
+      <p class="small-title">Word Connect</p>
+
+      <div class="question-header">
+        <span>Forma palabras</span>
+        <span id="wordTimerText"></span>
+      </div>
+
+      <div class="timer-track">
+        <div id="wordTimerFill" class="timer-fill"></div>
+      </div>
+
+      <div id="wordLettersBox" class="word-letters-box"></div>
+
+      <label for="wordInput">Escribe una palabra</label>
+      <input id="wordInput" type="text" placeholder="Ej: MAPA" autocomplete="off" />
+
+      <button id="submitWordBtn" class="primary-btn">
+        Enviar palabra
+      </button>
+
+      <p id="wordStatusText" class="answer-status"></p>
+
+      <h3>Tus palabras</h3>
+      <ul id="foundWordsList" class="answers-list"></ul>
+
+      <h3>Ranking</h3>
+      <ul id="wordRankingList" class="ranking-list"></ul>
+    </section>
+
+    <!-- Resultado de Word Connect -->
+    <section id="wordResultScreen" class="card hidden">
+      <p class="small-title">Resultado de Word Connect</p>
+
+      <h2>Ronda terminada</h2>
+
+      <h3>Palabras válidas posibles</h3>
+      <p id="validWordsText" class="subtitle"></p>
+
+      <h3>Resultados por jugador</h3>
+      <ul id="wordResultsList" class="answers-list"></ul>
+
+      <h3>Tabla final acumulada</h3>
+      <ul id="wordFinalRankingList" class="ranking-list"></ul>
+    </section>
+
+    <!-- Resultado final -->
+    <section id="finalScreen" class="card hidden">
+      <p class="small-title">Partida terminada</p>
+
+      <h2>Resultados finales</h2>
+
+      <ul id="finalRankingList" class="ranking-list"></ul>
+
+      <button id="returnHomeBtn" class="secondary-btn">
+        Volver al inicio
+      </button>
+    </section>
+
+    <div id="toast" class="toast hidden"></div>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+
+</html>

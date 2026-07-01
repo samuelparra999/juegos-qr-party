@@ -1,0 +1,14 @@
+{
+  "name": "juegos-qr-party",
+  "version": "1.0.0",
+  "description": "Lobby multijugador con QR y PIN",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.3",
+    "socket.io": "^4.7.5",
+    "qrcode": "^1.5.3"
+  }
+}
