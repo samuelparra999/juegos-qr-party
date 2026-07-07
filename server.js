@@ -171,6 +171,37 @@ app.get("/qr", async (req, res) => {
   }
 });
 
+app.get("/qr/:pin", async (req, res) => {
+  try {
+    const pin = cleanPin(req.params.pin);
+
+    if (!pin || pin.length !== 6) {
+      return res.status(400).json({
+        ok: false,
+        message: "PIN inválido."
+      });
+    }
+
+    const baseUrl =
+      process.env.PUBLIC_URL ||
+      `${req.protocol}://${req.get("host")}`;
+
+    const url = `${baseUrl}/juegos?pin=${pin}`;
+    const qr = await QRCode.toDataURL(url);
+
+    res.json({
+      ok: true,
+      url,
+      qr
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      message: "No se pudo generar el QR de la partida."
+    });
+  }
+});
+
 function generatePin() {
   let pin;
 

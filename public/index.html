@@ -43,24 +43,43 @@
 
       <label for="pinInput">PIN de partida</label>
       <input id="pinInput" type="text" maxlength="6" inputmode="numeric" placeholder="Ej: 482913" />
-
-      <button id="joinGameBtn" class="secondary-btn">
-        Unirme con PIN
-      </button>
+            
+      <button id="joinGameBtn" class="secondary-btn">Unirme con PIN</button>
     </section>
+
+<section id="directJoinScreen" class="card hidden">
+  <h1>Juegos QR Party</h1>
+
+  <p id="directJoinMessage" class="subtitle">
+    Únete a la partida con código <strong id="directJoinPinDisplay"></strong>
+  </p>
+
+  <label for="directPlayerName">Tu nombre</label>
+  <input id="directPlayerName" type="text" maxlength="20" placeholder="Ej: Samuel" />
+
+  <p id="directJoinNameError" class="input-error hidden">
+    Debes ingresar tu nombre para unirte a la partida.
+  </p>
+
+  <button id="directJoinBtn" class="primary-btn">Unirse</button>
+</section>
 
     <!-- Lobby -->
     <section id="lobbyScreen" class="card hidden">
       <p class="small-title">Sala de espera</p>
 
       <h2>PIN: <span id="pinDisplay"></span></h2>
-
+      
       <p id="roleText" class="role-text"></p>
-
-      <button id="copyLinkBtn" class="secondary-btn">
-        Copiar enlace
-      </button>
-
+      
+      <div class="qr-box lobby-qr-box">
+        <p class="small-title">QR de esta partida</p>
+        <img id="lobbyQrImage" alt="Código QR para entrar directamente a la partida" />
+        <p id="lobbyQrUrl"></p>
+      </div>
+      
+      <button id="copyLinkBtn" class="secondary-btn">Copiar enlace de la partida</button>
+      
       <h3>Jugadores conectados</h3>
       
       <ul id="playersList" class="players-list"></ul>

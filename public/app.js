@@ -4,6 +4,7 @@ let currentGame = null;
 let isLeader = false;
 let selectedTheme = null;
 let timerInterval = null;
+let directJoinPin = null;
 
 const THEMES = [
   { id: "deportes", name: "Deportes" },
@@ -14,6 +15,7 @@ const THEMES = [
 
 // Pantallas principales
 const homeScreen = document.getElementById("homeScreen");
+const directJoinScreen = document.getElementById("directJoinScreen");
 const lobbyScreen = document.getElementById("lobbyScreen");
 const themeScreen = document.getElementById("themeScreen");
 const triviaScreen = document.getElementById("triviaScreen");
@@ -34,6 +36,10 @@ const finalScreen = document.getElementById("finalScreen");
 // Inicio y lobby
 const playerNameInput = document.getElementById("playerName");
 const pinInput = document.getElementById("pinInput");
+const directJoinPinDisplay = document.getElementById("directJoinPinDisplay");
+const directPlayerNameInput = document.getElementById("directPlayerName");
+const directJoinNameError = document.getElementById("directJoinNameError");
+const directJoinBtn = document.getElementById("directJoinBtn");
 
 const createGameBtn = document.getElementById("createGameBtn");
 const joinGameBtn = document.getElementById("joinGameBtn");
@@ -59,6 +65,9 @@ const gameCheckboxes = [gameKnowledge, gameFriend, gameHeads, gameWord];
 // QR
 const qrImage = document.getElementById("qrImage");
 const qrUrl = document.getElementById("qrUrl");
+
+const lobbyQrImage = document.getElementById("lobbyQrImage");
+const lobbyQrUrl = document.getElementById("lobbyQrUrl");
 
 // Votación de tema
 const themeOptions = document.getElementById("themeOptions");
@@ -139,6 +148,26 @@ const toast = document.getElementById("toast");
 
 loadQR();
 
+loadPinFromUrl();
+
+function loadPinFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const pinFromUrl = cleanPinInput(params.get("pin"));
+
+  if (!pinFromUrl || pinFromUrl.length !== 6) {
+    return;
+  }
+
+  directJoinPin = pinFromUrl;
+  directJoinPinDisplay.textContent = pinFromUrl;
+
+  showScreen(directJoinScreen);
+
+  setTimeout(() => {
+    directPlayerNameInput.focus();
+  }, 100);
+}
+
 function loadQR() {
   fetch("/qr")
     .then((res) => res.json())
@@ -151,8 +180,28 @@ function loadQR() {
     });
 }
 
+function loadLobbyQR(pin) {
+  if (!pin || !lobbyQrImage || !lobbyQrUrl) return;
+
+  fetch(`/qr/${pin}`)
+    .then((res) => res.json())
+    .then((data) => {
+      if (!data.ok) {
+        lobbyQrUrl.textContent = "No se pudo cargar el QR de la partida.";
+        return;
+      }
+
+      lobbyQrImage.src = data.qr;
+      lobbyQrUrl.textContent = data.url;
+    })
+    .catch(() => {
+      lobbyQrUrl.textContent = "No se pudo cargar el QR de la partida.";
+    });
+}
+
 function showScreen(screen) {
   homeScreen.classList.add("hidden");
+  directJoinScreen.classList.add("hidden");
   lobbyScreen.classList.add("hidden");
   themeScreen.classList.add("hidden");
   triviaScreen.classList.add("hidden");
@@ -213,6 +262,24 @@ function getThemeName(themeId) {
   return theme ? theme.name : themeId;
 }
 
+function showDirectJoinNameError() {
+  directJoinNameError.classList.remove("hidden");
+  directPlayerNameInput.classList.add("input-invalid");
+  directPlayerNameInput.setAttribute("aria-invalid", "true");
+}
+
+function hideDirectJoinNameError() {
+  directJoinNameError.classList.add("hidden");
+  directPlayerNameInput.classList.remove("input-invalid");
+  directPlayerNameInput.removeAttribute("aria-invalid");
+}
+
+directPlayerNameInput.addEventListener("input", () => {
+  if (directPlayerNameInput.value.trim()) {
+    hideDirectJoinNameError();
+  }
+});
+
 // --------------------------------------------------
 // Botones iniciales
 // --------------------------------------------------
@@ -261,6 +328,39 @@ joinGameBtn.addEventListener("click", () => {
   });
 });
 
+directJoinBtn.addEventListener("click", () => {
+  const name = directPlayerNameInput.value.trim();
+
+  if (!directJoinPin) {
+    showToast("No se encontró el código de la partida.");
+    return;
+  }
+
+  if (!name) {
+    showDirectJoinNameError();
+    directPlayerNameInput.focus();
+    return;
+  }
+
+  socket.emit("join_game", { pin: directJoinPin, name }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo unir a la partida.");
+      return;
+    }
+
+    currentGame = response.game;
+    isLeader = response.game.leaderId === socket.id;
+
+    renderLobby(response.game);
+  });
+});
+
+directPlayerNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    directJoinBtn.click();
+  }
+});
+
 gameCheckboxes.forEach((checkbox) => {
   checkbox.addEventListener("change", () => {
     updateSelectedGamesFromLobby();
@@ -278,11 +378,13 @@ startGameBtn.addEventListener("click", () => {
 });
 
 copyLinkBtn.addEventListener("click", async () => {
-  const link = `${window.location.origin}/juegos`;
+  if (!currentGame) return;
+
+  const link = `${window.location.origin}/juegos?pin=${currentGame.pin}`;
 
   try {
     await navigator.clipboard.writeText(link);
-    showToast("Enlace copiado.");
+    showToast("Enlace de la partida copiado.");
   } catch {
     showToast("No se pudo copiar el enlace.");
   }
@@ -537,6 +639,7 @@ function renderGameSelection(game) {
 
 function renderLobby(game) {
   pinDisplay.textContent = game.pin;
+  loadLobbyQR(game.pin);
 
   roleText.textContent = isLeader
     ? "Eres el líder de la partida."
