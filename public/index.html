@@ -28,6 +28,10 @@
 
       <label for="playerName">Tu nombre</label>
       <input id="playerName" type="text" maxlength="20" placeholder="Ej: Samuel" />
+      
+      <p id="playerNameError" class="input-error hidden">
+        Debes ingresar tu nombre para unirte a la partida.
+      </p>
 
       <button id="createGameBtn" class="primary-btn">
         Crear partida
@@ -156,6 +160,54 @@
       <h3>Tabla de posiciones</h3>
       <ul id="roundRankingList" class="ranking-list"></ul>
     </section>
+
+<!-- Instrucciones de Trivia de amigos -->
+<section id="friendIntroScreen" class="card hidden">
+  <p class="small-title">Trivia de amigos</p>
+
+  <h2>Instrucciones</h2>
+
+  <p class="subtitle">
+    En este juego aparecerán preguntas sobre el grupo. Cada jugador deberá votar
+    por la persona que mejor encaje con la pregunta.
+  </p>
+
+  <p class="subtitle">
+    No puedes votar por ti mismo. La respuesta ganadora será la que reciba más votos.
+  </p>
+
+  <p class="subtitle">
+    Ganas puntos si votas con la mayoría. Es decir, si eliges a la persona que termina
+    siendo la más votada, recibes puntos.
+  </p>
+
+  <p class="subtitle">
+    Además, la persona más votada recibe un bonus de puntos.
+  </p>
+
+  <button id="startFriendTriviaBtn" class="primary-btn hidden">
+    Empezar Trivia de amigos
+  </button>
+
+  <p id="friendIntroWaitingText" class="waiting-text">
+    Esperando a que el líder empiece Trivia de amigos...
+  </p>
+</section>
+
+<!-- Trivia de amigos cancelada -->
+<section id="friendCancelledScreen" class="card hidden">
+  <p class="small-title">Trivia de amigos</p>
+
+  <h2>Trivia de amigos cancelada</h2>
+
+  <p id="friendCancelledText" class="subtitle">
+    La Trivia de amigos se canceló porque no hay suficientes jugadores conectados.
+  </p>
+
+  <p class="subtitle">
+    Se necesitan al menos 3 jugadores para jugar esta ronda. El siguiente juego empezará en unos segundos.
+  </p>
+</section>
 
     <!-- Trivia de amigos -->
     <section id="friendScreen" class="card hidden">
@@ -367,6 +419,25 @@
       <h3>Tabla final acumulada</h3>
       <ul id="wordFinalRankingList" class="ranking-list"></ul>
     </section>
+
+<!-- Partida cancelada -->
+<section id="cancelScreen" class="card hidden">
+  <p class="small-title">Partida terminada</p>
+
+  <h2>La partida se canceló</h2>
+
+  <p class="subtitle">
+    La partida terminó porque no hay suficientes jugadores conectados.
+  </p>
+
+  <p class="subtitle">
+    Se necesitan al menos 2 jugadores para continuar jugando.
+  </p>
+
+  <button id="cancelHomeBtn" class="secondary-btn">
+    Volver al inicio
+  </button>
+</section>
 
     <!-- Resultado final -->
     <section id="finalScreen" class="card hidden">

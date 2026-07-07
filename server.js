@@ -284,7 +284,13 @@ function startNextSelectedGame(pin) {
     }
 
     if (nextGame === "friend") {
-      startFriendTrivia(pin);
+      if (game.players.length < 3) {
+        removeFriendTriviaFromQueue(game);
+        startNextSelectedGame(pin);
+        return;
+      }
+
+      startFriendTriviaIntro(pin);
       return;
     }
 
@@ -533,6 +539,23 @@ function clearFriendTimers(game) {
   }
 }
 
+function startFriendTriviaIntro(pin) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  if (game.players.length < 3) {
+    startNextSelectedGame(pin);
+    return;
+  }
+
+  game.status = "friend_intro";
+
+  io.to(pin).emit("friend_trivia_intro", {
+    game: publicGame(game)
+  });
+}
+
 function startFriendTrivia(pin) {
   const game = games.get(pin);
 
@@ -723,7 +746,7 @@ function publicHeadsUpTurn(game, viewerId) {
     playerName: activePlayer ? activePlayer.name : "Jugador",
 
     wordNumber,
-    category: isActivePlayer ? "Incógnita" : currentWord.category,
+    category: currentWord.category,
     wordText: isActivePlayer ? `Palabra ${wordNumber}` : currentWord.word,
     hiddenForThisPlayer: isActivePlayer,
 
@@ -767,7 +790,7 @@ function startHeadsUpIntro(pin) {
     turnScore: 0,
     correctCount: 0,
     passCount: 0,
-    durationMs: 45000,
+    durationMs: 90000,
     endAt: null,
     turnTimer: null,
     betweenTimer: null,
@@ -1133,6 +1156,115 @@ function finishFinalGame(pin) {
   });
 }
 
+function clearAllGameTimers(game) {
+  clearTriviaTimers(game);
+  clearFriendTimers(game);
+  clearHeadsUpTimers(game);
+
+  if (typeof clearWordConnectTimers === "function") {
+    clearWordConnectTimers(game);
+  }
+}
+
+function cancelGameDueToLackOfPlayers(pin) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  clearAllGameTimers(game);
+
+  game.status = "cancelled_lack_players";
+
+  io.to(pin).emit("game_cancelled_lack_players", {
+    game: publicGame(game),
+    message: "La partida terminó porque no hay suficientes jugadores conectados."
+  });
+
+  games.delete(pin);
+}
+
+function isFriendTriviaActiveOrIntro(game) {
+  return (
+    game.status === "friend_intro" ||
+    game.status === "friend_trivia" ||
+    game.status === "friend_result"
+  );
+}
+
+function removeFriendTriviaFromQueue(game) {
+  if (!game || !Array.isArray(game.selectedGames)) return false;
+
+  const friendIndex = game.selectedGames.indexOf("friend");
+
+  if (friendIndex === -1) return false;
+
+  game.selectedGames.splice(friendIndex, 1);
+
+  if (friendIndex <= game.currentGameIndex) {
+    game.currentGameIndex -= 1;
+  }
+
+  return true;
+}
+
+function removePendingFriendTriviaIfNeeded(pin) {
+  const game = games.get(pin);
+
+  if (!game) return false;
+  if (game.players.length >= 3) return false;
+  if (!Array.isArray(game.selectedGames)) return false;
+
+  const friendIndex = game.selectedGames.indexOf("friend");
+
+  if (friendIndex === -1) return false;
+
+  const friendAlreadyPassed = friendIndex <= game.currentGameIndex;
+  const friendIsCurrent = isFriendTriviaActiveOrIntro(game);
+
+  if (friendIsCurrent) return false;
+  if (friendAlreadyPassed) return false;
+
+  game.selectedGames.splice(friendIndex, 1);
+
+  io.to(pin).emit("game_updated", publicGame(game));
+
+  return true;
+}
+
+function cancelCurrentFriendTriviaIfNeeded(pin) {
+  const game = games.get(pin);
+
+  if (!game) return false;
+  if (game.players.length >= 3) return false;
+  if (!isFriendTriviaActiveOrIntro(game)) return false;
+
+  clearFriendTimers(game);
+  removeFriendTriviaFromQueue(game);
+
+  game.status = "friend_cancelled_insufficient_players";
+
+  io.to(pin).emit("friend_trivia_cancelled_insufficient_players", {
+    game: publicGame(game),
+    message: "La Trivia de amigos se canceló porque no hay suficientes jugadores conectados."
+  });
+
+  setTimeout(() => {
+    const latestGame = games.get(pin);
+
+    if (!latestGame) return;
+    if (latestGame.status !== "friend_cancelled_insufficient_players") return;
+
+    if (latestGame.players.length <= 1) {
+      cancelGameDueToLackOfPlayers(pin);
+      return;
+    }
+
+    startNextSelectedGame(pin);
+  }, 3000);
+
+  return true;
+}
+
 function getLocalIPs() {
   const interfaces = os.networkInterfaces();
   const addresses = [];
@@ -1446,6 +1578,41 @@ io.on("connection", (socket) => {
     if (answeredPlayers.length >= game.players.length) {
       finishQuestion(cleanGamePin);
     }
+  });
+
+  socket.on("start_friend_trivia_game", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "friend_intro") {
+      callback({
+        ok: false,
+        message: "La Trivia de amigos todavía no está lista."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede empezar Trivia de amigos."
+      });
+      return;
+    }
+
+    if (game.players.length < 3) {
+      callback({
+        ok: false,
+        message: "Trivia de amigos necesita mínimo 3 jugadores."
+      });
+      return;
+    }
+
+    callback({
+      ok: true
+    });
+
+    startFriendTrivia(cleanGamePin);
   });
 
   socket.on("submit_friend_vote", ({ pin, targetPlayerId }, callback) => {
@@ -1945,12 +2112,22 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     game.players = game.players.filter((player) => player.id !== socket.id);
 
     if (game.players.length === 0) {
-      clearTriviaTimers(game);
-      clearFriendTimers(game);
-      clearHeadsUpTimers(game);
-      clearWordConnectTimers(game);
+      clearAllGameTimers(game);
       games.delete(pin);
       return;
+    }
+
+    if (game.players.length === 1 && game.status !== "lobby") {
+      cancelGameDueToLackOfPlayers(pin);
+      return;
+    }
+
+    if (game.players.length < 3 && game.status !== "lobby") {
+      if (cancelCurrentFriendTriviaIfNeeded(pin)) {
+        return;
+      }
+
+      removePendingFriendTriviaIfNeeded(pin);
     }
 
     if (wasLeader) {
@@ -1973,6 +2150,19 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
         finishQuestion(pin);
         return;
       }
+    }
+
+    if (game.status === "friend_intro") {
+      if (game.players.length < 3) {
+        startNextSelectedGame(pin);
+        return;
+      }
+
+      io.to(pin).emit("friend_trivia_intro", {
+        game: publicGame(game)
+      });
+
+      return;
     }
 
     if (game.status === "friend_trivia" && game.friend && game.friend.questionOpen) {

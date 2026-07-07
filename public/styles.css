@@ -398,3 +398,21 @@ button:disabled {
 .game-option input:disabled+span {
   opacity: 0.55;
 }
+
+#copyLinkBtn {
+  margin-bottom: 22px;
+}
+
+.input-error {
+  margin-top: 6px;
+  margin-bottom: 10px;
+  color: #ff7676;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.input-invalid {
+  border: 2px solid #ff7676 !important;
+  box-shadow: 0 0 0 3px rgba(255, 118, 118, 0.22);
+}

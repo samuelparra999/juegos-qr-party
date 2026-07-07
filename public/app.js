@@ -18,6 +18,8 @@ const lobbyScreen = document.getElementById("lobbyScreen");
 const themeScreen = document.getElementById("themeScreen");
 const triviaScreen = document.getElementById("triviaScreen");
 const resultScreen = document.getElementById("resultScreen");
+const friendIntroScreen = document.getElementById("friendIntroScreen");
+const friendCancelledScreen = document.getElementById("friendCancelledScreen");
 const friendScreen = document.getElementById("friendScreen");
 const friendResultScreen = document.getElementById("friendResultScreen");
 const headsIntroScreen = document.getElementById("headsIntroScreen");
@@ -26,6 +28,7 @@ const headsResultScreen = document.getElementById("headsResultScreen");
 const wordIntroScreen = document.getElementById("wordIntroScreen");
 const wordScreen = document.getElementById("wordScreen");
 const wordResultScreen = document.getElementById("wordResultScreen");
+const cancelScreen = document.getElementById("cancelScreen");
 const finalScreen = document.getElementById("finalScreen");
 
 // Inicio y lobby
@@ -34,9 +37,11 @@ const pinInput = document.getElementById("pinInput");
 
 const createGameBtn = document.getElementById("createGameBtn");
 const joinGameBtn = document.getElementById("joinGameBtn");
+const playerNameError = document.getElementById("playerNameError");
 const startGameBtn = document.getElementById("startGameBtn");
 const copyLinkBtn = document.getElementById("copyLinkBtn");
 const returnHomeBtn = document.getElementById("returnHomeBtn");
+const cancelHomeBtn = document.getElementById("cancelHomeBtn");
 
 const pinDisplay = document.getElementById("pinDisplay");
 const roleText = document.getElementById("roleText");
@@ -73,6 +78,9 @@ const answersList = document.getElementById("answersList");
 const roundRankingList = document.getElementById("roundRankingList");
 
 // Trivia de amigos
+const startFriendTriviaBtn = document.getElementById("startFriendTriviaBtn");
+const friendIntroWaitingText = document.getElementById("friendIntroWaitingText");
+const friendCancelledText = document.getElementById("friendCancelledText");
 const friendQuestionCounter = document.getElementById("friendQuestionCounter");
 const friendTimerText = document.getElementById("friendTimerText");
 const friendTimerFill = document.getElementById("friendTimerFill");
@@ -151,24 +159,45 @@ function showScreen(screen) {
   resultScreen.classList.add("hidden");
   friendScreen.classList.add("hidden");
   friendResultScreen.classList.add("hidden");
+  friendIntroScreen.classList.add("hidden");
+  friendCancelledScreen.classList.add("hidden");
   headsIntroScreen.classList.add("hidden");
   headsScreen.classList.add("hidden");
   headsResultScreen.classList.add("hidden");
   wordIntroScreen.classList.add("hidden");
   wordScreen.classList.add("hidden");
   wordResultScreen.classList.add("hidden");
+  cancelScreen.classList.add("hidden");
   finalScreen.classList.add("hidden");
 
   screen.classList.remove("hidden");
 }
 
 function getPlayerName() {
-  return playerNameInput.value.trim() || "Jugador";
+  return playerNameInput.value.trim();
 }
 
 function cleanPinInput(value) {
   return String(value || "").replace(/\D/g, "").trim();
 }
+
+function showPlayerNameError() {
+  playerNameError.classList.remove("hidden");
+  playerNameInput.classList.add("input-invalid");
+  playerNameInput.setAttribute("aria-invalid", "true");
+}
+
+function hidePlayerNameError() {
+  playerNameError.classList.add("hidden");
+  playerNameInput.classList.remove("input-invalid");
+  playerNameInput.removeAttribute("aria-invalid");
+}
+
+playerNameInput.addEventListener("input", () => {
+  if (playerNameInput.value.trim()) {
+    hidePlayerNameError();
+  }
+});
 
 function showToast(message) {
   toast.textContent = message;
@@ -189,7 +218,7 @@ function getThemeName(themeId) {
 // --------------------------------------------------
 
 createGameBtn.addEventListener("click", () => {
-  const name = getPlayerName();
+  const name = getPlayerName() || "Jugador";
 
   socket.emit("create_game", { name }, (response) => {
     if (!response.ok) {
@@ -207,6 +236,12 @@ createGameBtn.addEventListener("click", () => {
 joinGameBtn.addEventListener("click", () => {
   const name = getPlayerName();
   const pin = cleanPinInput(pinInput.value);
+
+  if (!name) {
+    showPlayerNameError();
+    playerNameInput.focus();
+    return;
+  }
 
   if (pin.length !== 6) {
     showToast("Escribe un PIN de 6 números.");
@@ -255,6 +290,20 @@ copyLinkBtn.addEventListener("click", async () => {
 
 returnHomeBtn.addEventListener("click", () => {
   window.location.reload();
+});
+
+cancelHomeBtn.addEventListener("click", () => {
+  window.location.reload();
+});
+
+startFriendTriviaBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("start_friend_trivia_game", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo empezar Trivia de amigos.");
+    }
+  });
 });
 
   startHeadsUpBtn.addEventListener("click", () => {
@@ -331,6 +380,22 @@ socket.on("knowledge_trivia_finished", (data) => {
   showToast("Trivia de conocimiento terminada. Ahora viene Trivia de amigos.");
 });
 
+socket.on("friend_trivia_cancelled_insufficient_players", (data) => {
+  currentGame = data.game;
+
+  clearInterval(timerInterval);
+
+  friendCancelledText.textContent =
+    data.message || "La Trivia de amigos se canceló porque no hay suficientes jugadores conectados.";
+
+  showScreen(friendCancelledScreen);
+});
+
+socket.on("friend_trivia_intro", (data) => {
+  currentGame = data.game;
+  renderFriendTriviaIntro(data.game);
+});
+
 socket.on("friend_trivia_started", (data) => {
   currentGame = data.game;
   showToast("Empieza Trivia de amigos.");
@@ -397,6 +462,14 @@ socket.on("word_connect_ranking_updated", (data) => {
 socket.on("word_connect_finished", (data) => {
   currentGame = data.game;
   renderWordConnectResult(data);
+});
+
+socket.on("game_cancelled_lack_players", (data) => {
+  currentGame = null;
+  clearInterval(timerInterval);
+
+  showToast(data.message || "La partida terminó por falta de jugadores.");
+  showScreen(cancelScreen);
 });
 
 socket.on("game_finished", (data) => {
@@ -679,6 +752,21 @@ function renderQuestionResult(data) {
 // --------------------------------------------------
 // Trivia de amigos
 // --------------------------------------------------
+
+function renderFriendTriviaIntro(game) {
+  currentGame = game;
+  isLeader = game.leaderId === socket.id;
+
+  if (isLeader) {
+    startFriendTriviaBtn.classList.remove("hidden");
+    friendIntroWaitingText.classList.add("hidden");
+  } else {
+    startFriendTriviaBtn.classList.add("hidden");
+    friendIntroWaitingText.classList.remove("hidden");
+  }
+
+  showScreen(friendIntroScreen);
+}
 
 function renderFriendQuestion(question) {
   clearInterval(timerInterval);
