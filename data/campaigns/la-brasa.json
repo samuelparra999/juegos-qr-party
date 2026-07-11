@@ -1,0 +1,154 @@
+{
+    "slug": "la-brasa",
+    "name": "La Brasa Play",
+    "brandName": "Restaurante La Brasa",
+    "welcomeText": "Juega mientras llega tu pedido y compite con tu mesa.",
+    "visual": {
+        "logoUrl": "",
+        "primaryColor": "#ff4d2e",
+        "secondaryColor": "#fff3df",
+        "tertiaryColor": "#ffcc4d",
+        "textColor": "#ffffff",
+        "mutedTextColor": "#ffe2c2",
+        "cardBackground": "rgba(60, 18, 8, 0.72)",
+        "backgroundType": "gradient",
+        "backgroundColor": "#2a0904",
+        "backgroundImageUrl": "",
+        "backgroundGradient": "radial-gradient(circle at top, #7a1f0d, #2a0904 60%, #100302)"
+    },
+    "games": {
+        "defaultSelected": [
+            "knowledge",
+            "friend",
+            "heads"
+        ],
+        "available": {
+            "knowledge": true,
+            "friend": true,
+            "heads": true,
+            "word": false,
+            "poker": true
+        }
+    },
+    "knowledgeTrivia": {
+        "themes": [
+            {
+                "id": "menu",
+                "name": "Menú"
+            },
+            {
+                "id": "comida",
+                "name": "Comida"
+            },
+            {
+                "id": "picante",
+                "name": "Picante"
+            }
+        ],
+        "questions": [
+            {
+                "theme": "menu",
+                "question": "¿Cuál de estos acompañamientos suele ir mejor con una hamburguesa?",
+                "options": [
+                    "Helado",
+                    "Papas",
+                    "Cereal",
+                    "Gelatina"
+                ],
+                "correctIndex": 1
+            },
+            {
+                "theme": "comida",
+                "question": "¿Qué ingrediente se usa comúnmente para dar sabor ahumado?",
+                "options": [
+                    "Carbón o leña",
+                    "Azúcar",
+                    "Agua",
+                    "Lechuga"
+                ],
+                "correctIndex": 0
+            },
+            {
+                "theme": "picante",
+                "question": "¿Qué ingrediente suele asociarse con el picante?",
+                "options": [
+                    "Jalapeño",
+                    "Queso",
+                    "Pan",
+                    "Aguacate"
+                ],
+                "correctIndex": 0
+            }
+        ]
+    },
+    "friendTrivia": {
+        "questions": [
+            "¿Quién pediría la hamburguesa más grande?",
+            "¿Quién aguanta mejor el picante?",
+            "¿Quién sería el crítico gastronómico de la mesa?",
+            "¿Quién pediría papas para compartir y terminaría comiéndoselas todas?"
+        ]
+    },
+    "headsUp": {
+        "durationMs": 90000,
+        "words": [
+            {
+                "category": "Platos",
+                "word": "Hamburguesa"
+            },
+            {
+                "category": "Platos",
+                "word": "Costillas"
+            },
+            {
+                "category": "Ingredientes",
+                "word": "Tocineta"
+            },
+            {
+                "category": "Ingredientes",
+                "word": "Jalapeño"
+            },
+            {
+                "category": "Bebidas",
+                "word": "Malteada"
+            }
+        ]
+    },
+    "wordConnect": {
+        "durationMs": 60000,
+        "puzzles": [
+            {
+                "letters": [
+                    "B",
+                    "R",
+                    "A",
+                    "S",
+                    "A",
+                    "S"
+                ],
+                "validWords": [
+                    "ASA",
+                    "ASAR",
+                    "BRASA",
+                    "RAS",
+                    "SARA",
+                    "BASA"
+                ]
+            }
+        ]
+    },
+    "poker": {
+        "initialChips": 5000,
+        "defaultSmallBlind": 50,
+        "smallBlind": 50,
+        "bigBlind": 100,
+        "defaultRounds": 3,
+        "totalRounds": 3,
+        "minRounds": 1,
+        "maxRounds": 10,
+        "minSmallBlind": 10,
+        "maxSmallBlind": 1000,
+        "actionTimeoutMs": 30000
+    }
+    
+}

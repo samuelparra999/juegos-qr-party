@@ -1,0 +1,171 @@
+{
+    "slug": "demo",
+    "name": "Juegos QR Party",
+    "brandName": "SimetríaPlay Demo",
+    "welcomeText": "Crea una partida, comparte el QR y juega con tu grupo.",
+    "visual": {
+        "logoUrl": "",
+        "primaryColor": "#74ff7a",
+        "secondaryColor": "#ffffff",
+        "tertiaryColor": "#ffd45c",
+        "textColor": "#ffffff",
+        "mutedTextColor": "#d8def8",
+        "cardBackground": "rgba(255, 255, 255, 0.1)",
+        "backgroundType": "gradient",
+        "backgroundColor": "#101322",
+        "backgroundImageUrl": "",
+        "backgroundGradient": "radial-gradient(circle at top, #243b70, #101322 55%, #070911)"
+    },
+    "games": {
+        "defaultSelected": [
+            "knowledge",
+            "heads",
+            "word"
+        ],
+        "available": {
+            "knowledge": true,
+            "friend": true,
+            "heads": true,
+            "word": true,
+            "poker": true
+        }
+    },
+    "knowledgeTrivia": {
+        "themes": [
+            {
+                "id": "deportes",
+                "name": "Deportes"
+            },
+            {
+                "id": "historia",
+                "name": "Historia"
+            },
+            {
+                "id": "cine",
+                "name": "Cine"
+            },
+            {
+                "id": "ciencia",
+                "name": "Ciencia"
+            }
+        ],
+        "questions": [
+            {
+                "theme": "deportes",
+                "question": "¿Cuántos jugadores tiene un equipo de fútbol en la cancha?",
+                "options": [
+                    "9",
+                    "10",
+                    "11",
+                    "12"
+                ],
+                "correctIndex": 2
+            },
+            {
+                "theme": "historia",
+                "question": "¿En qué año llegó Cristóbal Colón a América?",
+                "options": [
+                    "1492",
+                    "1500",
+                    "1453",
+                    "1519"
+                ],
+                "correctIndex": 0
+            },
+            {
+                "theme": "cine",
+                "question": "¿Qué objeto usa un director para iniciar una toma?",
+                "options": [
+                    "Micrófono",
+                    "Claqueta",
+                    "Guion",
+                    "Reflector"
+                ],
+                "correctIndex": 1
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿Cuál es el planeta rojo?",
+                "options": [
+                    "Venus",
+                    "Marte",
+                    "Júpiter",
+                    "Saturno"
+                ],
+                "correctIndex": 1
+            }
+        ]
+    },
+    "friendTrivia": {
+        "questions": [
+            "¿Quién de la mesa pediría postre aunque diga que está lleno?",
+            "¿Quién sería mejor chef?",
+            "¿Quién se demora más escogiendo qué pedir?",
+            "¿Quién probaría el plato más raro del menú?"
+        ]
+    },
+    "headsUp": {
+        "durationMs": 90000,
+        "words": [
+            {
+                "category": "Comida",
+                "word": "Pizza"
+            },
+            {
+                "category": "Comida",
+                "word": "Hamburguesa"
+            },
+            {
+                "category": "Comida",
+                "word": "Sushi"
+            },
+            {
+                "category": "Bebidas",
+                "word": "Limonada"
+            },
+            {
+                "category": "Bebidas",
+                "word": "Café"
+            }
+        ]
+    },
+    "wordConnect": {
+        "durationMs": 60000,
+        "puzzles": [
+            {
+                "letters": [
+                    "M",
+                    "A",
+                    "P",
+                    "A",
+                    "S",
+                    "T"
+                ],
+                "validWords": [
+                    "MAS",
+                    "MAPA",
+                    "PASA",
+                    "TAPA",
+                    "TAPAS",
+                    "PASTA",
+                    "ASPAS",
+                    "MATA",
+                    "PATA"
+                ]
+            }
+        ]
+    },
+    "poker": {
+        "initialChips": 5000,
+        "defaultSmallBlind": 50,
+        "smallBlind": 50,
+        "bigBlind": 100,
+        "defaultRounds": 3,
+        "totalRounds": 3,
+        "minRounds": 1,
+        "maxRounds": 10,
+        "minSmallBlind": 10,
+        "maxSmallBlind": 1000,
+        "actionTimeoutMs": 30000
+    }
+}

@@ -1,5 +1,6 @@
 const express = require("express");
 const http = require("http");
+const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const QRCode = require("qrcode");
@@ -13,9 +14,21 @@ const PORT = process.env.PORT || 3000;
 
 const games = new Map();
 
-const GAME_ORDER = ["knowledge", "friend", "heads", "word"];
+const GAME_ORDER = ["knowledge", "friend", "heads", "word", "poker"];
 
 const DEFAULT_SELECTED_GAMES = ["knowledge", "heads", "word"];
+
+const DEFAULT_POKER_SETTINGS = {
+  initialChips: 5000,
+  smallBlind: 50,
+  bigBlind: 100,
+  totalRounds: 3,
+  minRounds: 1,
+  maxRounds: 10,
+  minSmallBlind: 10,
+  maxSmallBlind: 1000,
+  actionTimeoutMs: 30000
+};
 
 const THEMES = [
   { id: "deportes", name: "Deportes" },
@@ -141,6 +154,161 @@ const wordConnectPuzzles = [
   }
 ];
 
+const DEFAULT_CAMPAIGN_SLUG = "demo";
+const campaignsCache = new Map();
+
+function cleanSlug(value) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+function getCampaignPath(slug) {
+  return path.join(__dirname, "data", "campaigns", `${slug}.json`);
+}
+
+function loadCampaign(slug = DEFAULT_CAMPAIGN_SLUG) {
+  const cleanCampaignSlug = cleanSlug(slug) || DEFAULT_CAMPAIGN_SLUG;
+
+  if (campaignsCache.has(cleanCampaignSlug)) {
+    return campaignsCache.get(cleanCampaignSlug);
+  }
+
+  const campaignPath = getCampaignPath(cleanCampaignSlug);
+
+  if (!fs.existsSync(campaignPath)) {
+    if (cleanCampaignSlug !== DEFAULT_CAMPAIGN_SLUG) {
+      return loadCampaign(DEFAULT_CAMPAIGN_SLUG);
+    }
+
+    throw new Error(`No existe la campaña: ${cleanCampaignSlug}`);
+  }
+
+  const rawCampaign = fs.readFileSync(campaignPath, "utf8");
+  const campaign = JSON.parse(rawCampaign);
+
+  campaignsCache.set(cleanCampaignSlug, campaign);
+
+  return campaign;
+}
+
+function getPublicCampaign(campaign) {
+  return {
+    slug: campaign.slug,
+    name: campaign.name,
+    brandName: campaign.brandName,
+    welcomeText: campaign.welcomeText,
+    visual: campaign.visual,
+    games: campaign.games,
+    knowledgeTrivia: {
+      themes: campaign.knowledgeTrivia?.themes || []
+    }
+  };
+}
+
+function getCampaignThemes(game) {
+  return game.campaign?.knowledgeTrivia?.themes || THEMES;
+}
+
+function getCampaignKnowledgeQuestions(game, themeId) {
+  const campaignQuestions = game.campaign?.knowledgeTrivia?.questions;
+
+  if (Array.isArray(campaignQuestions)) {
+    return campaignQuestions.filter((question) => question.theme === themeId);
+  }
+
+  const fallbackQuestions = triviaQuestions[themeId] || [];
+
+  return fallbackQuestions.map((question) => ({
+    ...question,
+    theme: themeId
+  }));
+}
+
+function getCampaignFriendQuestions(game) {
+  const questions = game.campaign?.friendTrivia?.questions;
+
+  if (Array.isArray(questions) && questions.length) {
+    return questions;
+  }
+
+  return friendQuestions;
+}
+
+function getCampaignHeadsUpWords(game) {
+  const words = game.campaign?.headsUp?.words;
+
+  if (Array.isArray(words) && words.length) {
+    return words;
+  }
+
+  return headsUpWords;
+}
+
+function getCampaignHeadsUpDuration(game) {
+  return game.campaign?.headsUp?.durationMs || 90000;
+}
+
+function getCampaignWordConnectPuzzles(game) {
+  const puzzles = game.campaign?.wordConnect?.puzzles;
+
+  if (Array.isArray(puzzles) && puzzles.length) {
+    return puzzles;
+  }
+
+  return wordConnectPuzzles;
+}
+
+function getCampaignWordConnectDuration(game) {
+  return game.campaign?.wordConnect?.durationMs || 60000;
+}
+
+function getCampaignPokerSettings(game) {
+  const campaignPoker = game.campaign?.poker || {};
+
+  return {
+    ...DEFAULT_POKER_SETTINGS,
+    ...campaignPoker
+  };
+}
+
+function sanitizePokerSettings(rawSettings, game) {
+  const defaults = getCampaignPokerSettings(game);
+
+  const smallBlind = Number(rawSettings?.smallBlind ?? defaults.smallBlind);
+  const totalRounds = Number(rawSettings?.totalRounds ?? defaults.totalRounds);
+
+  const safeSmallBlind = Math.max(
+    defaults.minSmallBlind,
+    Math.min(defaults.maxSmallBlind, smallBlind)
+  );
+
+  const safeTotalRounds = Math.max(
+    defaults.minRounds,
+    Math.min(defaults.maxRounds, totalRounds)
+  );
+
+  return {
+    initialChips: defaults.initialChips,
+    smallBlind: safeSmallBlind,
+    bigBlind: safeSmallBlind * 2,
+    totalRounds: safeTotalRounds,
+    minRounds: defaults.minRounds,
+    maxRounds: defaults.maxRounds,
+    minSmallBlind: defaults.minSmallBlind,
+    maxSmallBlind: defaults.maxSmallBlind,
+    actionTimeoutMs: defaults.actionTimeoutMs
+  };
+}
+
+function getThemeNameFromCampaign(game, themeId) {
+  const themes = getCampaignThemes(game);
+  const theme = themes.find((item) => item.id === themeId);
+
+  return theme ? theme.name : themeId;
+}
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
@@ -149,6 +317,31 @@ app.get("/", (req, res) => {
 
 app.get("/juegos", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("/jugar/:campaignSlug", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("/juegos/:campaignSlug", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("/api/campaign/:campaignSlug", (req, res) => {
+  try {
+    const campaignSlug = cleanSlug(req.params.campaignSlug);
+    const campaign = loadCampaign(campaignSlug);
+
+    res.json({
+      ok: true,
+      campaign: getPublicCampaign(campaign)
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      message: "No se pudo cargar la campaña."
+    });
+  }
 });
 
 app.get("/qr", async (req, res) => {
@@ -182,11 +375,22 @@ app.get("/qr/:pin", async (req, res) => {
       });
     }
 
+    const game = games.get(pin);
+
+    if (!game) {
+      return res.status(404).json({
+        ok: false,
+        message: "No se encontró la partida."
+      });
+    }
+
+    const campaignSlug = game.campaignSlug || DEFAULT_CAMPAIGN_SLUG;
+
     const baseUrl =
       process.env.PUBLIC_URL ||
       `${req.protocol}://${req.get("host")}`;
 
-    const url = `${baseUrl}/juegos?pin=${pin}`;
+    const url = `${baseUrl}/juegos/${campaignSlug}?pin=${pin}`;
     const qr = await QRCode.toDataURL(url);
 
     res.json({
@@ -232,8 +436,9 @@ function getThemeName(themeId) {
 
 function getThemeVoteCounts(game) {
   const counts = {};
+  const themes = getCampaignThemes(game);
 
-  THEMES.forEach((theme) => {
+  themes.forEach((theme) => {
     counts[theme.id] = 0;
   });
 
@@ -249,11 +454,13 @@ function getThemeVoteCounts(game) {
 }
 
 function chooseWinningTheme(game) {
+  const themes = getCampaignThemes(game);
   const counts = getThemeVoteCounts(game);
-  let winner = THEMES[0].id;
+
+  let winner = themes[0]?.id;
   let highestVotes = -1;
 
-  THEMES.forEach((theme) => {
+  themes.forEach((theme) => {
     if (counts[theme.id] > highestVotes) {
       winner = theme.id;
       highestVotes = counts[theme.id];
@@ -263,13 +470,22 @@ function chooseWinningTheme(game) {
   return winner;
 }
 
-function sanitizeSelectedGames(selectedGames, playerCount) {
+function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
   const receivedGames = Array.isArray(selectedGames)
     ? selectedGames
     : DEFAULT_SELECTED_GAMES;
 
+  const available = campaign?.games?.available || {
+    knowledge: true,
+    friend: true,
+    heads: true,
+    word: true,
+    poker: true
+  };
+
   const allowedGames = receivedGames.filter((gameId) => {
     if (!GAME_ORDER.includes(gameId)) return false;
+    if (!available[gameId]) return false;
 
     if (gameId === "friend" && playerCount < 3) {
       return false;
@@ -278,9 +494,7 @@ function sanitizeSelectedGames(selectedGames, playerCount) {
     return true;
   });
 
-  const orderedGames = GAME_ORDER.filter((gameId) => allowedGames.includes(gameId));
-
-  return orderedGames;
+  return GAME_ORDER.filter((gameId) => allowedGames.includes(gameId));
 }
 
 function startNextSelectedGame(pin) {
@@ -288,7 +502,7 @@ function startNextSelectedGame(pin) {
 
   if (!game) return;
 
-  game.selectedGames = sanitizeSelectedGames(game.selectedGames, game.players.length);
+  game.selectedGames = sanitizeSelectedGames(game.selectedGames, game.players.length, game.campaign);
 
   if (!game.selectedGames.length) {
     finishFinalGame(pin);
@@ -335,6 +549,11 @@ function startNextSelectedGame(pin) {
       return;
     }
 
+    if (nextGame === "poker") {
+      startPokerIntro(pin);
+      return;
+    }
+
     game.currentGameIndex++;
   }
 
@@ -349,9 +568,11 @@ function startKnowledgeThemeVote(pin) {
   game.status = "theme_vote";
   game.themeVotes = {};
 
+  const themes = getCampaignThemes(game);
+
   io.to(pin).emit("theme_vote_started", {
     game: publicGame(game),
-    themes: THEMES,
+    themes,
     votes: getThemeVoteCounts(game)
   });
 }
@@ -364,6 +585,8 @@ function publicGame(game) {
     selectedTheme: game.selectedTheme,
     selectedGames: game.selectedGames || DEFAULT_SELECTED_GAMES,
     currentGameIndex: game.currentGameIndex,
+    campaignSlug: game.campaignSlug,
+    campaign: getPublicCampaign(game.campaign),
     players: game.players.map((player) => ({
       id: player.id,
       name: player.name,
@@ -385,7 +608,7 @@ function getRanking(game) {
 
 function publicQuestion(game) {
   const theme = game.selectedTheme;
-  const questions = triviaQuestions[theme];
+  const questions = game.trivia.questions || [];
   const index = game.trivia.currentQuestionIndex;
   const question = questions[index];
 
@@ -394,7 +617,7 @@ function publicQuestion(game) {
     number: index + 1,
     total: questions.length,
     theme,
-    themeName: getThemeName(theme),
+    themeName: getThemeNameFromCampaign(game, theme),
     question: question.question,
     options: question.options.map((text, optionIndex) => ({
       index: optionIndex,
@@ -424,10 +647,27 @@ function startTrivia(pin) {
   if (game.status !== "theme_vote") return;
 
   const winningTheme = chooseWinningTheme(game);
+  const questions = getCampaignKnowledgeQuestions(game, winningTheme);
+
+  if (!questions.length) {
+    game.status = "knowledge_finished";
+
+    io.to(pin).emit("knowledge_trivia_finished", {
+      game: publicGame(game),
+      ranking: getRanking(game)
+    });
+
+    setTimeout(() => {
+      startNextSelectedGame(pin);
+    }, 1000);
+
+    return;
+  }
 
   game.status = "trivia";
   game.selectedTheme = winningTheme;
   game.trivia = {
+    questions,
     currentQuestionIndex: -1,
     answers: {},
     questionOpen: false,
@@ -440,7 +680,7 @@ function startTrivia(pin) {
 
   io.to(pin).emit("theme_chosen", {
     theme: winningTheme,
-    themeName: getThemeName(winningTheme),
+    themeName: getThemeNameFromCampaign(game, winningTheme),
     game: publicGame(game)
   });
 
@@ -454,7 +694,7 @@ function nextQuestion(pin) {
 
   if (!game || game.status !== "trivia") return;
 
-  const questions = triviaQuestions[game.selectedTheme];
+  const questions = game.trivia.questions || [];
 
   game.trivia.currentQuestionIndex++;
 
@@ -491,7 +731,7 @@ function finishQuestion(pin) {
     game.trivia.questionTimer = null;
   }
 
-  const questions = triviaQuestions[game.selectedTheme];
+  const questions = game.trivia.questions || [];
   const question = questions[game.trivia.currentQuestionIndex];
 
   const answers = game.players.map((player) => {
@@ -541,13 +781,14 @@ function endTrivia(pin) {
 }
 
 function publicFriendQuestion(game) {
+  const questions = game.friend.questions || [];
   const index = game.friend.currentQuestionIndex;
-  const question = friendQuestions[index];
+  const question = questions[index];
 
   return {
     index,
     number: index + 1,
-    total: friendQuestions.length,
+    total: questions.length,
     question,
     durationMs: game.friend.durationMs,
     endAt: game.friend.endAt,
@@ -592,8 +833,21 @@ function startFriendTrivia(pin) {
 
   if (!game) return;
 
+  const questions = shuffleArray(getCampaignFriendQuestions(game));
+
+  if (!questions.length) {
+    game.status = "friend_finished";
+
+    setTimeout(() => {
+      startNextSelectedGame(pin);
+    }, 1000);
+
+    return;
+  }
+
   game.status = "friend_trivia";
   game.friend = {
+    questions,
     currentQuestionIndex: -1,
     votes: {},
     questionOpen: false,
@@ -617,9 +871,11 @@ function nextFriendQuestion(pin) {
 
   if (!game || game.status !== "friend_trivia") return;
 
+  const questions = game.friend.questions || [];
+
   game.friend.currentQuestionIndex++;
 
-  if (game.friend.currentQuestionIndex >= friendQuestions.length) {
+  if (game.friend.currentQuestionIndex >= questions.length) {
     game.status = "friend_finished";
 
     setTimeout(() => {
@@ -709,7 +965,7 @@ function finishFriendQuestion(pin) {
 
   io.to(pin).emit("friend_question_result", {
     game: publicGame(game),
-    question: friendQuestions[game.friend.currentQuestionIndex],
+    question: game.friend.questions[game.friend.currentQuestionIndex],
     winnerNames,
     answers,
     ranking: getRanking(game)
@@ -748,6 +1004,1181 @@ function shuffleArray(array) {
   }
 
   return copy;
+}
+
+const POKER_SUITS = [
+  { id: "S", symbol: "♠", color: "black" },
+  { id: "H", symbol: "♥", color: "red" },
+  { id: "D", symbol: "♦", color: "red" },
+  { id: "C", symbol: "♣", color: "black" }
+];
+
+const POKER_RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+
+const POKER_RANK_VALUES = {
+  "2": 2,
+  "3": 3,
+  "4": 4,
+  "5": 5,
+  "6": 6,
+  "7": 7,
+  "8": 8,
+  "9": 9,
+  "10": 10,
+  J: 11,
+  Q: 12,
+  K: 13,
+  A: 14
+};
+
+const POKER_HAND_RANKINGS = [
+  {
+    position: 1,
+    name: "Carta alta",
+    description: "Cuando no hay combinación, gana la carta más alta.",
+    cards: [
+      { rank: "K", suit: "H", symbol: "♥", color: "red" },
+      { rank: "J", suit: "S", symbol: "♠", color: "black" },
+      { rank: "10", suit: "C", symbol: "♣", color: "black" },
+      { rank: "6", suit: "H", symbol: "♥", color: "red" },
+      { rank: "3", suit: "D", symbol: "♦", color: "red" }
+    ]
+  },
+  {
+    position: 2,
+    name: "Pareja",
+    description: "Dos cartas del mismo valor.",
+    cards: [
+      { rank: "A", suit: "H", symbol: "♥", color: "red" },
+      { rank: "A", suit: "C", symbol: "♣", color: "black" },
+      { rank: "2", suit: "D", symbol: "♦", color: "red" },
+      { rank: "6", suit: "H", symbol: "♥", color: "red" },
+      { rank: "8", suit: "S", symbol: "♠", color: "black" }
+    ]
+  },
+  {
+    position: 3,
+    name: "Doble pareja",
+    description: "Dos parejas distintas.",
+    cards: [
+      { rank: "6", suit: "S", symbol: "♠", color: "black" },
+      { rank: "6", suit: "C", symbol: "♣", color: "black" },
+      { rank: "10", suit: "C", symbol: "♣", color: "black" },
+      { rank: "10", suit: "D", symbol: "♦", color: "red" },
+      { rank: "K", suit: "D", symbol: "♦", color: "red" }
+    ]
+  },
+  {
+    position: 4,
+    name: "Trío",
+    description: "Tres cartas del mismo valor.",
+    cards: [
+      { rank: "J", suit: "D", symbol: "♦", color: "red" },
+      { rank: "J", suit: "C", symbol: "♣", color: "black" },
+      { rank: "J", suit: "H", symbol: "♥", color: "red" },
+      { rank: "5", suit: "C", symbol: "♣", color: "black" },
+      { rank: "8", suit: "D", symbol: "♦", color: "red" }
+    ]
+  },
+  {
+    position: 5,
+    name: "Escalera",
+    description: "Cinco cartas consecutivas de palos distintos.",
+    cards: [
+      { rank: "2", suit: "D", symbol: "♦", color: "red" },
+      { rank: "3", suit: "C", symbol: "♣", color: "black" },
+      { rank: "4", suit: "S", symbol: "♠", color: "black" },
+      { rank: "5", suit: "D", symbol: "♦", color: "red" },
+      { rank: "6", suit: "C", symbol: "♣", color: "black" }
+    ]
+  },
+  {
+    position: 6,
+    name: "Color",
+    description: "Cinco cartas del mismo palo, no consecutivas.",
+    cards: [
+      { rank: "Q", suit: "C", symbol: "♣", color: "black" },
+      { rank: "8", suit: "C", symbol: "♣", color: "black" },
+      { rank: "6", suit: "C", symbol: "♣", color: "black" },
+      { rank: "4", suit: "C", symbol: "♣", color: "black" },
+      { rank: "3", suit: "C", symbol: "♣", color: "black" }
+    ]
+  },
+  {
+    position: 7,
+    name: "Full house",
+    description: "Un trío y una pareja.",
+    cards: [
+      { rank: "K", suit: "C", symbol: "♣", color: "black" },
+      { rank: "K", suit: "H", symbol: "♥", color: "red" },
+      { rank: "K", suit: "S", symbol: "♠", color: "black" },
+      { rank: "10", suit: "C", symbol: "♣", color: "black" },
+      { rank: "10", suit: "S", symbol: "♠", color: "black" }
+    ]
+  },
+  {
+    position: 8,
+    name: "Póker",
+    description: "Cuatro cartas del mismo valor.",
+    cards: [
+      { rank: "A", suit: "D", symbol: "♦", color: "red" },
+      { rank: "A", suit: "C", symbol: "♣", color: "black" },
+      { rank: "A", suit: "H", symbol: "♥", color: "red" },
+      { rank: "A", suit: "S", symbol: "♠", color: "black" },
+      { rank: "8", suit: "C", symbol: "♣", color: "black" }
+    ]
+  },
+  {
+    position: 9,
+    name: "Escalera de color",
+    description: "Cinco cartas consecutivas del mismo palo.",
+    cards: [
+      { rank: "5", suit: "C", symbol: "♣", color: "black" },
+      { rank: "6", suit: "C", symbol: "♣", color: "black" },
+      { rank: "7", suit: "C", symbol: "♣", color: "black" },
+      { rank: "8", suit: "C", symbol: "♣", color: "black" },
+      { rank: "9", suit: "C", symbol: "♣", color: "black" }
+    ]
+  },
+  {
+    position: 10,
+    name: "Escalera real",
+    description: "10, J, Q, K y A del mismo palo.",
+    cards: [
+      { rank: "10", suit: "S", symbol: "♠", color: "black" },
+      { rank: "J", suit: "S", symbol: "♠", color: "black" },
+      { rank: "Q", suit: "S", symbol: "♠", color: "black" },
+      { rank: "K", suit: "S", symbol: "♠", color: "black" },
+      { rank: "A", suit: "S", symbol: "♠", color: "black" }
+    ]
+  }
+];
+
+function createPokerDeck() {
+  const deck = [];
+
+  POKER_SUITS.forEach((suit) => {
+    POKER_RANKS.forEach((rank) => {
+      deck.push({
+        rank,
+        suit: suit.id,
+        symbol: suit.symbol,
+        color: suit.color
+      });
+    });
+  });
+
+  return shuffleArray(deck);
+}
+
+function drawPokerCard(game) {
+  if (!game.poker || !Array.isArray(game.poker.deck)) return null;
+  return game.poker.deck.pop() || null;
+}
+
+function getPokerStageLabel(stage) {
+  const labels = {
+    preflop: "Preflop",
+    flop: "Flop",
+    turn: "Turn",
+    river: "River",
+    showdown: "Showdown",
+    hand_finished: "Mano terminada"
+  };
+
+  return labels[stage] || stage;
+}
+
+function getNextPokerRevealLabel(stage) {
+  return "Las fases avanzan automáticamente";
+}
+
+function getPokerPlayer(game, playerId) {
+  return game.poker.players.find((player) => player.id === playerId);
+}
+
+function getPokerSeatIndexes(playerCount, dealerIndex) {
+  if (playerCount === 2) {
+    return {
+      dealerIndex,
+      smallBlindIndex: dealerIndex,
+      bigBlindIndex: (dealerIndex + 1) % playerCount
+    };
+  }
+
+  return {
+    dealerIndex,
+    smallBlindIndex: (dealerIndex + 1) % playerCount,
+    bigBlindIndex: (dealerIndex + 2) % playerCount
+  };
+}
+
+function postPokerBlind(game, playerIndex, amount) {
+  const player = game.poker.players[playerIndex];
+
+  if (!player) return;
+
+  const posted = Math.min(player.chips, amount);
+
+  player.chips -= posted;
+  player.committed += posted;
+  player.streetBet += posted;
+
+  if (player.chips <= 0) {
+    player.allIn = true;
+  }
+
+  game.poker.pot += posted;
+}
+
+function getPokerRankValue(card) {
+  return POKER_RANK_VALUES[card.rank] || 0;
+}
+
+function formatPokerRankValue(value) {
+  const labels = {
+    14: "A",
+    13: "K",
+    12: "Q",
+    11: "J"
+  };
+
+  return labels[value] || String(value);
+}
+
+function getCombinations(items, size) {
+  const results = [];
+
+  function backtrack(startIndex, current) {
+    if (current.length === size) {
+      results.push([...current]);
+      return;
+    }
+
+    for (let i = startIndex; i < items.length; i++) {
+      current.push(items[i]);
+      backtrack(i + 1, current);
+      current.pop();
+    }
+  }
+
+  backtrack(0, []);
+
+  return results;
+}
+
+function getStraightHighFromRanks(rankValues) {
+  const uniqueRanks = [...new Set(rankValues)].sort((a, b) => a - b);
+
+  if (uniqueRanks.includes(14)) {
+    uniqueRanks.unshift(1);
+  }
+
+  let runLength = 1;
+  let bestHigh = 0;
+
+  for (let i = 1; i < uniqueRanks.length; i++) {
+    if (uniqueRanks[i] === uniqueRanks[i - 1] + 1) {
+      runLength++;
+
+      if (runLength >= 5) {
+        bestHigh = uniqueRanks[i];
+      }
+    } else if (uniqueRanks[i] !== uniqueRanks[i - 1]) {
+      runLength = 1;
+    }
+  }
+
+  return bestHigh;
+}
+
+function getPokerHandName(category, values) {
+  if (category === 8 && values[0] === 14) return "Escalera real";
+  if (category === 8) return "Escalera de color";
+  if (category === 7) return "Póker";
+  if (category === 6) return "Full house";
+  if (category === 5) return "Color";
+  if (category === 4) return "Escalera";
+  if (category === 3) return "Trío";
+  if (category === 2) return "Doble pareja";
+  if (category === 1) return "Pareja";
+  return "Carta alta";
+}
+
+function evaluateFivePokerCards(cards) {
+  const rankValues = cards
+    .map(getPokerRankValue)
+    .sort((a, b) => b - a);
+
+  const isFlush = cards.every((card) => card.suit === cards[0].suit);
+  const straightHigh = getStraightHighFromRanks(rankValues);
+
+  const countByRank = {};
+
+  rankValues.forEach((rank) => {
+    countByRank[rank] = (countByRank[rank] || 0) + 1;
+  });
+
+  const groups = Object.entries(countByRank)
+    .map(([rank, count]) => ({
+      rank: Number(rank),
+      count
+    }))
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.rank - a.rank;
+    });
+
+  if (isFlush && straightHigh) {
+    const category = 8;
+
+    return {
+      category,
+      values: [straightHigh],
+      cards,
+      name: getPokerHandName(category, [straightHigh])
+    };
+  }
+
+  const four = groups.find((group) => group.count === 4);
+
+  if (four) {
+    const kicker = groups.find((group) => group.rank !== four.rank).rank;
+    const category = 7;
+
+    return {
+      category,
+      values: [four.rank, kicker],
+      cards,
+      name: getPokerHandName(category, [four.rank, kicker])
+    };
+  }
+
+  const trips = groups.filter((group) => group.count === 3);
+  const pairs = groups.filter((group) => group.count === 2);
+
+  if (trips.length && (pairs.length || trips.length > 1)) {
+    const tripRank = trips[0].rank;
+    const pairRank = pairs.length ? pairs[0].rank : trips[1].rank;
+    const category = 6;
+
+    return {
+      category,
+      values: [tripRank, pairRank],
+      cards,
+      name: getPokerHandName(category, [tripRank, pairRank])
+    };
+  }
+
+  if (isFlush) {
+    const category = 5;
+
+    return {
+      category,
+      values: rankValues,
+      cards,
+      name: getPokerHandName(category, rankValues)
+    };
+  }
+
+  if (straightHigh) {
+    const category = 4;
+
+    return {
+      category,
+      values: [straightHigh],
+      cards,
+      name: getPokerHandName(category, [straightHigh])
+    };
+  }
+
+  if (trips.length) {
+    const tripRank = trips[0].rank;
+    const kickers = groups
+      .filter((group) => group.rank !== tripRank)
+      .map((group) => group.rank)
+      .sort((a, b) => b - a)
+      .slice(0, 2);
+
+    const category = 3;
+
+    return {
+      category,
+      values: [tripRank, ...kickers],
+      cards,
+      name: getPokerHandName(category, [tripRank, ...kickers])
+    };
+  }
+
+  if (pairs.length >= 2) {
+    const highPair = pairs[0].rank;
+    const lowPair = pairs[1].rank;
+    const kicker = groups.find(
+      (group) => group.rank !== highPair && group.rank !== lowPair
+    ).rank;
+
+    const category = 2;
+
+    return {
+      category,
+      values: [highPair, lowPair, kicker],
+      cards,
+      name: getPokerHandName(category, [highPair, lowPair, kicker])
+    };
+  }
+
+  if (pairs.length === 1) {
+    const pairRank = pairs[0].rank;
+    const kickers = groups
+      .filter((group) => group.rank !== pairRank)
+      .map((group) => group.rank)
+      .sort((a, b) => b - a)
+      .slice(0, 3);
+
+    const category = 1;
+
+    return {
+      category,
+      values: [pairRank, ...kickers],
+      cards,
+      name: getPokerHandName(category, [pairRank, ...kickers])
+    };
+  }
+
+  return {
+    category: 0,
+    values: rankValues,
+    cards,
+    name: getPokerHandName(0, rankValues)
+  };
+}
+
+function comparePokerHands(handA, handB) {
+  if (handA.category !== handB.category) {
+    return handA.category - handB.category;
+  }
+
+  const maxLength = Math.max(handA.values.length, handB.values.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const valueA = handA.values[i] || 0;
+    const valueB = handB.values[i] || 0;
+
+    if (valueA !== valueB) {
+      return valueA - valueB;
+    }
+  }
+
+  return 0;
+}
+
+function evaluateSevenPokerCards(cards) {
+  const validCards = cards.filter(Boolean);
+
+  if (validCards.length < 5) {
+    return null;
+  }
+
+  const combinations = getCombinations(validCards, 5);
+  let bestHand = null;
+
+  combinations.forEach((combination) => {
+    const evaluatedHand = evaluateFivePokerCards(combination);
+
+    if (!bestHand || comparePokerHands(evaluatedHand, bestHand) > 0) {
+      bestHand = evaluatedHand;
+    }
+  });
+
+  if (!bestHand) return null;
+
+  return {
+    ...bestHand,
+    description: `${bestHand.name} con ${bestHand.values
+      .map(formatPokerRankValue)
+      .join(", ")}`
+  };
+}
+
+function canPokerPlayerAct(player) {
+  return Boolean(
+    player &&
+    !player.isOut &&
+    !player.folded &&
+    !player.allIn &&
+    player.chips > 0
+  );
+}
+
+function getPokerPlayersStillInHand(game) {
+  return game.poker.players.filter((player) => !player.isOut && !player.folded);
+}
+
+function getPokerActivePlayerIndexes(game) {
+  return game.poker.players
+    .map((player, index) => ({ player, index }))
+    .filter(({ player }) => !player.isOut && player.chips > 0)
+    .map(({ index }) => index);
+}
+
+function getNextPokerActiveIndex(game, fromIndex) {
+  const players = game.poker.players;
+
+  for (let step = 1; step <= players.length; step++) {
+    const index = (fromIndex + step + players.length) % players.length;
+    const player = players[index];
+
+    if (player && !player.isOut && player.chips > 0) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function getPokerSeatIndexesForHand(game) {
+  const activeIndexes = getPokerActivePlayerIndexes(game);
+
+  if (activeIndexes.length < 2) {
+    return {
+      dealerIndex: -1,
+      smallBlindIndex: -1,
+      bigBlindIndex: -1
+    };
+  }
+
+  if (!activeIndexes.includes(game.poker.dealerIndex)) {
+    game.poker.dealerIndex = activeIndexes[0];
+  }
+
+  const dealerPosition = activeIndexes.indexOf(game.poker.dealerIndex);
+  const dealerIndex = activeIndexes[dealerPosition];
+
+  if (activeIndexes.length === 2) {
+    return {
+      dealerIndex,
+      smallBlindIndex: dealerIndex,
+      bigBlindIndex: activeIndexes[(dealerPosition + 1) % activeIndexes.length]
+    };
+  }
+
+  return {
+    dealerIndex,
+    smallBlindIndex: activeIndexes[(dealerPosition + 1) % activeIndexes.length],
+    bigBlindIndex: activeIndexes[(dealerPosition + 2) % activeIndexes.length]
+  };
+}
+
+function clearPokerActionTimer(game) {
+  if (!game || !game.poker) return;
+
+  if (game.poker.actionTimer) {
+    clearTimeout(game.poker.actionTimer);
+    game.poker.actionTimer = null;
+  }
+
+  game.poker.actionEndsAt = null;
+}
+
+function startPokerActionTimer(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "poker" || !game.poker) return;
+
+  clearPokerActionTimer(game);
+
+  const currentPlayer = getCurrentPokerPlayer(game);
+
+  if (!currentPlayer || !canPokerPlayerAct(currentPlayer)) return;
+
+  if (!["preflop", "flop", "turn", "river"].includes(game.poker.stage)) return;
+
+  const timeoutMs = game.poker.settings.actionTimeoutMs || 30000;
+
+  game.poker.actionEndsAt = Date.now() + timeoutMs;
+
+  game.poker.actionTimer = setTimeout(() => {
+    const latestGame = games.get(pin);
+
+    if (!latestGame || latestGame.status !== "poker" || !latestGame.poker) return;
+
+    const latestCurrentPlayer = getCurrentPokerPlayer(latestGame);
+
+    if (!latestCurrentPlayer || latestCurrentPlayer.id !== currentPlayer.id) return;
+
+    const actions = getPokerAvailableActions(latestGame, latestCurrentPlayer.id);
+
+    if (actions.check) {
+      handlePokerAction(pin, latestCurrentPlayer.id, "check");
+      return;
+    }
+
+    handlePokerAction(pin, latestCurrentPlayer.id, "fold");
+  }, timeoutMs);
+}
+
+function getPokerPlayersWhoCanAct(game) {
+  return game.poker.players.filter(canPokerPlayerAct);
+}
+
+function getCurrentPokerPlayer(game) {
+  if (typeof game.poker.currentPlayerIndex !== "number") return null;
+  return game.poker.players[game.poker.currentPlayerIndex] || null;
+}
+
+function getNextPokerPlayerIndex(game, fromIndex) {
+  const players = game.poker.players;
+
+  if (!players.length) return -1;
+
+  for (let step = 1; step <= players.length; step++) {
+    const index = (fromIndex + step + players.length) % players.length;
+    const player = players[index];
+
+    if (canPokerPlayerAct(player)) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function getFirstPokerPlayerToActIndex(game) {
+  const players = game.poker.players;
+
+  if (!players.length) return -1;
+
+  let startIndex;
+
+  if (game.poker.stage === "preflop") {
+    startIndex = game.poker.bigBlindIndex;
+  } else {
+    startIndex = game.poker.dealerIndex;
+  }
+
+  return getNextPokerPlayerIndex(game, startIndex);
+}
+
+function getPokerCallAmount(game, player) {
+  if (!player) return 0;
+
+  return Math.max(0, game.poker.currentBet - player.streetBet);
+}
+
+function getPokerAvailableActions(game, viewerId) {
+  const player = getPokerPlayer(game, viewerId);
+  const currentPlayer = getCurrentPokerPlayer(game);
+
+  const emptyActions = {
+    check: false,
+    call: false,
+    bet: false,
+    raise: false,
+    fold: false,
+    callAmount: 0,
+    minBet: game.poker?.settings?.bigBlind || 100,
+    minRaiseTo: 0,
+    maxBet: 0
+  };
+
+  if (!player || !currentPlayer || player.id !== currentPlayer.id) {
+    return emptyActions;
+  }
+
+  if (!["preflop", "flop", "turn", "river"].includes(game.poker.stage)) {
+    return emptyActions;
+  }
+
+  if (!canPokerPlayerAct(player)) {
+    return emptyActions;
+  }
+
+  const callAmount = getPokerCallAmount(game, player);
+  const maxBet = player.streetBet + player.chips;
+  const minBet = game.poker.settings.bigBlind;
+  const minRaiseTo = game.poker.currentBet + game.poker.minimumRaise;
+
+  return {
+    check: callAmount === 0,
+    call: callAmount > 0,
+    bet: game.poker.currentBet === 0,
+    raise: game.poker.currentBet > 0 && player.chips > callAmount,
+    fold: true,
+    callAmount,
+    minBet,
+    minRaiseTo,
+    maxBet
+  };
+}
+
+function applyPokerBet(game, player, amount) {
+  const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
+  const paid = Math.min(player.chips, safeAmount);
+
+  player.chips -= paid;
+  player.streetBet += paid;
+  player.committed += paid;
+  game.poker.pot += paid;
+
+  if (player.chips <= 0) {
+    player.allIn = true;
+  }
+
+  return paid;
+}
+
+function markOtherPokerPlayersAsPending(game, aggressorId) {
+  game.poker.players.forEach((player) => {
+    if (player.id === aggressorId) return;
+    if (player.folded || player.allIn) return;
+
+    player.hasActed = false;
+  });
+}
+
+function resetPokerStreetBets(game) {
+  game.poker.players.forEach((player) => {
+    player.streetBet = 0;
+    player.hasActed = false;
+  });
+
+  game.poker.currentBet = 0;
+  game.poker.minimumRaise = game.poker.settings.bigBlind;
+}
+
+function isPokerBettingRoundComplete(game) {
+  const playersWhoCanAct = getPokerPlayersWhoCanAct(game);
+
+  if (!playersWhoCanAct.length) {
+    return true;
+  }
+
+  return playersWhoCanAct.every((player) => {
+    return player.hasActed && player.streetBet === game.poker.currentBet;
+  });
+}
+
+function finishPokerHandByFold(pin) {
+  const game = games.get(pin);
+
+  if (!game || !game.poker) return;
+
+  clearPokerActionTimer(game);
+
+  const remainingPlayers = getPokerPlayersStillInHand(game);
+  const winner = remainingPlayers[0];
+
+  if (winner) {
+    winner.chips += game.poker.pot;
+  }
+
+  game.poker.message = winner
+    ? `${winner.name} gana la mano porque los demás se retiraron.`
+    : "La mano terminó.";
+
+  game.poker.pot = 0;
+  game.poker.stage = "hand_finished";
+  game.poker.currentPlayerIndex = null;
+  game.poker.currentBet = 0;
+  game.poker.minimumRaise = game.poker.settings.bigBlind;
+  game.poker.actionEndsAt = null;
+
+  emitPokerState(pin, game);
+}
+
+function buildPokerPots(game) {
+  const committedPlayers = game.poker.players.filter((player) => player.committed > 0);
+  const commitmentLevels = [...new Set(committedPlayers.map((player) => player.committed))]
+    .sort((a, b) => a - b);
+
+  const pots = [];
+  let previousLevel = 0;
+
+  commitmentLevels.forEach((level) => {
+    const contributors = committedPlayers.filter((player) => player.committed >= level);
+    const amount = (level - previousLevel) * contributors.length;
+    const eligiblePlayerIds = contributors
+      .filter((player) => !player.folded)
+      .map((player) => player.id);
+
+    if (amount > 0 && eligiblePlayerIds.length) {
+      pots.push({
+        amount,
+        eligiblePlayerIds
+      });
+    }
+
+    previousLevel = level;
+  });
+
+  return pots;
+}
+
+function finishPokerShowdown(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "poker" || !game.poker) return;
+
+  game.poker.stage = "showdown";
+  game.poker.showdown = true;
+  game.poker.currentPlayerIndex = null;
+
+  clearPokerActionTimer(game);
+
+  const activePlayers = game.poker.players.filter((player) => {
+    return !player.folded && player.hand && player.hand.length === 2;
+  });
+
+  activePlayers.forEach((player) => {
+    player.bestHand = evaluateSevenPokerCards([
+      ...player.hand,
+      ...game.poker.communityCards
+    ]);
+  });
+
+  const pots = buildPokerPots(game);
+  const payouts = {};
+  const potResults = [];
+
+  game.poker.players.forEach((player) => {
+    payouts[player.id] = 0;
+  });
+
+  pots.forEach((pot, potIndex) => {
+    const eligiblePlayers = pot.eligiblePlayerIds
+      .map((playerId) => getPokerPlayer(game, playerId))
+      .filter((player) => player && !player.folded && player.bestHand);
+
+    if (!eligiblePlayers.length) return;
+
+    let bestHand = eligiblePlayers[0].bestHand;
+
+    eligiblePlayers.forEach((player) => {
+      if (comparePokerHands(player.bestHand, bestHand) > 0) {
+        bestHand = player.bestHand;
+      }
+    });
+
+    const winners = eligiblePlayers.filter((player) => {
+      return comparePokerHands(player.bestHand, bestHand) === 0;
+    });
+
+    const sortedWinners = [...winners].sort((a, b) => a.seat - b.seat);
+    const baseShare = Math.floor(pot.amount / sortedWinners.length);
+    let remainder = pot.amount % sortedWinners.length;
+
+    sortedWinners.forEach((winner) => {
+      const extraChip = remainder > 0 ? 1 : 0;
+
+      winner.chips += baseShare + extraChip;
+      payouts[winner.id] += baseShare + extraChip;
+
+      if (remainder > 0) {
+        remainder--;
+      }
+    });
+
+    potResults.push({
+      potNumber: potIndex + 1,
+      amount: pot.amount,
+      winnerNames: sortedWinners.map((winner) => winner.name),
+      handName: bestHand.name,
+      description: bestHand.description,
+      share: baseShare
+    });
+  });
+
+  const winnersText = potResults
+    .map((result) => {
+      return `Bote ${result.potNumber}: ${result.winnerNames.join(", ")} gana con ${result.description}`;
+    })
+    .join(" | ");
+
+
+  game.poker.pot = 0;
+  game.poker.stage = "hand_finished";
+  game.poker.currentBet = 0;
+  game.poker.minimumRaise = game.poker.settings.bigBlind;
+  game.poker.showdownResults = potResults;
+  game.poker.payouts = payouts;
+  game.poker.message = winnersText || "Showdown terminado.";
+
+  emitPokerState(pin, game);
+}
+
+function startPokerBettingRound(pin, message) {
+  const game = games.get(pin);
+
+  if (!game || !game.poker) return;
+
+  clearPokerActionTimer(game);
+  resetPokerStreetBets(game);
+
+  game.poker.currentPlayerIndex = getFirstPokerPlayerToActIndex(game);
+  game.poker.message = message;
+
+  if (game.poker.currentPlayerIndex === -1) {
+    advancePokerAfterBettingRound(pin);
+    return;
+  }
+
+  startPokerActionTimer(pin);
+  emitPokerState(pin, game);
+}
+
+function advancePokerAfterBettingRound(pin) {
+  const game = games.get(pin);
+
+  if (!game || !game.poker) return;
+
+  clearPokerActionTimer(game);
+
+  if (getPokerPlayersStillInHand(game).length <= 1) {
+    finishPokerHandByFold(pin);
+    return;
+  }
+
+  if (game.poker.stage === "preflop") {
+    game.poker.communityCards.push(
+      drawPokerCard(game),
+      drawPokerCard(game),
+      drawPokerCard(game)
+    );
+
+    game.poker.stage = "flop";
+    startPokerBettingRound(pin, "Flop revelado. Nueva ronda de apuestas.");
+    return;
+  }
+
+  if (game.poker.stage === "flop") {
+    game.poker.communityCards.push(drawPokerCard(game));
+
+    game.poker.stage = "turn";
+    startPokerBettingRound(pin, "Turn revelado. Nueva ronda de apuestas.");
+    return;
+  }
+
+  if (game.poker.stage === "turn") {
+    game.poker.communityCards.push(drawPokerCard(game));
+
+    game.poker.stage = "river";
+    startPokerBettingRound(pin, "River revelado. Última ronda de apuestas.");
+    return;
+  }
+
+  if (game.poker.stage === "river") {
+    finishPokerShowdown(pin);
+  }
+}
+
+function movePokerTurnOrAdvance(pin) {
+  const game = games.get(pin);
+
+  if (!game || !game.poker) return;
+
+  clearPokerActionTimer(game);
+
+  if (getPokerPlayersStillInHand(game).length <= 1) {
+    finishPokerHandByFold(pin);
+    return;
+  }
+
+  if (isPokerBettingRoundComplete(game)) {
+    advancePokerAfterBettingRound(pin);
+    return;
+  }
+
+  game.poker.currentPlayerIndex = getNextPokerPlayerIndex(
+    game,
+    game.poker.currentPlayerIndex
+  );
+
+  const currentPlayer = getCurrentPokerPlayer(game);
+
+  game.poker.message = currentPlayer
+    ? `Turno de ${currentPlayer.name}.`
+    : "Esperando acción.";
+
+  if (currentPlayer) {
+    startPokerActionTimer(pin);
+  }
+
+  emitPokerState(pin, game);
+}
+
+function handlePokerAction(pin, socketId, action, rawAmount) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "poker" || !game.poker) {
+    return {
+      ok: false,
+      message: "Poker no está activo."
+    };
+  }
+
+  if (!["preflop", "flop", "turn", "river"].includes(game.poker.stage)) {
+    return {
+      ok: false,
+      message: "No hay una ronda de apuestas activa."
+    };
+  }
+
+  const player = getCurrentPokerPlayer(game);
+
+  if (!player || player.id !== socketId) {
+    return {
+      ok: false,
+      message: "Todavía no es tu turno."
+    };
+  }
+
+  const availableActions = getPokerAvailableActions(game, socketId);
+  const callAmount = getPokerCallAmount(game, player);
+
+  if (action === "fold") {
+    player.folded = true;
+    player.hasActed = true;
+
+    game.poker.message = `${player.name} se retiró.`;
+
+    movePokerTurnOrAdvance(pin);
+
+    return {
+      ok: true
+    };
+  }
+
+  if (action === "check") {
+    if (!availableActions.check) {
+      return {
+        ok: false,
+        message: "No puedes pasar porque hay una apuesta activa."
+      };
+    }
+
+    player.hasActed = true;
+    game.poker.message = `${player.name} pasó.`;
+
+    movePokerTurnOrAdvance(pin);
+
+    return {
+      ok: true
+    };
+  }
+
+  if (action === "call") {
+    if (!availableActions.call) {
+      return {
+        ok: false,
+        message: "No hay apuesta para igualar."
+      };
+    }
+
+    const paid = applyPokerBet(game, player, callAmount);
+
+    player.hasActed = true;
+    game.poker.message = `${player.name} igualó ${paid}.`;
+
+    movePokerTurnOrAdvance(pin);
+
+    return {
+      ok: true
+    };
+  }
+
+  if (action === "bet") {
+    if (!availableActions.bet) {
+      return {
+        ok: false,
+        message: "No puedes apostar porque ya hay una apuesta activa."
+      };
+    }
+
+    const targetBet = Math.floor(Number(rawAmount) || 0);
+    const maxBet = player.streetBet + player.chips;
+    const minBet = game.poker.settings.bigBlind;
+    const safeTargetBet = Math.min(targetBet, maxBet);
+    const isAllInUnderMinimum = safeTargetBet === maxBet && safeTargetBet > 0;
+
+    if (safeTargetBet < minBet && !isAllInUnderMinimum) {
+      return {
+        ok: false,
+        message: `La apuesta mínima es ${minBet}.`
+      };
+    }
+
+    const paid = applyPokerBet(game, player, safeTargetBet - player.streetBet);
+
+    game.poker.currentBet = player.streetBet;
+    game.poker.minimumRaise = Math.max(game.poker.settings.bigBlind, paid);
+    player.hasActed = true;
+
+    markOtherPokerPlayersAsPending(game, player.id);
+
+    game.poker.message = `${player.name} apostó ${player.streetBet}.`;
+
+    movePokerTurnOrAdvance(pin);
+
+    return {
+      ok: true
+    };
+  }
+
+  if (action === "raise") {
+    if (!availableActions.raise) {
+      return {
+        ok: false,
+        message: "No puedes subir en este momento."
+      };
+    }
+
+    const targetBet = Math.floor(Number(rawAmount) || 0);
+    const maxBet = player.streetBet + player.chips;
+    const minRaiseTo = game.poker.currentBet + game.poker.minimumRaise;
+    const safeTargetBet = Math.min(targetBet, maxBet);
+    const isAllInUnderMinimum = safeTargetBet === maxBet && safeTargetBet > game.poker.currentBet;
+
+    if (safeTargetBet <= game.poker.currentBet) {
+      return {
+        ok: false,
+        message: "La subida debe ser mayor que la apuesta actual."
+      };
+    }
+
+    if (safeTargetBet < minRaiseTo && !isAllInUnderMinimum) {
+      return {
+        ok: false,
+        message: `La subida mínima es a ${minRaiseTo}.`
+      };
+    }
+
+    const previousBet = game.poker.currentBet;
+
+    applyPokerBet(game, player, safeTargetBet - player.streetBet);
+
+    game.poker.currentBet = player.streetBet;
+    game.poker.minimumRaise = Math.max(
+      game.poker.settings.bigBlind,
+      game.poker.currentBet - previousBet
+    );
+
+    player.hasActed = true;
+
+    markOtherPokerPlayersAsPending(game, player.id);
+
+    game.poker.message = `${player.name} subió a ${player.streetBet}.`;
+
+    movePokerTurnOrAdvance(pin);
+
+    return {
+      ok: true
+    };
+  }
+
+  return {
+    ok: false,
+    message: "Acción inválida."
+  };
 }
 
 function getHeadsUpMajorityNeeded(game) {
@@ -821,7 +2252,7 @@ function startHeadsUpIntro(pin) {
     turnScore: 0,
     correctCount: 0,
     passCount: 0,
-    durationMs: 90000,
+    durationMs: getCampaignHeadsUpDuration(game),
     endAt: null,
     turnTimer: null,
     betweenTimer: null,
@@ -872,7 +2303,14 @@ function startNextHeadsUpTurn(pin) {
   }
 
   game.heads.currentPlayerId = activePlayer.id;
-  game.heads.words = shuffleArray(headsUpWords);
+  const words = getCampaignHeadsUpWords(game);
+
+  if (!words.length) {
+    finishCompleteGame(pin);
+    return;
+  }
+
+  game.heads.words = shuffleArray(words);
   game.heads.wordIndex = -1;
   game.heads.wordVotes = {};
   game.heads.turnScore = 0;
@@ -910,7 +2348,14 @@ function sendNextHeadsUpWord(pin) {
   game.heads.wordIndex++;
 
   if (game.heads.wordIndex >= game.heads.words.length) {
-    game.heads.words = shuffleArray(headsUpWords);
+    const words = getCampaignHeadsUpWords(game);
+
+    if (!words.length) {
+      finishHeadsUpTurn(pin);
+      return;
+    }
+
+    game.heads.words = shuffleArray(words);
     game.heads.wordIndex = 0;
   }
 
@@ -1086,7 +2531,7 @@ function startWordConnectIntro(pin) {
   game.word = {
     puzzle: null,
     wordsByPlayer: {},
-    durationMs: 60000,
+    durationMs: getCampaignWordConnectDuration(game),
     endAt: null,
     gameTimer: null,
     open: false
@@ -1102,7 +2547,19 @@ function beginWordConnect(pin) {
 
   if (!game) return;
 
-  const puzzle = wordConnectPuzzles[Math.floor(Math.random() * wordConnectPuzzles.length)];
+  const puzzles = getCampaignWordConnectPuzzles(game);
+
+  if (!puzzles.length) {
+    game.status = "word_finished";
+
+    setTimeout(() => {
+      startNextSelectedGame(pin);
+    }, 1000);
+
+    return;
+  }
+
+  const puzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
 
   game.status = "word_connect";
   game.word.puzzle = {
@@ -1169,6 +2626,335 @@ function finishWordConnect(pin) {
   }, 6000);
 }
 
+function startPokerIntro(pin) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  const settings = sanitizePokerSettings(null, game);
+
+  game.status = "poker_intro";
+  game.poker = {
+    settings,
+    roundNumber: 0,
+    tableReady: false
+  };
+
+  io.to(pin).emit("poker_intro", {
+    game: publicGame(game),
+    settings
+  });
+}
+
+function updatePokerSettings(pin, rawSettings) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "poker_intro" || !game.poker) {
+    return {
+      ok: false,
+      message: "La configuración de Poker no está disponible."
+    };
+  }
+
+  game.poker.settings = sanitizePokerSettings(rawSettings, game);
+
+  io.to(pin).emit("poker_settings_updated", {
+    game: publicGame(game),
+    settings: game.poker.settings
+  });
+
+  return {
+    ok: true,
+    settings: game.poker.settings
+  };
+}
+
+function showPokerRankings(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "poker_intro" || !game.poker) return;
+
+  game.status = "poker_rankings";
+
+  io.to(pin).emit("poker_rankings", {
+    game: publicGame(game),
+    rankings: POKER_HAND_RANKINGS
+  });
+}
+
+function beginPoker(pin) {
+  const game = games.get(pin);
+
+  if (
+    !game ||
+    !["poker_intro", "poker_rankings"].includes(game.status) ||
+    !game.poker
+  ) {
+    return;
+  }
+
+  game.status = "poker";
+
+  game.poker.roundNumber = 0;
+  game.poker.dealerIndex = 0;
+  game.poker.players = game.players.map((player, index) => ({
+    id: player.id,
+    name: player.name,
+    seat: index,
+    chips: game.poker.settings.initialChips,
+    hand: [],
+    committed: 0,
+    folded: false,
+    allIn: false,
+    isDealer: false,
+    isSmallBlind: false,
+    isBigBlind: false
+  }));
+
+  startPokerHand(pin);
+}
+
+function startPokerHand(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "poker" || !game.poker) return;
+
+  clearPokerActionTimer(game);
+
+  game.poker.players.forEach((player) => {
+    if (player.chips <= 0) {
+      player.isOut = true;
+      player.folded = true;
+      player.hand = [];
+    }
+  });
+
+  const activeIndexes = getPokerActivePlayerIndexes(game);
+
+  if (activeIndexes.length < 2) {
+    finishPokerGame(pin);
+    return;
+  }
+
+  if (game.poker.roundNumber >= game.poker.settings.totalRounds) {
+    finishPokerGame(pin);
+    return;
+  }
+
+  game.poker.roundNumber++;
+  game.poker.deck = createPokerDeck();
+  game.poker.communityCards = [];
+  game.poker.pot = 0;
+  game.poker.stage = "preflop";
+  game.poker.message = "Preflop. Ciegas publicadas. Empieza la ronda de apuestas.";
+  game.poker.showdown = false;
+  game.poker.showdownResults = [];
+  game.poker.payouts = {};
+  game.poker.currentBet = 0;
+  game.poker.minimumRaise = game.poker.settings.bigBlind;
+  game.poker.actionTimer = null;
+  game.poker.actionEndsAt = null;
+
+  const seats = getPokerSeatIndexesForHand(game);
+
+  game.poker.dealerIndex = seats.dealerIndex;
+  game.poker.smallBlindIndex = seats.smallBlindIndex;
+  game.poker.bigBlindIndex = seats.bigBlindIndex;
+
+  game.poker.players.forEach((player, index) => {
+    const isActive = activeIndexes.includes(index);
+
+    player.hand = isActive
+      ? [drawPokerCard(game), drawPokerCard(game)].filter(Boolean)
+      : [];
+
+    player.committed = 0;
+    player.streetBet = 0;
+    player.hasActed = false;
+    player.folded = !isActive;
+    player.allIn = false;
+    player.bestHand = null;
+    player.isOut = !isActive;
+    player.isDealer = index === seats.dealerIndex;
+    player.isSmallBlind = index === seats.smallBlindIndex;
+    player.isBigBlind = index === seats.bigBlindIndex;
+  });
+
+  postPokerBlind(game, seats.smallBlindIndex, game.poker.settings.smallBlind);
+  postPokerBlind(game, seats.bigBlindIndex, game.poker.settings.bigBlind);
+
+  const smallBlindPlayer = game.poker.players[seats.smallBlindIndex];
+  const bigBlindPlayer = game.poker.players[seats.bigBlindIndex];
+
+  game.poker.currentBet = Math.max(
+    ...game.poker.players.map((player) => player.streetBet || 0)
+  );
+
+  game.poker.currentPlayerIndex = getFirstPokerPlayerToActIndex(game);
+
+  const currentPlayer = getCurrentPokerPlayer(game);
+
+  if (currentPlayer) {
+    game.poker.message = `Preflop. Turno de ${currentPlayer.name}.`;
+    startPokerActionTimer(pin);
+  }
+
+  emitPokerState(pin, game);
+}
+
+function advancePokerStage(pin) {
+  return {
+    ok: false,
+    message: "Ahora las fases de Poker avanzan automáticamente cuando termina cada ronda de apuestas."
+  };
+}
+
+function nextPokerHand(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "poker" || !game.poker) {
+    return {
+      ok: false,
+      message: "Poker no está activo."
+    };
+  }
+
+  if (game.poker.stage !== "hand_finished") {
+    return {
+      ok: false,
+      message: "Primero debe terminar la mano actual."
+    };
+  }
+
+  game.poker.dealerIndex = (game.poker.dealerIndex + 1) % game.poker.players.length;
+
+  startPokerHand(pin);
+
+  return {
+    ok: true
+  };
+}
+
+function finishPokerGame(pin) {
+  const game = games.get(pin);
+
+  if (!game || !game.poker) return;
+
+  clearPokerActionTimer(game);
+
+  game.status = "poker_finished";
+
+  const ranking = [...game.poker.players]
+    .sort((a, b) => b.chips - a.chips)
+    .map((player, index) => ({
+      position: index + 1,
+      name: player.name,
+      score: player.chips
+    }));
+
+  const winner = ranking[0];
+
+  io.to(pin).emit("poker_finished", {
+    game: publicGame(game),
+    ranking,
+    message: winner
+      ? `Poker terminado. Ganador: ${winner.name} con ${winner.score} fichas.`
+      : "Poker terminado."
+  });
+
+  setTimeout(() => {
+    startNextSelectedGame(pin);
+  }, 2000);
+}
+
+function getPublicPokerState(game, viewerId) {
+  const viewerPokerPlayer = getPokerPlayer(game, viewerId);
+  const currentPlayer = getCurrentPokerPlayer(game);
+  const isShowdown = ["showdown", "hand_finished"].includes(game.poker.stage);
+  const availableActions = getPokerAvailableActions(game, viewerId);
+  const activePlayersCount = getPokerActivePlayerIndexes(game).length;
+
+  return {
+    stage: game.poker.stage,
+    stageLabel: getPokerStageLabel(game.poker.stage),
+    nextRevealLabel: getNextPokerRevealLabel(game.poker.stage),
+
+    roundNumber: game.poker.roundNumber,
+    totalRounds: game.poker.settings.totalRounds,
+
+    smallBlind: game.poker.settings.smallBlind,
+    bigBlind: game.poker.settings.bigBlind,
+
+    pot: game.poker.pot,
+    currentBet: game.poker.currentBet,
+    minimumRaise: game.poker.minimumRaise,
+
+    communityCards: game.poker.communityCards.filter(Boolean),
+    yourCards: viewerPokerPlayer ? viewerPokerPlayer.hand.filter(Boolean) : [],
+
+    message: game.poker.message,
+    showdown: isShowdown,
+
+    showdownResults: game.poker.showdownResults || [],
+    payouts: game.poker.payouts || {},
+
+    currentPlayerId: currentPlayer ? currentPlayer.id : null,
+    currentPlayerName: currentPlayer ? currentPlayer.name : null,
+    isYourTurn: currentPlayer ? currentPlayer.id === viewerId : false,
+
+    availableActions,
+
+    actionEndsAt: game.poker.actionEndsAt || null,
+    activePlayersCount,
+
+    canAdvanceStage: false,
+    canStartNextHand:
+      game.leaderId === viewerId &&
+      game.poker.stage === "hand_finished" &&
+      game.poker.roundNumber < game.poker.settings.totalRounds,
+
+    canFinishPoker:
+      game.leaderId === viewerId &&
+      ["showdown", "hand_finished"].includes(game.poker.stage),
+
+    players: game.poker.players.map((player) => ({
+      id: player.id,
+      name: player.name,
+      seat: player.seat,
+      chips: player.chips,
+      committed: player.committed,
+      streetBet: player.streetBet,
+      folded: player.folded,
+      allIn: player.allIn,
+      isOut: Boolean(player.isOut),
+      hasActed: player.hasActed,
+      isDealer: player.isDealer,
+      isSmallBlind: player.isSmallBlind,
+      isBigBlind: player.isBigBlind,
+      isCurrentPlayer: currentPlayer ? player.id === currentPlayer.id : false,
+      isYou: player.id === viewerId,
+      cardCount: player.hand.length,
+      revealedCards: isShowdown ? player.hand.filter(Boolean) : [],
+      bestHandName: player.bestHand ? player.bestHand.name : "",
+      bestHandDescription: player.bestHand ? player.bestHand.description : "",
+      payout: game.poker.payouts ? game.poker.payouts[player.id] || 0 : 0
+    }))
+  };
+}
+
+function emitPokerState(pin, game) {
+  game.players.forEach((player) => {
+    io.to(player.id).emit("poker_state", {
+      game: publicGame(game),
+      pokerState: getPublicPokerState(game, player.id)
+    });
+  });
+}
+
+function finishPokerPlaceholder(pin) {
+  finishPokerGame(pin);
+}
+
 function finishFinalGame(pin) {
   const game = games.get(pin);
 
@@ -1194,6 +2980,10 @@ function clearAllGameTimers(game) {
 
   if (typeof clearWordConnectTimers === "function") {
     clearWordConnectTimers(game);
+  }
+
+  if (typeof clearPokerActionTimer === "function") {
+    clearPokerActionTimer(game);
   }
 }
 
@@ -1314,7 +3104,7 @@ function getLocalIPs() {
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
-  socket.on("create_game", ({ name }, callback) => {
+  socket.on("create_game", ({ name, campaignSlug }, callback) => {
     const pin = generatePin();
 
     const player = {
@@ -1323,19 +3113,27 @@ io.on("connection", (socket) => {
       score: 0
     };
 
+    const campaign = loadCampaign(campaignSlug || DEFAULT_CAMPAIGN_SLUG);
+
     const game = {
       pin,
       leaderId: socket.id,
       status: "lobby",
       selectedTheme: null,
-      selectedGames: [...DEFAULT_SELECTED_GAMES],
+      selectedGames: sanitizeSelectedGames(
+        campaign.games?.defaultSelected || DEFAULT_SELECTED_GAMES,
+        1,
+        campaign
+      ),
       currentGameIndex: -1,
       players: [player],
       themeVotes: {},
       trivia: null,
       friend: null,
       heads: null,
-      word: null
+      word: null,
+      campaignSlug: campaign.slug,
+      campaign
     };
 
     games.set(pin, game);
@@ -1383,7 +3181,7 @@ io.on("connection", (socket) => {
       game.players.push(player);
     }
 
-    game.selectedGames = sanitizeSelectedGames(game.selectedGames, game.players.length);
+    game.selectedGames = sanitizeSelectedGames(game.selectedGames, game.players.length, game.campaign);
 
     socket.join(cleanGamePin);
     socket.data.pin = cleanGamePin;
@@ -1424,7 +3222,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    game.selectedGames = sanitizeSelectedGames(selectedGames, game.players.length);
+    game.selectedGames = sanitizeSelectedGames(selectedGames, game.players.length, game.campaign);
 
     callback({
       ok: true,
@@ -1462,7 +3260,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    game.selectedGames = sanitizeSelectedGames(game.selectedGames, game.players.length);
+    game.selectedGames = sanitizeSelectedGames(game.selectedGames, game.players.length, game.campaign);
 
     if (!game.selectedGames.length) {
       callback({
@@ -1501,7 +3299,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const validTheme = THEMES.some((item) => item.id === theme);
+    const validTheme = getCampaignThemes(game).some((item) => item.id === theme);
 
     if (!validTheme) {
       callback({
@@ -1568,7 +3366,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const questions = triviaQuestions[game.selectedTheme];
+    const questions = game.trivia.questions || [];
     const question = questions[game.trivia.currentQuestionIndex];
 
     const numericOptionIndex = Number(optionIndex);
@@ -1977,6 +3775,194 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
   });
 });
 
+  socket.on("update_poker_settings", ({ pin, settings }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game) {
+      callback({
+        ok: false,
+        message: "La partida no existe."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede configurar Poker."
+      });
+      return;
+    }
+
+    const result = updatePokerSettings(cleanGamePin, settings);
+    callback(result);
+  });
+
+  socket.on("start_poker_game", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "poker_intro" || !game.poker) {
+      callback({
+        ok: false,
+        message: "Poker todavía no está listo."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede empezar Poker."
+      });
+      return;
+    }
+
+    callback({
+      ok: true
+    });
+
+    showPokerRankings(cleanGamePin);
+  });
+
+  socket.on("continue_poker_after_rankings", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "poker_rankings" || !game.poker) {
+      callback({
+        ok: false,
+        message: "La pantalla de ranking de manos no está activa."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede continuar."
+      });
+      return;
+    }
+
+    callback({
+      ok: true
+    });
+
+    beginPoker(cleanGamePin);
+  });
+
+  socket.on("advance_poker_stage", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game) {
+      callback({
+        ok: false,
+        message: "La partida no existe."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede revelar cartas."
+      });
+      return;
+    }
+
+    const result = advancePokerStage(cleanGamePin);
+    callback(result);
+  });
+
+  socket.on("next_poker_hand", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game) {
+      callback({
+        ok: false,
+        message: "La partida no existe."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede iniciar la siguiente mano."
+      });
+      return;
+    }
+
+    const result = nextPokerHand(cleanGamePin);
+    callback(result);
+  });
+
+  socket.on("finish_poker_game", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "poker") {
+      callback({
+        ok: false,
+        message: "Poker no está activo."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede terminar Poker."
+      });
+      return;
+    }
+
+    callback({
+      ok: true
+    });
+
+    finishPokerGame(cleanGamePin);
+  });
+
+  socket.on("submit_poker_action", ({ pin, action, amount }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+
+    const result = handlePokerAction(cleanGamePin, socket.id, action, amount);
+
+    callback(result);
+  });
+
+  socket.on("finish_poker_placeholder", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "poker") {
+      callback({
+        ok: false,
+        message: "Poker no está activo."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede terminar esta prueba de Poker."
+      });
+      return;
+    }
+
+    callback({
+      ok: true
+    });
+
+    finishPokerPlaceholder(cleanGamePin);
+  });
+
   socket.on("dev_skip_to", ({ pin, target, theme }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -2014,7 +4000,8 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     }
 
     if (target === "knowledge") {
-      const selectedTheme = theme || "deportes";
+      const themes = getCampaignThemes(game);
+      const selectedTheme = theme || themes[0]?.id || "deportes";
 
       game.status = "trivia";
       game.selectedTheme = selectedTheme;
@@ -2036,7 +4023,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
 
       io.to(cleanGamePin).emit("theme_chosen", {
         theme: selectedTheme,
-        themeName: getThemeName(selectedTheme),
+        themeName: getThemeNameFromCampaign(game, selectedTheme),
         game: publicGame(game)
       });
 
@@ -2243,6 +4230,18 @@ if (game.status === "word_connect" && game.word && game.word.open) {
   io.to(pin).emit("word_connect_ranking_updated", {
     ranking: getRanking(game)
   });
+  return;
+}
+
+if (game.status === "poker" && game.poker) {
+  const pokerPlayer = getPokerPlayer(game, socket.id);
+
+  if (pokerPlayer) {
+    pokerPlayer.folded = true;
+    pokerPlayer.hand = [];
+  }
+
+  emitPokerState(pin, game);
   return;
 }
 
