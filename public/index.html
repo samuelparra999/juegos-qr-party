@@ -484,8 +484,14 @@
       </div>
 
       <div id="pokerLeaderSettings" class="poker-settings hidden">
+        <label for="pokerInitialChipsInput">Fichas iniciales</label>
+        <input id="pokerInitialChipsInput" type="number" min="100" step="100" value="5000" />
+
         <label for="pokerSmallBlindInput">Ciega pequeña</label>
         <input id="pokerSmallBlindInput" type="number" min="10" step="10" value="50" />
+
+        <label for="pokerBigBlindInput">Ciega grande</label>
+        <input id="pokerBigBlindInput" type="number" min="10" step="10" value="100" />
 
         <label for="pokerRoundsInput">Cantidad de rondas</label>
         <input id="pokerRoundsInput" type="number" min="1" max="10" value="3" />
@@ -571,13 +577,13 @@
             <button id="pokerCheckBtn" class="secondary-btn hidden">Pasar</button>
             <button id="pokerCallBtn" class="primary-btn hidden">Igualar</button>
             <button id="pokerFoldBtn" class="secondary-btn hidden">Retirarme</button>
+          </div>
 
-            <div class="poker-bet-area">
-              <input id="pokerBetAmountInput" type="number" min="1" step="10" placeholder="Cantidad" />
+          <div class="poker-bet-area">
+            <input id="pokerBetAmountInput" type="number" min="1" step="10" placeholder="Cantidad" />
 
-              <button id="pokerBetBtn" class="primary-btn hidden">Apostar</button>
-              <button id="pokerRaiseBtn" class="primary-btn hidden">Subir</button>
-            </div>
+            <button id="pokerBetBtn" class="primary-btn hidden">Apostar</button>
+            <button id="pokerRaiseBtn" class="primary-btn hidden">Subir</button>
           </div>
         </div>
 

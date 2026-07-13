@@ -149,8 +149,11 @@ const wordFinalRankingList = document.getElementById("wordFinalRankingList");
 
 // Poker
 const pokerLeaderSettings = document.getElementById("pokerLeaderSettings");
+const pokerSettingsSummary = document.getElementById("pokerSettingsSummary");
 const pokerPlayerWaiting = document.getElementById("pokerPlayerWaiting");
+const pokerInitialChipsInput = document.getElementById("pokerInitialChipsInput");
 const pokerSmallBlindInput = document.getElementById("pokerSmallBlindInput");
+const pokerBigBlindInput = document.getElementById("pokerBigBlindInput");
 const pokerSummaryInitialChips = document.getElementById("pokerSummaryInitialChips");
 const pokerSummarySmallBlind = document.getElementById("pokerSummarySmallBlind");
 const pokerSummaryBigBlind = document.getElementById("pokerSummaryBigBlind");
@@ -298,6 +301,20 @@ function getPlayerName() {
 
 function cleanPinInput(value) {
   return String(value || "").replace(/\D/g, "").trim();
+}
+
+function returnToCampaignHome(message = "") {
+  currentGame = null;
+  isLeader = false;
+  directJoinPin = null;
+
+  const campaignPath = `/juegos/${encodeURIComponent(currentCampaignSlug || "demo")}`;
+  window.history.replaceState({}, "", campaignPath);
+  showScreen(homeScreen);
+
+  if (message) {
+    showToast(message);
+  }
 }
 
 function getCampaignSlugFromUrl() {
@@ -577,7 +594,7 @@ directJoinBtn.addEventListener("click", () => {
 
   socket.emit("join_game", { pin: directJoinPin, name }, (response) => {
     if (!response.ok) {
-      showToast(response.message || "No se pudo unir a la partida.");
+      returnToCampaignHome(response.message || "La partida ya no está disponible.");
       return;
     }
 
@@ -627,11 +644,11 @@ copyLinkBtn.addEventListener("click", async () => {
 });
 
 returnHomeBtn.addEventListener("click", () => {
-  window.location.reload();
+  returnToCampaignHome();
 });
 
 cancelHomeBtn.addEventListener("click", () => {
-  window.location.reload();
+  returnToCampaignHome();
 });
 
 startFriendTriviaBtn.addEventListener("click", () => {
@@ -668,7 +685,9 @@ savePokerSettingsBtn.addEventListener("click", () => {
   if (!currentGame) return;
 
   const settings = {
+    initialChips: Number(pokerInitialChipsInput.value),
     smallBlind: Number(pokerSmallBlindInput.value),
+    bigBlind: Number(pokerBigBlindInput.value),
     totalRounds: Number(pokerRoundsInput.value)
   };
 
@@ -905,27 +924,35 @@ socket.on("poker_settings_updated", (data) => {
   if (data.settings) {
     renderPokerSettingsSummary(data.settings);
 
+    pokerInitialChipsInput.value = data.settings.initialChips;
     pokerSmallBlindInput.value = data.settings.smallBlind;
+    pokerBigBlindInput.value = data.settings.bigBlind;
     pokerRoundsInput.value = data.settings.totalRounds;
 
     pokerSettingsHelp.textContent =
       `Ciegas: ${data.settings.smallBlind}/${data.settings.bigBlind}. Rondas: ${data.settings.totalRounds}.`;
 
     if (isLeader) {
+      pokerSettingsSummary.classList.add("hidden");
       pokerLeaderSettings.classList.remove("hidden");
       pokerPlayerWaiting.classList.add("hidden");
 
+      pokerInitialChipsInput.disabled = false;
       pokerSmallBlindInput.disabled = false;
+      pokerBigBlindInput.disabled = false;
       pokerRoundsInput.disabled = false;
       savePokerSettingsBtn.disabled = false;
       startPokerBtn.disabled = false;
     } else {
+      pokerSettingsSummary.classList.remove("hidden");
       pokerLeaderSettings.classList.add("hidden");
       pokerPlayerWaiting.classList.remove("hidden");
       pokerPlayerWaiting.textContent =
         "La configuración fue actualizada. Esperando a que el líder empiece Poker...";
 
+      pokerInitialChipsInput.disabled = true;
       pokerSmallBlindInput.disabled = true;
+      pokerBigBlindInput.disabled = true;
       pokerRoundsInput.disabled = true;
       savePokerSettingsBtn.disabled = true;
       startPokerBtn.disabled = true;
@@ -944,8 +971,14 @@ socket.on("poker_finished", (data) => {
 });
 
 socket.on("game_cancelled_lack_players", (data) => {
+  const joinedFromDirectLink = Boolean(directJoinPin);
   currentGame = null;
   clearInterval(timerInterval);
+
+  if (joinedFromDirectLink) {
+    returnToCampaignHome(data.message || "La partida terminó por falta de jugadores.");
+    return;
+  }
 
   showToast(data.message || "La partida terminó por falta de jugadores.");
   showScreen(cancelScreen);
@@ -953,7 +986,15 @@ socket.on("game_cancelled_lack_players", (data) => {
 
 socket.on("game_finished", (data) => {
   currentGame = data.game;
-  renderFinalRanking(data.ranking);
+  isLeader = data.game.leaderId === socket.id;
+
+  const winner = data.ranking && data.ranking[0];
+  renderLobby(data.game);
+  showToast(
+    winner
+      ? `Partida terminada. Ganó ${winner.name}. Ya pueden elegir y jugar de nuevo.`
+      : "Partida terminada. Ya pueden elegir y jugar de nuevo."
+  );
 });
 
 // --------------------------------------------------
@@ -1684,26 +1725,34 @@ function renderPokerIntro(game, settings) {
 
   renderPokerSettingsSummary(settings);
 
+  pokerInitialChipsInput.value = settings.initialChips;
   pokerSmallBlindInput.value = settings.smallBlind;
+  pokerBigBlindInput.value = settings.bigBlind;
   pokerRoundsInput.value = settings.totalRounds;
   pokerSettingsHelp.textContent =
     `Ciegas: ${settings.smallBlind}/${settings.bigBlind}. Rondas: ${settings.totalRounds}.`;
 
   if (isLeader) {
+    pokerSettingsSummary.classList.add("hidden");
     pokerLeaderSettings.classList.remove("hidden");
     pokerPlayerWaiting.classList.add("hidden");
 
+    pokerInitialChipsInput.disabled = false;
     pokerSmallBlindInput.disabled = false;
+    pokerBigBlindInput.disabled = false;
     pokerRoundsInput.disabled = false;
     savePokerSettingsBtn.disabled = false;
     startPokerBtn.disabled = false;
   } else {
+    pokerSettingsSummary.classList.remove("hidden");
     pokerLeaderSettings.classList.add("hidden");
     pokerPlayerWaiting.classList.remove("hidden");
     pokerPlayerWaiting.textContent =
       "Configuración actual de la partida. Esperando a que el líder empiece Poker...";
 
+    pokerInitialChipsInput.disabled = true;
     pokerSmallBlindInput.disabled = true;
+    pokerBigBlindInput.disabled = true;
     pokerRoundsInput.disabled = true;
     savePokerSettingsBtn.disabled = true;
     startPokerBtn.disabled = true;

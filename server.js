@@ -23,10 +23,14 @@ const DEFAULT_POKER_SETTINGS = {
   smallBlind: 50,
   bigBlind: 100,
   totalRounds: 3,
+  minInitialChips: 100,
+  maxInitialChips: 1000000,
   minRounds: 1,
   maxRounds: 10,
   minSmallBlind: 10,
   maxSmallBlind: 1000,
+  minBigBlind: 10,
+  maxBigBlind: 2000,
   actionTimeoutMs: 30000
 };
 
@@ -276,28 +280,51 @@ function getCampaignPokerSettings(game) {
 function sanitizePokerSettings(rawSettings, game) {
   const defaults = getCampaignPokerSettings(game);
 
+  const initialChips = Number(rawSettings?.initialChips ?? defaults.initialChips);
   const smallBlind = Number(rawSettings?.smallBlind ?? defaults.smallBlind);
+  const bigBlind = Number(rawSettings?.bigBlind ?? defaults.bigBlind);
   const totalRounds = Number(rawSettings?.totalRounds ?? defaults.totalRounds);
+
+  const safeNumber = (value, fallback) => Number.isFinite(value) ? value : fallback;
 
   const safeSmallBlind = Math.max(
     defaults.minSmallBlind,
-    Math.min(defaults.maxSmallBlind, smallBlind)
+    Math.min(defaults.maxSmallBlind, safeNumber(smallBlind, defaults.smallBlind))
+  );
+
+  const safeBigBlind = Math.max(
+    safeSmallBlind,
+    defaults.minBigBlind,
+    Math.min(defaults.maxBigBlind, safeNumber(bigBlind, defaults.bigBlind))
+  );
+
+  const safeInitialChips = Math.max(
+    safeBigBlind,
+    defaults.minInitialChips,
+    Math.min(
+      defaults.maxInitialChips,
+      safeNumber(initialChips, defaults.initialChips)
+    )
   );
 
   const safeTotalRounds = Math.max(
     defaults.minRounds,
-    Math.min(defaults.maxRounds, totalRounds)
+    Math.min(defaults.maxRounds, safeNumber(totalRounds, defaults.totalRounds))
   );
 
   return {
-    initialChips: defaults.initialChips,
+    initialChips: safeInitialChips,
     smallBlind: safeSmallBlind,
-    bigBlind: safeSmallBlind * 2,
+    bigBlind: safeBigBlind,
     totalRounds: safeTotalRounds,
+    minInitialChips: defaults.minInitialChips,
+    maxInitialChips: defaults.maxInitialChips,
     minRounds: defaults.minRounds,
     maxRounds: defaults.maxRounds,
     minSmallBlind: defaults.minSmallBlind,
     maxSmallBlind: defaults.maxSmallBlind,
+    minBigBlind: defaults.minBigBlind,
+    maxBigBlind: defaults.maxBigBlind,
     actionTimeoutMs: defaults.actionTimeoutMs
   };
 }
@@ -2826,18 +2853,30 @@ function nextPokerHand(pin) {
 function finishPokerGame(pin) {
   const game = games.get(pin);
 
-  if (!game || !game.poker) return;
+  if (!game || game.status !== "poker" || !game.poker) return;
 
   clearPokerActionTimer(game);
 
   game.status = "poker_finished";
 
-  const ranking = [...game.poker.players]
-    .sort((a, b) => b.chips - a.chips)
+  const rankedPlayers = [...game.poker.players]
+    .sort((a, b) => b.chips - a.chips);
+  const pokerRewards = [1000, 500];
+
+  rankedPlayers.slice(0, pokerRewards.length).forEach((pokerPlayer, index) => {
+    const player = game.players.find((item) => item.id === pokerPlayer.id);
+
+    if (player) {
+      player.score += pokerRewards[index];
+    }
+  });
+
+  const ranking = rankedPlayers
     .map((player, index) => ({
       position: index + 1,
       name: player.name,
-      score: player.chips
+      score: player.chips,
+      pointsAwarded: pokerRewards[index] || 0
     }));
 
   const winner = ranking[0];
@@ -2945,16 +2984,23 @@ function finishFinalGame(pin) {
 
   if (!game) return;
 
-  clearTriviaTimers(game);
-  clearFriendTimers(game);
-  clearHeadsUpTimers(game);
-  clearWordConnectTimers(game);
+  clearAllGameTimers(game);
 
-  game.status = "finished";
+  const ranking = getRanking(game);
+
+  game.status = "lobby";
+  game.selectedTheme = null;
+  game.currentGameIndex = -1;
+  game.themeVotes = {};
+  game.trivia = null;
+  game.friend = null;
+  game.heads = null;
+  game.word = null;
+  game.poker = null;
 
   io.to(pin).emit("game_finished", {
     game: publicGame(game),
-    ranking: getRanking(game)
+    ranking
   });
 }
 
@@ -3255,6 +3301,9 @@ io.on("connection", (socket) => {
       return;
     }
 
+    game.players.forEach((player) => {
+      player.score = 0;
+    });
     game.currentGameIndex = -1;
 
     callback({
@@ -4029,17 +4078,12 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     }
 
     if (target === "final") {
-      game.status = "finished";
-
       callback({
         ok: true,
-        message: "Saltando al ranking final."
+        message: "Finalizando la partida y regresando al lobby."
       });
 
-      io.to(cleanGamePin).emit("game_finished", {
-        game: publicGame(game),
-        ranking: getRanking(game)
-      });
+      finishFinalGame(cleanGamePin);
 
       return;
     }

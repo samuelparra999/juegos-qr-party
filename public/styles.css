@@ -911,7 +911,8 @@ button:disabled {
   --poker-main-actions-height: calc((var(--poker-control-height) * 2) + var(--poker-panel-gap));
   display: grid;
   grid-template-columns: 1fr 140px;
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: var(--poker-panel-gap);
   align-items: start;
 }
 
@@ -951,6 +952,7 @@ button:disabled {
 .poker-bet-area {
   display: grid;
   gap: var(--poker-panel-gap);
+  grid-column: 1 / -1;
 }
 
 .poker-bet-area input {
@@ -975,7 +977,7 @@ button:disabled {
 @media (max-width: 520px) {
   .poker-player-panel-main {
     grid-template-columns: minmax(104px, 1fr) minmax(108px, 132px);
-    gap: 10px;
+    column-gap: 10px;
   }
 
   .poker-player-cards-block {
