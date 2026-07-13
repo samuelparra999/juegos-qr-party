@@ -674,7 +674,9 @@ function startTrivia(pin) {
   if (game.status !== "theme_vote") return;
 
   const winningTheme = chooseWinningTheme(game);
-  const questions = getCampaignKnowledgeQuestions(game, winningTheme);
+  const questions = shuffleArray(
+    getCampaignKnowledgeQuestions(game, winningTheme)
+  ).slice(0, 6);
 
   if (!questions.length) {
     game.status = "knowledge_finished";
@@ -2582,7 +2584,7 @@ function beginWordConnect(pin) {
     return;
   }
 
-  const puzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+  const [puzzle] = shuffleArray(puzzles);
 
   game.status = "word_connect";
   game.word.puzzle = {

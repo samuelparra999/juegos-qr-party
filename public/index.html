@@ -419,8 +419,13 @@
 
       <div id="wordLettersBox" class="word-letters-box"></div>
 
-      <label for="wordInput">Escribe una palabra</label>
-      <input id="wordInput" type="text" placeholder="Ej: MAPA" autocomplete="off" />
+      <div
+        id="wordComposer"
+        class="word-composer"
+        role="group"
+        aria-label="Palabra formada"
+        aria-live="polite"
+      ></div>
 
       <button id="submitWordBtn" class="primary-btn">
         Enviar palabra

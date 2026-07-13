@@ -8,6 +8,10 @@ let directJoinPin = null;
 let currentCampaign = null;
 let currentCampaignSlug = "demo";
 let pokerActionTimerInterval = null;
+let wordConnectLetters = [];
+let selectedWordLetterIndexes = [];
+let wordConnectOpen = false;
+let wordSubmissionPending = false;
 
 const THEMES = [
   { id: "deportes", name: "Deportes" },
@@ -137,7 +141,7 @@ const wordIntroWaitingText = document.getElementById("wordIntroWaitingText");
 const wordTimerText = document.getElementById("wordTimerText");
 const wordTimerFill = document.getElementById("wordTimerFill");
 const wordLettersBox = document.getElementById("wordLettersBox");
-const wordInput = document.getElementById("wordInput");
+const wordComposer = document.getElementById("wordComposer");
 const submitWordBtn = document.getElementById("submitWordBtn");
 const wordStatusText = document.getElementById("wordStatusText");
 const foundWordsList = document.getElementById("foundWordsList");
@@ -768,12 +772,6 @@ pokerRaiseBtn.addEventListener("click", () => {
 
 submitWordBtn.addEventListener("click", () => {
   submitWordConnectWord();
-});
-
-wordInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    submitWordConnectWord();
-  }
 });
 
 // --------------------------------------------------
@@ -1575,31 +1573,79 @@ function renderWordConnectIntro(game) {
 function renderWordConnectGame(wordState) {
   clearInterval(timerInterval);
 
-  wordLettersBox.innerHTML = "";
   foundWordsList.innerHTML = "";
   wordStatusText.textContent = "";
-  wordInput.value = "";
-
-  wordState.letters.forEach((letter) => {
-    const div = document.createElement("div");
-    div.className = "word-letter";
-    div.textContent = letter;
-    wordLettersBox.appendChild(div);
-  });
+  wordConnectLetters = [...wordState.letters];
+  selectedWordLetterIndexes = [];
+  wordConnectOpen = true;
+  wordSubmissionPending = false;
+  renderWordConnectControls();
 
   renderFoundWords(wordState.foundWords || []);
   renderRankingList(wordRankingList, wordState.ranking || []);
 
-  submitWordBtn.disabled = false;
-  wordInput.disabled = false;
-
   startWordTimer(wordState.endAt, wordState.durationMs);
 
   showScreen(wordScreen);
+}
 
-  setTimeout(() => {
-    wordInput.focus();
-  }, 300);
+function renderWordConnectControls() {
+  wordLettersBox.innerHTML = "";
+  wordComposer.innerHTML = "";
+
+  const selectedIndexes = new Set(selectedWordLetterIndexes);
+
+  wordConnectLetters.forEach((letter, index) => {
+    const button = document.createElement("button");
+    const isSelected = selectedIndexes.has(index);
+
+    button.type = "button";
+    button.className = "word-letter";
+    button.textContent = letter;
+    button.setAttribute("aria-label", `Agregar letra ${letter}`);
+    button.setAttribute("aria-pressed", String(isSelected));
+    button.classList.toggle("is-selected", isSelected);
+    button.disabled = isSelected || !wordConnectOpen || wordSubmissionPending;
+
+    button.addEventListener("click", () => {
+      if (!wordConnectOpen || wordSubmissionPending || selectedIndexes.has(index)) return;
+
+      selectedWordLetterIndexes.push(index);
+      wordStatusText.textContent = "";
+      renderWordConnectControls();
+    });
+
+    wordLettersBox.appendChild(button);
+  });
+
+  selectedWordLetterIndexes.forEach((letterIndex, selectedPosition) => {
+    const letter = wordConnectLetters[letterIndex];
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.className = "word-composer-letter";
+    button.textContent = letter;
+    button.setAttribute("aria-label", `Quitar letra ${letter}`);
+    button.disabled = !wordConnectOpen || wordSubmissionPending;
+
+    button.addEventListener("click", () => {
+      if (!wordConnectOpen || wordSubmissionPending) return;
+
+      selectedWordLetterIndexes.splice(selectedPosition, 1);
+      wordStatusText.textContent = "";
+      renderWordConnectControls();
+    });
+
+    wordComposer.appendChild(button);
+  });
+
+  submitWordBtn.disabled =
+    !wordConnectOpen || wordSubmissionPending || selectedWordLetterIndexes.length === 0;
+}
+
+function clearWordComposer() {
+  selectedWordLetterIndexes = [];
+  renderWordConnectControls();
 }
 
 function startWordTimer(endAt, durationMs) {
@@ -1613,8 +1659,9 @@ function startWordTimer(endAt, durationMs) {
 
     if (remaining <= 0) {
       clearInterval(timerInterval);
-      submitWordBtn.disabled = true;
-      wordInput.disabled = true;
+      wordConnectOpen = false;
+      wordSubmissionPending = false;
+      renderWordConnectControls();
       wordStatusText.textContent = "Tiempo terminado.";
     }
   }
@@ -1626,31 +1673,32 @@ function startWordTimer(endAt, durationMs) {
 function submitWordConnectWord() {
   if (!currentGame) return;
 
-  const word = wordInput.value.trim();
+  const word = selectedWordLetterIndexes
+    .map((index) => wordConnectLetters[index])
+    .join("");
 
   if (!word) {
-    showToast("Escribe una palabra.");
+    showToast("Selecciona las letras de la palabra.");
     return;
   }
 
-  submitWordBtn.disabled = true;
+  wordSubmissionPending = true;
+  renderWordConnectControls();
 
   socket.emit("submit_word_connect_word", { pin: currentGame.pin, word }, (response) => {
-    submitWordBtn.disabled = false;
+    wordSubmissionPending = false;
 
     if (!response.ok) {
       wordStatusText.textContent = response.message || "Palabra inválida.";
-      wordInput.select();
+      clearWordComposer();
       return;
     }
 
     wordStatusText.textContent = `+${response.word.points} pts por ${response.word.word}`;
-    wordInput.value = "";
+    clearWordComposer();
 
     renderFoundWords(response.foundWords || []);
     renderRankingList(wordRankingList, response.ranking || []);
-
-    wordInput.focus();
   });
 }
 

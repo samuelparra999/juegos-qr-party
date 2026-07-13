@@ -362,20 +362,66 @@ button:disabled {
   justify-content: center;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 24px 0;
+  margin: 24px 0 14px;
 }
 
 .word-letter {
   width: 52px;
   height: 52px;
+  flex: 0 0 52px;
   background: white;
   color: #141827;
-  border-radius: 14px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
   font-size: 28px;
   font-weight: bold;
+  margin: 0;
+  padding: 0;
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.word-letter.is-selected {
+  background: #30343f;
+  color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+  transform: translateY(5px);
+}
+
+.word-letter:disabled {
+  opacity: 1;
+}
+
+.word-composer {
+  min-height: 58px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 7px 0 13px;
+  margin-bottom: 4px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.28);
+}
+
+.word-composer-letter {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border-radius: 9px;
+  background: var(--color-tertiary);
+  color: #141827;
+  font-size: 21px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+.word-composer-letter:disabled {
+  opacity: 0.65;
 }
 
 .word-chip {

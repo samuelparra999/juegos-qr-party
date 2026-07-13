@@ -53,46 +53,242 @@
             {
                 "theme": "deportes",
                 "question": "¿Cuántos jugadores tiene un equipo de fútbol en la cancha?",
-                "options": [
-                    "9",
-                    "10",
-                    "11",
-                    "12"
-                ],
+                "options": ["9", "10", "11", "12"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "deportes",
+                "question": "¿Cuántos jugadores de un equipo de baloncesto están en la cancha?",
+                "options": ["4", "5", "6", "7"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "deportes",
+                "question": "¿En qué deporte se usa una raqueta y una red?",
+                "options": ["Tenis", "Natación", "Boxeo", "Ciclismo"],
+                "correctIndex": 0
+            },
+            {
+                "theme": "deportes",
+                "question": "¿Cada cuántos años se celebran normalmente los Juegos Olímpicos?",
+                "options": ["2", "3", "4", "5"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "deportes",
+                "question": "¿Con qué deporte se relaciona el Tour de Francia?",
+                "options": ["Atletismo", "Ciclismo", "Automovilismo", "Esquí"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "deportes",
+                "question": "¿En qué zona puede usar las manos un portero de fútbol?",
+                "options": ["En toda la cancha", "En el área penal", "Solo en el círculo central", "En el área rival"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "deportes",
+                "question": "¿Cómo se llaman los puntos anotados en béisbol?",
+                "options": ["Goles", "Ensayos", "Carreras", "Canastas"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "deportes",
+                "question": "¿A qué disciplina pertenece la carrera de 100 metros?",
+                "options": ["Atletismo", "Gimnasia", "Ciclismo", "Remo"],
+                "correctIndex": 0
+            },
+            {
+                "theme": "deportes",
+                "question": "¿Cuántos toques puede dar un equipo de voleibol antes de pasar el balón?",
+                "options": ["2", "3", "4", "5"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "deportes",
+                "question": "¿Qué deporte se juega en la Copa Mundial de la FIFA?",
+                "options": ["Rugby", "Baloncesto", "Fútbol", "Tenis"],
                 "correctIndex": 2
             },
             {
                 "theme": "historia",
                 "question": "¿En qué año llegó Cristóbal Colón a América?",
-                "options": [
-                    "1492",
-                    "1500",
-                    "1453",
-                    "1519"
-                ],
+                "options": ["1492", "1500", "1453", "1519"],
+                "correctIndex": 0
+            },
+            {
+                "theme": "historia",
+                "question": "¿Qué civilización construyó las pirámides de Giza?",
+                "options": ["Romana", "Egipcia", "Maya", "Griega"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "historia",
+                "question": "¿En qué año terminó la Segunda Guerra Mundial?",
+                "options": ["1918", "1939", "1945", "1961"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "historia",
+                "question": "¿En qué año llegó el ser humano por primera vez a la Luna?",
+                "options": ["1959", "1969", "1975", "1981"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "historia",
+                "question": "¿Cuál fue la capital del Imperio romano?",
+                "options": ["Atenas", "Roma", "París", "Cartago"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "historia",
+                "question": "¿En qué año ocurrió el grito de independencia de Colombia?",
+                "options": ["1492", "1776", "1810", "1886"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "historia",
+                "question": "¿A quién se atribuye la imprenta de tipos móviles en Europa?",
+                "options": ["Galileo", "Gutenberg", "Da Vinci", "Newton"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "historia",
+                "question": "¿En qué país comenzó el Renacimiento europeo?",
+                "options": ["España", "Italia", "Alemania", "Portugal"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "historia",
+                "question": "¿En qué año cayó el Muro de Berlín?",
+                "options": ["1975", "1989", "1995", "2001"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "historia",
+                "question": "¿Cuál fue la capital principal del Imperio inca?",
+                "options": ["Cusco", "Lima", "Quito", "Tenochtitlán"],
                 "correctIndex": 0
             },
             {
                 "theme": "cine",
                 "question": "¿Qué objeto usa un director para iniciar una toma?",
-                "options": [
-                    "Micrófono",
-                    "Claqueta",
-                    "Guion",
-                    "Reflector"
-                ],
+                "options": ["Micrófono", "Claqueta", "Guion", "Reflector"],
                 "correctIndex": 1
+            },
+            {
+                "theme": "cine",
+                "question": "¿Qué estudio produjo la película Toy Story?",
+                "options": ["Pixar", "Marvel", "Universal", "Paramount"],
+                "correctIndex": 0
+            },
+            {
+                "theme": "cine",
+                "question": "¿Quién dirigió Jurassic Park?",
+                "options": ["James Cameron", "Steven Spielberg", "Tim Burton", "George Lucas"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "cine",
+                "question": "¿En qué saga aparece el Anillo Único?",
+                "options": ["Harry Potter", "Star Wars", "El Señor de los Anillos", "Indiana Jones"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "cine",
+                "question": "¿Cómo se llama el premio entregado por la Academia de Hollywood?",
+                "options": ["Grammy", "Oscar", "Emmy", "Tony"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "cine",
+                "question": "¿En qué película de Marvel aparece Wakanda?",
+                "options": ["Iron Man", "Black Panther", "Thor", "Ant-Man"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "cine",
+                "question": "¿A qué saga pertenece la frase 'Que la Fuerza te acompañe'?",
+                "options": ["Star Trek", "Star Wars", "Matrix", "Avatar"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "cine",
+                "question": "¿Qué tipo de pez es Nemo?",
+                "options": ["Pez payaso", "Tiburón", "Pez globo", "Salmón"],
+                "correctIndex": 0
+            },
+            {
+                "theme": "cine",
+                "question": "¿Quién dirigió Titanic?",
+                "options": ["James Cameron", "Peter Jackson", "Ridley Scott", "Christopher Nolan"],
+                "correctIndex": 0
+            },
+            {
+                "theme": "cine",
+                "question": "¿Qué actor es un ícono del cine mudo?",
+                "options": ["Charlie Chaplin", "Tom Hanks", "Al Pacino", "Hugh Jackman"],
+                "correctIndex": 0
             },
             {
                 "theme": "ciencia",
                 "question": "¿Cuál es el planeta rojo?",
-                "options": [
-                    "Venus",
-                    "Marte",
-                    "Júpiter",
-                    "Saturno"
-                ],
+                "options": ["Venus", "Marte", "Júpiter", "Saturno"],
                 "correctIndex": 1
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿Cuál es el planeta más grande del sistema solar?",
+                "options": ["Tierra", "Marte", "Júpiter", "Mercurio"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿A qué temperatura hierve el agua al nivel del mar?",
+                "options": ["50 °C", "75 °C", "100 °C", "120 °C"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿Qué órgano bombea la sangre por el cuerpo?",
+                "options": ["Pulmón", "Corazón", "Hígado", "Riñón"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿Cómo se llama el proceso con el que las plantas producen alimento usando luz?",
+                "options": ["Digestión", "Evaporación", "Fotosíntesis", "Fermentación"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿Qué sustancia representa la fórmula H2O?",
+                "options": ["Oxígeno", "Sal", "Agua", "Hidrógeno"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿Cuál es el satélite natural de la Tierra?",
+                "options": ["El Sol", "La Luna", "Marte", "Venus"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿Qué gas necesita principalmente el cuerpo humano para respirar?",
+                "options": ["Helio", "Oxígeno", "Nitrógeno", "Metano"],
+                "correctIndex": 1
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿Qué fuerza atrae los objetos hacia la Tierra?",
+                "options": ["Magnetismo", "Electricidad", "Gravedad", "Fricción"],
+                "correctIndex": 2
+            },
+            {
+                "theme": "ciencia",
+                "question": "¿Cuáles son los tres estados clásicos de la materia?",
+                "options": ["Sólido, líquido y gas", "Frío, tibio y caliente", "Duro, blando y elástico", "Luz, sonido y calor"],
+                "correctIndex": 0
             }
         ]
     },
@@ -126,6 +322,206 @@
             {
                 "category": "Bebidas",
                 "word": "Café"
+            },
+            {
+                "category": "Comida",
+                "word": "Tacos"
+            },
+            {
+                "category": "Comida",
+                "word": "Arepa"
+            },
+            {
+                "category": "Comida",
+                "word": "Empanada"
+            },
+            {
+                "category": "Comida",
+                "word": "Pasta"
+            },
+            {
+                "category": "Comida",
+                "word": "Helado"
+            },
+            {
+                "category": "Comida",
+                "word": "Chocolate"
+            },
+            {
+                "category": "Comida",
+                "word": "Palomitas"
+            },
+            {
+                "category": "Comida",
+                "word": "Sopa"
+            },
+            {
+                "category": "Bebidas",
+                "word": "Té"
+            },
+            {
+                "category": "Bebidas",
+                "word": "Jugo"
+            },
+            {
+                "category": "Bebidas",
+                "word": "Agua"
+            },
+            {
+                "category": "Bebidas",
+                "word": "Gaseosa"
+            },
+            {
+                "category": "Animales",
+                "word": "Tigre"
+            },
+            {
+                "category": "Animales",
+                "word": "Elefante"
+            },
+            {
+                "category": "Animales",
+                "word": "Jirafa"
+            },
+            {
+                "category": "Animales",
+                "word": "Pingüino"
+            },
+            {
+                "category": "Animales",
+                "word": "Cocodrilo"
+            },
+            {
+                "category": "Animales",
+                "word": "Delfín"
+            },
+            {
+                "category": "Animales",
+                "word": "Mariposa"
+            },
+            {
+                "category": "Animales",
+                "word": "Canguro"
+            },
+            {
+                "category": "Animales",
+                "word": "Tortuga"
+            },
+            {
+                "category": "Animales",
+                "word": "Pulpo"
+            },
+            {
+                "category": "Objetos",
+                "word": "Celular"
+            },
+            {
+                "category": "Objetos",
+                "word": "Sombrilla"
+            },
+            {
+                "category": "Objetos",
+                "word": "Guitarra"
+            },
+            {
+                "category": "Objetos",
+                "word": "Reloj"
+            },
+            {
+                "category": "Objetos",
+                "word": "Mochila"
+            },
+            {
+                "category": "Objetos",
+                "word": "Martillo"
+            },
+            {
+                "category": "Objetos",
+                "word": "Tijeras"
+            },
+            {
+                "category": "Objetos",
+                "word": "Linterna"
+            },
+            {
+                "category": "Objetos",
+                "word": "Espejo"
+            },
+            {
+                "category": "Objetos",
+                "word": "Almohada"
+            },
+            {
+                "category": "Personajes",
+                "word": "Spider-Man"
+            },
+            {
+                "category": "Personajes",
+                "word": "Harry Potter"
+            },
+            {
+                "category": "Personajes",
+                "word": "Shrek"
+            },
+            {
+                "category": "Personajes",
+                "word": "Batman"
+            },
+            {
+                "category": "Personajes",
+                "word": "Elsa"
+            },
+            {
+                "category": "Personajes",
+                "word": "Mario Bros"
+            },
+            {
+                "category": "Personajes",
+                "word": "Darth Vader"
+            },
+            {
+                "category": "Personajes",
+                "word": "Barbie"
+            },
+            {
+                "category": "Lugares",
+                "word": "Playa"
+            },
+            {
+                "category": "Lugares",
+                "word": "Hospital"
+            },
+            {
+                "category": "Lugares",
+                "word": "Aeropuerto"
+            },
+            {
+                "category": "Lugares",
+                "word": "Biblioteca"
+            },
+            {
+                "category": "Lugares",
+                "word": "Zoológico"
+            },
+            {
+                "category": "Lugares",
+                "word": "Restaurante"
+            },
+            {
+                "category": "Acciones",
+                "word": "Bailar"
+            },
+            {
+                "category": "Acciones",
+                "word": "Dormir"
+            },
+            {
+                "category": "Acciones",
+                "word": "Cocinar"
+            },
+            {
+                "category": "Acciones",
+                "word": "Nadar"
             }
         ]
     },
@@ -148,8 +544,93 @@
                     "TAPA",
                     "TAPAS",
                     "PASTA",
-                    "ASPAS",
                     "MATA",
+                    "PATA",
+                    "TASA",
+                    "AMA"
+                ]
+            },
+            {
+                "letters": ["C", "A", "M", "I", "N", "O"],
+                "validWords": [
+                    "CAMINO",
+                    "CAMION",
+                    "ANIMO",
+                    "MANO",
+                    "MINA",
+                    "CIMA",
+                    "MICA",
+                    "COMA",
+                    "MONA",
+                    "AMO"
+                ]
+            },
+            {
+                "letters": ["P", "E", "R", "L", "A", "S"],
+                "validWords": [
+                    "PERLA",
+                    "PERLAS",
+                    "PRESA",
+                    "REAL",
+                    "PESA",
+                    "PASE",
+                    "SALE",
+                    "PELA",
+                    "SAL",
+                    "SER",
+                    "ERA",
+                    "PAR"
+                ]
+            },
+            {
+                "letters": ["S", "O", "L", "A", "R", "E"],
+                "validWords": [
+                    "SOLAR",
+                    "REAL",
+                    "SALE",
+                    "ROSA",
+                    "LOSA",
+                    "ORAL",
+                    "ASEO",
+                    "SOL",
+                    "SAL",
+                    "OLA",
+                    "OLE",
+                    "LEA",
+                    "SEA",
+                    "SER"
+                ]
+            },
+            {
+                "letters": ["C", "A", "S", "T", "O", "R"],
+                "validWords": [
+                    "CASTOR",
+                    "COSTA",
+                    "CORTA",
+                    "TOCA",
+                    "ROTA",
+                    "RATO",
+                    "SACO",
+                    "CASO",
+                    "CARO",
+                    "ARCO",
+                    "ACTO",
+                    "OTRA"
+                ]
+            },
+            {
+                "letters": ["P", "L", "A", "N", "E", "T", "A"],
+                "validWords": [
+                    "PLANETA",
+                    "PLANTA",
+                    "ALETA",
+                    "LENTA",
+                    "PLENA",
+                    "PLAN",
+                    "PENA",
+                    "TELA",
+                    "LATA",
+                    "NATA",
                     "PATA"
                 ]
             }
