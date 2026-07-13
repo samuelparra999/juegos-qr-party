@@ -516,9 +516,7 @@
         Estas son las combinaciones de Poker, de la más débil a la más fuerte.
       </p>
 
-      <div id="pokerRankingsList" class="poker-rankings-list"></div>
-
-      <div id="pokerRankingsLeaderControls" class="poker-actions hidden">
+      <div id="pokerRankingsLeaderControls" class="poker-actions poker-rankings-top-actions hidden">
         <button id="continuePokerAfterRankingsBtn" class="primary-btn">
           Continuar
         </button>
@@ -527,6 +525,8 @@
       <p id="pokerRankingsWaiting" class="waiting-text hidden">
         Esperando a que el líder continúe...
       </p>
+
+      <div id="pokerRankingsList" class="poker-rankings-list"></div>
     </section>
 
     <!-- Mesa de Poker -->
@@ -571,14 +571,14 @@
             <button id="pokerCheckBtn" class="secondary-btn hidden">Pasar</button>
             <button id="pokerCallBtn" class="primary-btn hidden">Igualar</button>
             <button id="pokerFoldBtn" class="secondary-btn hidden">Retirarme</button>
+
+            <div class="poker-bet-area">
+              <input id="pokerBetAmountInput" type="number" min="1" step="10" placeholder="Cantidad" />
+
+              <button id="pokerBetBtn" class="primary-btn hidden">Apostar</button>
+              <button id="pokerRaiseBtn" class="primary-btn hidden">Subir</button>
+            </div>
           </div>
-        </div>
-
-        <div class="poker-bet-area">
-          <input id="pokerBetAmountInput" type="number" min="1" step="10" placeholder="Cantidad" />
-
-          <button id="pokerBetBtn" class="primary-btn hidden">Apostar</button>
-          <button id="pokerRaiseBtn" class="primary-btn hidden">Subir</button>
         </div>
 
         <p id="pokerActionHelp" class="poker-action-help"></p>

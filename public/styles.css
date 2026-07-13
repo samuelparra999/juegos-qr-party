@@ -721,6 +721,14 @@ button:disabled {
   margin: 18px 0;
 }
 
+.poker-rankings-top-actions {
+  margin: 12px 0 14px;
+}
+
+.poker-rankings-top-actions button {
+  margin-top: 0;
+}
+
 .poker-ranking-row {
   display: grid;
   grid-template-columns: 42px 1fr;
@@ -898,46 +906,57 @@ button:disabled {
 }
 
 .poker-player-panel-main {
+  --poker-panel-gap: 8px;
+  --poker-control-height: 48px;
+  --poker-main-actions-height: calc((var(--poker-control-height) * 2) + var(--poker-panel-gap));
   display: grid;
   grid-template-columns: 1fr 140px;
   gap: 12px;
-  align-items: center;
+  align-items: start;
 }
 
 .poker-player-cards-block {
   display: flex;
   justify-content: flex-start;
-  align-items: center;
+  align-items: flex-start;
+  min-height: var(--poker-main-actions-height);
 }
 
 .poker-cards-row {
   display: flex;
   gap: 10px;
   flex-wrap: nowrap;
+  height: var(--poker-main-actions-height);
 }
 
 .poker-cards-row .poker-card {
-  width: 58px;
-  height: 82px;
+  width: 68px;
+  height: 100%;
   border-radius: 10px;
 }
 
 .poker-player-buttons-block {
   display: grid;
-  gap: 8px;
+  gap: var(--poker-panel-gap);
 }
 
-.poker-player-buttons-block button {
+.poker-player-buttons-block button,
+.poker-bet-area button {
   width: 100%;
+  min-height: var(--poker-control-height);
+  margin-top: 0;
+  padding: 0 12px;
 }
 
 .poker-bet-area {
   display: grid;
-  gap: 8px;
+  gap: var(--poker-panel-gap);
 }
 
 .poker-bet-area input {
   width: 100%;
+  height: var(--poker-control-height);
+  padding: 0 12px;
 }
 
 .poker-action-help {
@@ -973,7 +992,6 @@ button:disabled {
   }
 
   .poker-cards-row .poker-card {
-    width: 54px;
-    height: 76px;
+    width: 58px;
   }
 }
