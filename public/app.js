@@ -32,6 +32,7 @@ const headsScreen = document.getElementById("headsScreen");
 const headsResultScreen = document.getElementById("headsResultScreen");
 const wordIntroScreen = document.getElementById("wordIntroScreen");
 const wordScreen = document.getElementById("wordScreen");
+const wordResultScreen = document.getElementById("wordResultScreen");
 const pokerIntroScreen = document.getElementById("pokerIntroScreen");
 const pokerRankingsScreen = document.getElementById("pokerRankingsScreen");
 const pokerScreen = document.getElementById("pokerScreen");
@@ -60,14 +61,14 @@ const playersList = document.getElementById("playersList");
 const waitingText = document.getElementById("waitingText");
 
 const gameKnowledge = document.getElementById("gameKnowledge");
+const gameSelectionBox = document.getElementById("gameSelectionBox");
 const gameFriend = document.getElementById("gameFriend");
 const gameHeads = document.getElementById("gameHeads");
 const gameWord = document.getElementById("gameWord");
 const friendGameHelp = document.getElementById("friendGameHelp");
 const gamePoker = document.getElementById("gamePoker");
 
-const gameCheckboxes = [gameKnowledge, gameFriend, gameHeads, gameWord, gamePoker];
-
+const gameCheckboxes = [gameKnowledge, gameFriend, gameHeads, gameWord, gamePoker].filter(Boolean);
 // QR
 const qrImage = document.getElementById("qrImage");
 const qrUrl = document.getElementById("qrUrl");
@@ -168,12 +169,11 @@ const pokerRoundText = document.getElementById("pokerRoundText");
 const pokerBlindText = document.getElementById("pokerBlindText");
 const pokerPlayersRing = document.getElementById("pokerPlayersRing");
 const pokerCommunityCards = document.getElementById("pokerCommunityCards");
-const pokerPotText = document.getElementById("pokerPotText");
 const pokerPlayerCards = document.getElementById("pokerPlayerCards");
 const pokerStatusText = document.getElementById("pokerStatusText");
+const pokerCurrentTurnText = document.getElementById("pokerCurrentTurnText");
 const pokerActionTimerText = document.getElementById("pokerActionTimerText");
 const pokerLeaderControls = document.getElementById("pokerLeaderControls");
-const advancePokerStageBtn = document.getElementById("advancePokerStageBtn");
 const nextPokerHandBtn = document.getElementById("nextPokerHandBtn");
 const finishPokerGameBtn = document.getElementById("finishPokerGameBtn");
 const pokerShowdownList = document.getElementById("pokerShowdownList");
@@ -644,7 +644,7 @@ startFriendTriviaBtn.addEventListener("click", () => {
   });
 });
 
-  startHeadsUpBtn.addEventListener("click", () => {
+startHeadsUpBtn.addEventListener("click", () => {
   if (!currentGame) return;
 
   socket.emit("start_heads_up_game", { pin: currentGame.pin }, (response) => {
@@ -703,16 +703,6 @@ continuePokerAfterRankingsBtn.addEventListener("click", () => {
   }, (response) => {
     if (!response.ok) {
       showToast(response.message || "No se pudo continuar.");
-    }
-  });
-});
-
-advancePokerStageBtn.addEventListener("click", () => {
-  if (!currentGame) return;
-
-  socket.emit("advance_poker_stage", { pin: currentGame.pin }, (response) => {
-    if (!response.ok) {
-      showToast(response.message || "No se pudo revelar la siguiente fase.");
     }
   });
 });
@@ -973,15 +963,11 @@ socket.on("game_finished", (data) => {
 function getSelectedGamesFromLobby() {
   const selectedGames = [];
 
-  if (gameKnowledge.checked) selectedGames.push("knowledge");
-
-  if (gameFriend.checked && !gameFriend.disabled) {
-    selectedGames.push("friend");
-  }
-
-  if (gameHeads.checked) selectedGames.push("heads");
-  if (gameWord.checked) selectedGames.push("word");
-  if (gamePoker.checked) selectedGames.push("poker");
+  if (gameKnowledge && gameKnowledge.checked) selectedGames.push("knowledge");
+  if (gameFriend && gameFriend.checked) selectedGames.push("friend");
+  if (gameHeads && gameHeads.checked) selectedGames.push("heads");
+  if (gameWord && gameWord.checked) selectedGames.push("word");
+  if (gamePoker && gamePoker.checked) selectedGames.push("poker");
 
   return selectedGames;
 }
@@ -1006,19 +992,17 @@ function renderGameSelection(game) {
   const playerCount = game.players.length;
   const friendUnlocked = playerCount >= 3;
 
-  gameKnowledge.checked = selectedGames.includes("knowledge");
-  gameHeads.checked = selectedGames.includes("heads");
-  gameWord.checked = selectedGames.includes("word");
-  gamePoker.checked = selectedGames.includes("poker");
+  if (gameKnowledge) gameKnowledge.checked = selectedGames.includes("knowledge");
+  if (gameFriend) gameFriend.checked = selectedGames.includes("friend");
+  if (gameHeads) gameHeads.checked = selectedGames.includes("heads");
+  if (gameWord) gameWord.checked = selectedGames.includes("word");
+  if (gamePoker) gamePoker.checked = selectedGames.includes("poker");
 
-  gameFriend.checked = friendUnlocked && selectedGames.includes("friend");
-
-  gameKnowledge.disabled = !isLeader;
-  gameHeads.disabled = !isLeader;
-  gameWord.disabled = !isLeader;
-  gamePoker.disabled = !isLeader;
-
-  gameFriend.disabled = !isLeader || !friendUnlocked;
+  if (gameKnowledge) gameKnowledge.disabled = !isLeader;
+  if (gameFriend) gameFriend.disabled = !isLeader;
+  if (gameHeads) gameHeads.disabled = !isLeader;
+  if (gameWord) gameWord.disabled = !isLeader;
+  if (gamePoker) gamePoker.disabled = !isLeader;
 
   if (friendUnlocked) {
     friendGameHelp.textContent = "Disponible.";
@@ -1796,9 +1780,12 @@ function renderPokerRankings(rankings) {
 
 function renderPokerTable(pokerState) {
   pokerRoundText.textContent = `Mano ${pokerState.roundNumber}/${pokerState.totalRounds} · ${pokerState.stageLabel}`;
-  pokerBlindText.textContent = `Ciegas ${pokerState.smallBlind}/${pokerState.bigBlind}`;
-  pokerPotText.textContent = pokerState.pot;
-  pokerStatusText.textContent = pokerState.message || "";
+  pokerBlindText.textContent = `SB ${pokerState.smallBlind} · BB ${pokerState.bigBlind}`;
+
+  pokerStatusText.textContent = pokerState.lastActionMessage || pokerState.message || "Esperando...";
+  pokerCurrentTurnText.textContent = pokerState.currentPlayerName
+    ? `Turno actual: ${pokerState.currentPlayerName}`
+    : "Sin turno activo";
 
   renderPokerActionTimer(pokerState);
 
@@ -1896,8 +1883,6 @@ function renderPokerTable(pokerState) {
     pokerLeaderControls.classList.add("hidden");
   }
 
-  advancePokerStageBtn.classList.add("hidden");
-
   nextPokerHandBtn.classList.toggle("hidden", !pokerState.canStartNextHand);
   finishPokerGameBtn.classList.toggle("hidden", !pokerState.canFinishPoker);
 
@@ -1923,9 +1908,9 @@ function renderPokerActionTimer(pokerState) {
     const remainingSeconds = Math.ceil(remainingMs / 1000);
 
     if (pokerState.isYourTurn) {
-      pokerActionTimerText.textContent = `Tu turno termina en ${remainingSeconds}s.`;
+      pokerActionTimerText.textContent = `Tu turno acaba en: ${remainingSeconds}s`;
     } else {
-      pokerActionTimerText.textContent = `Turno de ${pokerState.currentPlayerName}: ${remainingSeconds}s.`;
+      pokerActionTimerText.textContent = `${pokerState.currentPlayerName}: ${remainingSeconds}s`;
     }
 
     if (remainingSeconds <= 0 && pokerActionTimerInterval) {
@@ -1935,7 +1920,6 @@ function renderPokerActionTimer(pokerState) {
   }
 
   updateTimerText();
-
   pokerActionTimerInterval = setInterval(updateTimerText, 500);
 }
 
@@ -1965,19 +1949,13 @@ function renderPokerShowdownResults(results) {
 function renderPokerActions(pokerState) {
   const actions = pokerState.availableActions || {};
 
-  if (!pokerState.isYourTurn) {
-    pokerActionPanel.classList.add("hidden");
-
-    pokerTurnText.textContent = pokerState.currentPlayerName
-      ? `Turno de ${pokerState.currentPlayerName}.`
-      : "";
-
-    return;
-  }
-
   pokerActionPanel.classList.remove("hidden");
 
-  pokerTurnText.textContent = "Es tu turno.";
+  if (pokerState.isYourTurn) {
+    pokerTurnText.textContent = "Es tu turno";
+  } else {
+    pokerTurnText.textContent = "Tu panel";
+  }
 
   pokerCheckBtn.classList.toggle("hidden", !actions.check);
   pokerCallBtn.classList.toggle("hidden", !actions.call);
@@ -1992,16 +1970,28 @@ function renderPokerActions(pokerState) {
   }
 
   if (actions.bet) {
-    pokerBetAmountInput.placeholder = `Mínimo ${actions.minBet}`;
-    pokerActionHelp.textContent = `Puedes apostar mínimo ${actions.minBet}. Máximo disponible: ${actions.maxBet}.`;
+    pokerBetAmountInput.placeholder = `Apuesta mínima ${actions.minBet}`;
+    pokerActionHelp.textContent = `Puedes apostar mínimo ${actions.minBet}.`;
   } else if (actions.raise) {
     pokerBetAmountInput.placeholder = `Subir a mínimo ${actions.minRaiseTo}`;
-    pokerActionHelp.textContent = `Debes subir a mínimo ${actions.minRaiseTo}. Máximo disponible: ${actions.maxBet}.`;
+    pokerActionHelp.textContent = `Debes subir a mínimo ${actions.minRaiseTo}.`;
+  } else if (!pokerState.isYourTurn) {
+    pokerActionHelp.textContent = "Espera tu turno para actuar.";
   } else {
     pokerActionHelp.textContent = "";
   }
 
-  pokerBetAmountInput.classList.toggle("hidden", !actions.bet && !actions.raise);
+  const showBetInput = actions.bet || actions.raise;
+  pokerBetAmountInput.classList.toggle("hidden", !showBetInput);
+
+  if (!pokerState.isYourTurn) {
+    pokerCheckBtn.classList.add("hidden");
+    pokerCallBtn.classList.add("hidden");
+    pokerBetBtn.classList.add("hidden");
+    pokerRaiseBtn.classList.add("hidden");
+    pokerFoldBtn.classList.add("hidden");
+    pokerBetAmountInput.classList.add("hidden");
+  }
 }
 
 function createPokerCard(card) {

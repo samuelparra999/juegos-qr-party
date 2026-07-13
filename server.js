@@ -1995,10 +1995,6 @@ function movePokerTurnOrAdvance(pin) {
 
   const currentPlayer = getCurrentPokerPlayer(game);
 
-  game.poker.message = currentPlayer
-    ? `Turno de ${currentPlayer.name}.`
-    : "Esperando acción.";
-
   if (currentPlayer) {
     startPokerActionTimer(pin);
   }
@@ -2746,7 +2742,7 @@ function startPokerHand(pin) {
   game.poker.communityCards = [];
   game.poker.pot = 0;
   game.poker.stage = "preflop";
-  game.poker.message = "Preflop. Ciegas publicadas. Empieza la ronda de apuestas.";
+  game.poker.message = "Preflop.";
   game.poker.showdown = false;
   game.poker.showdownResults = [];
   game.poker.payouts = {};
@@ -2795,18 +2791,10 @@ function startPokerHand(pin) {
   const currentPlayer = getCurrentPokerPlayer(game);
 
   if (currentPlayer) {
-    game.poker.message = `Preflop. Turno de ${currentPlayer.name}.`;
     startPokerActionTimer(pin);
   }
 
   emitPokerState(pin, game);
-}
-
-function advancePokerStage(pin) {
-  return {
-    ok: false,
-    message: "Ahora las fases de Poker avanzan automáticamente cuando termina cada ronda de apuestas."
-  };
 }
 
 function nextPokerHand(pin) {
@@ -2892,6 +2880,7 @@ function getPublicPokerState(game, viewerId) {
     communityCards: game.poker.communityCards.filter(Boolean),
     yourCards: viewerPokerPlayer ? viewerPokerPlayer.hand.filter(Boolean) : [],
 
+    lastActionMessage: game.poker.message,
     message: game.poker.message,
     showdown: isShowdown,
 
@@ -2949,10 +2938,6 @@ function emitPokerState(pin, game) {
       pokerState: getPublicPokerState(game, player.id)
     });
   });
-}
-
-function finishPokerPlaceholder(pin) {
-  finishPokerGame(pin);
 }
 
 function finishFinalGame(pin) {
@@ -3853,30 +3838,6 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     beginPoker(cleanGamePin);
   });
 
-  socket.on("advance_poker_stage", ({ pin }, callback) => {
-    const cleanGamePin = cleanPin(pin);
-    const game = games.get(cleanGamePin);
-
-    if (!game) {
-      callback({
-        ok: false,
-        message: "La partida no existe."
-      });
-      return;
-    }
-
-    if (game.leaderId !== socket.id) {
-      callback({
-        ok: false,
-        message: "Solo el líder puede revelar cartas."
-      });
-      return;
-    }
-
-    const result = advancePokerStage(cleanGamePin);
-    callback(result);
-  });
-
   socket.on("next_poker_hand", ({ pin }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -3934,33 +3895,6 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     const result = handlePokerAction(cleanGamePin, socket.id, action, amount);
 
     callback(result);
-  });
-
-  socket.on("finish_poker_placeholder", ({ pin }, callback) => {
-    const cleanGamePin = cleanPin(pin);
-    const game = games.get(cleanGamePin);
-
-    if (!game || game.status !== "poker") {
-      callback({
-        ok: false,
-        message: "Poker no está activo."
-      });
-      return;
-    }
-
-    if (game.leaderId !== socket.id) {
-      callback({
-        ok: false,
-        message: "Solo el líder puede terminar esta prueba de Poker."
-      });
-      return;
-    }
-
-    callback({
-      ok: true
-    });
-
-    finishPokerPlaceholder(cleanGamePin);
   });
 
   socket.on("dev_skip_to", ({ pin, target, theme }, callback) => {

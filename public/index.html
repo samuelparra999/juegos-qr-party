@@ -16,7 +16,7 @@
     <!-- Pantalla inicial -->
     <section id="homeScreen" class="card">
       <img id="campaignLogo" class="campaign-logo hidden" alt="Logo de la campaña" />
-    
+
       <h1 id="appTitle">Juegos QR Party</h1>
 
       <p id="welcomeText" class="subtitle">
@@ -30,7 +30,7 @@
 
       <label for="playerName">Tu nombre</label>
       <input id="playerName" type="text" maxlength="20" placeholder="Ej: Samuel" />
-      
+
       <p id="playerNameError" class="input-error hidden">
         Debes ingresar tu nombre para unirte a la partida.
       </p>
@@ -45,7 +45,7 @@
 
       <label for="pinInput">PIN de partida</label>
       <input id="pinInput" type="text" maxlength="6" inputmode="numeric" placeholder="Ej: 482913" />
-            
+
       <button id="joinGameBtn" class="secondary-btn">Unirme con PIN</button>
     </section>
 
@@ -73,24 +73,24 @@
       <p class="small-title">Sala de espera</p>
 
       <h2>PIN: <span id="pinDisplay"></span></h2>
-      
+
       <p id="roleText" class="role-text"></p>
-      
+
       <div class="qr-box lobby-qr-box">
         <p class="small-title">QR de esta partida</p>
         <img id="lobbyQrImage" alt="Código QR para entrar directamente a la partida" />
         <p id="lobbyQrUrl"></p>
       </div>
-      
+
       <button id="copyLinkBtn" class="secondary-btn">Copiar enlace de la partida</button>
-      
+
       <h3>Jugadores conectados</h3>
-      
+
       <ul id="playersList" class="players-list"></ul>
-      
+
       <div id="gameSelectionBox" class="game-selection-box">
         <h3>Juegos de la partida</h3>
-      
+
         <label class="game-option">
           <input id="gameKnowledge" class="game-checkbox-input" type="checkbox" value="knowledge" />
           <span>
@@ -98,7 +98,7 @@
             <small>Preguntas por tema.</small>
           </span>
         </label>
-      
+
         <label id="gameFriendRow" class="game-option">
           <input id="gameFriend" class="game-checkbox-input" type="checkbox" value="friend" />
           <span>
@@ -106,7 +106,7 @@
             <small id="friendGameHelp">Se desbloquea con 3 jugadores.</small>
           </span>
         </label>
-      
+
         <label class="game-option">
           <input id="gameHeads" class="game-checkbox-input" type="checkbox" value="heads" />
           <span>
@@ -114,7 +114,7 @@
             <small>Adivina palabras con pistas.</small>
           </span>
         </label>
-      
+
         <label class="game-option">
           <input id="gameWord" class="game-checkbox-input" type="checkbox" value="word" />
           <span>
@@ -131,7 +131,7 @@
           </span>
         </label>
       </div>
-      
+
       <button id="startGameBtn" class="primary-btn hidden">
         Iniciar partida
       </button>
@@ -454,9 +454,9 @@
     <!-- Instrucciones de Poker -->
     <section id="pokerIntroScreen" class="card hidden">
       <p class="small-title">Poker Texas Hold’em</p>
-    
+
       <h2>Configuración de Poker</h2>
-    
+
       <p class="subtitle">
         Cada jugador empieza con fichas ficticias. El líder define las ciegas y la cantidad de rondas antes de comenzar.
       </p>
@@ -466,41 +466,41 @@
           <span>Fichas iniciales</span>
           <strong id="pokerSummaryInitialChips">5000</strong>
         </div>
-      
+
         <div class="poker-setting-card">
           <span>Ciega pequeña</span>
           <strong id="pokerSummarySmallBlind">50</strong>
         </div>
-      
+
         <div class="poker-setting-card">
           <span>Ciega grande</span>
           <strong id="pokerSummaryBigBlind">100</strong>
         </div>
-      
+
         <div class="poker-setting-card">
           <span>Rondas</span>
           <strong id="pokerSummaryRounds">3</strong>
         </div>
       </div>
-    
+
       <div id="pokerLeaderSettings" class="poker-settings hidden">
         <label for="pokerSmallBlindInput">Ciega pequeña</label>
         <input id="pokerSmallBlindInput" type="number" min="10" step="10" value="50" />
-    
+
         <label for="pokerRoundsInput">Cantidad de rondas</label>
         <input id="pokerRoundsInput" type="number" min="1" max="10" value="3" />
-    
+
         <p id="pokerSettingsHelp" class="answer-status"></p>
-    
+
         <button id="savePokerSettingsBtn" class="secondary-btn">
           Guardar configuración
         </button>
-    
+
         <button id="startPokerBtn" class="primary-btn">
           Empezar Poker
         </button>
       </div>
-    
+
       <div id="pokerPlayerWaiting" class="waiting-text">
         Esperando a que el líder configure y empiece Poker...
       </div>
@@ -509,98 +509,86 @@
     <!-- Ranking de manos de Poker -->
     <section id="pokerRankingsScreen" class="card hidden">
       <p class="small-title">Poker Texas Hold’em</p>
-    
+
       <h2>Ranking de manos ganadoras</h2>
-    
+
       <p class="subtitle">
         Estas son las combinaciones de Poker, de la más débil a la más fuerte.
       </p>
-    
+
       <div id="pokerRankingsList" class="poker-rankings-list"></div>
-    
+
       <div id="pokerRankingsLeaderControls" class="poker-actions hidden">
         <button id="continuePokerAfterRankingsBtn" class="primary-btn">
           Continuar
         </button>
       </div>
-    
+
       <p id="pokerRankingsWaiting" class="waiting-text hidden">
         Esperando a que el líder continúe...
       </p>
     </section>
-    
+
     <!-- Mesa de Poker -->
     <section id="pokerScreen" class="card hidden">
       <p class="small-title">Poker Texas Hold’em</p>
-    
-      <div class="question-header">
-        <span id="pokerRoundText">Ronda 1/3</span>
-        <span id="pokerBlindText">Ciegas 50/100</span>
+
+      <div class="poker-top-row">
+        <strong id="pokerRoundText">Mano 1/3 · Preflop</strong>
+        <strong id="pokerBlindText">SB 50 · BB 100</strong>
       </div>
-    
-      <div class="poker-table">
-        <div id="pokerPlayersRing" class="poker-players-ring"></div>
-    
-        <div class="poker-center">
-          <div id="pokerCommunityCards" class="poker-cards-row"></div>
-    
-          <div class="poker-pot-badge">
-            <span>Bote</span>
-            <strong id="pokerPotText">0</strong>
+
+      <div id="pokerPlayersRing" class="poker-players-ring"></div>
+
+      <div class="poker-table-compact">
+        <div id="pokerCommunityCards" class="poker-community-cards"></div>
+      </div>
+
+      <div class="poker-context-stack">
+        <p id="pokerStatusText" class="poker-context-box">
+          Aquí aparece lo último que pasó.
+        </p>
+
+        <p id="pokerCurrentTurnText" class="poker-context-box">
+          Aquí aparece quién tiene el turno.
+        </p>
+      </div>
+
+      <ul id="pokerShowdownList" class="poker-showdown-list hidden"></ul>
+
+      <div id="pokerActionPanel" class="poker-action-panel hidden">
+        <div class="poker-player-panel-header">
+          <strong id="pokerTurnText">Tu panel</strong>
+          <span id="pokerActionTimerText" class="poker-inline-timer hidden"></span>
+        </div>
+
+        <div class="poker-player-panel-main">
+          <div class="poker-player-cards-block">
+            <div id="pokerPlayerCards" class="poker-cards-row"></div>
+          </div>
+
+          <div class="poker-player-buttons-block">
+            <button id="pokerCheckBtn" class="secondary-btn hidden">Pasar</button>
+            <button id="pokerCallBtn" class="primary-btn hidden">Igualar</button>
+            <button id="pokerFoldBtn" class="secondary-btn hidden">Retirarme</button>
           </div>
         </div>
-      </div>
-    
-      <h3>Tus cartas</h3>
-      <div id="pokerPlayerCards" class="poker-cards-row"></div>
-    
-      <p id="pokerStatusText" class="answer-status"></p>
 
-      <p id="pokerActionTimerText" class="poker-timer-text hidden"></p>
-
-      <ul id="pokerShowdownList" class="poker-showdown-list"></ul>
-    
-      <div id="pokerActionPanel" class="poker-action-panel hidden">
-        <p id="pokerTurnText" class="poker-turn-text"></p>
-      
-        <div class="poker-action-buttons">
-          <button id="pokerCheckBtn" class="secondary-btn">
-            Pasar
-          </button>
-      
-          <button id="pokerCallBtn" class="primary-btn">
-            Igualar
-          </button>
-      
-          <button id="pokerFoldBtn" class="secondary-btn">
-            Retirarme
-          </button>
-        </div>
-      
-        <div class="poker-bet-box">
+        <div class="poker-bet-area">
           <input id="pokerBetAmountInput" type="number" min="1" step="10" placeholder="Cantidad" />
-      
-          <button id="pokerBetBtn" class="primary-btn">
-            Apostar
-          </button>
-      
-          <button id="pokerRaiseBtn" class="primary-btn">
-            Subir
-          </button>
+
+          <button id="pokerBetBtn" class="primary-btn hidden">Apostar</button>
+          <button id="pokerRaiseBtn" class="primary-btn hidden">Subir</button>
         </div>
-      
-        <p id="pokerActionHelp" class="answer-status"></p>
+
+        <p id="pokerActionHelp" class="poker-action-help"></p>
       </div>
-      
+
       <div id="pokerLeaderControls" class="poker-actions hidden">
-        <button id="advancePokerStageBtn" class="primary-btn">
-          Revelar siguiente fase
-        </button>
-      
         <button id="nextPokerHandBtn" class="secondary-btn hidden">
           Siguiente mano
         </button>
-      
+
         <button id="finishPokerGameBtn" class="secondary-btn hidden">
           Terminar Poker
         </button>
