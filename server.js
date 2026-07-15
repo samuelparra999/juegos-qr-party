@@ -16,6 +16,14 @@ const games = new Map();
 
 const GAME_ORDER = ["knowledge", "friend", "heads", "word", "poker"];
 
+const GAME_LABELS = {
+  knowledge: "Trivia de conocimiento",
+  friend: "Trivia de amigos",
+  heads: "Heads Up",
+  word: "Word Connect",
+  poker: "Poker"
+};
+
 const DEFAULT_SELECTED_GAMES = ["knowledge", "heads", "word"];
 
 const DEFAULT_POKER_SETTINGS = {
@@ -524,11 +532,58 @@ function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
   return GAME_ORDER.filter((gameId) => allowedGames.includes(gameId));
 }
 
+function getCurrentSelectedGameId(game) {
+  if (!game || !Array.isArray(game.selectedGames)) return null;
+  return game.selectedGames[game.currentGameIndex] || null;
+}
+
+function hasNextSelectedGame(game) {
+  if (!game || !Array.isArray(game.selectedGames)) return false;
+
+  for (let index = game.currentGameIndex + 1; index < game.selectedGames.length; index++) {
+    const gameId = game.selectedGames[index];
+
+    if (gameId === "friend" && game.players.length < 3) {
+      continue;
+    }
+
+    if (GAME_ORDER.includes(gameId)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function showBetweenGamesScoreboard(pin, finishedGameId = null) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  const resolvedGameId = finishedGameId || getCurrentSelectedGameId(game);
+  const nextGameAvailable = hasNextSelectedGame(game);
+
+  game.status = "between_games";
+  game.betweenGames = {
+    finishedGameId: resolvedGameId,
+    hasNextGame: nextGameAvailable
+  };
+
+  io.to(pin).emit("between_games_scoreboard", {
+    game: publicGame(game),
+    finishedGameId: resolvedGameId,
+    finishedGameName: GAME_LABELS[resolvedGameId] || "Juego",
+    hasNextGame: nextGameAvailable,
+    ranking: getRanking(game)
+  });
+}
+
 function startNextSelectedGame(pin) {
   const game = games.get(pin);
 
   if (!game) return;
 
+  game.betweenGames = null;
   game.selectedGames = sanitizeSelectedGames(game.selectedGames, game.players.length, game.campaign);
 
   if (!game.selectedGames.length) {
@@ -686,9 +741,7 @@ function startTrivia(pin) {
       ranking: getRanking(game)
     });
 
-    setTimeout(() => {
-      startNextSelectedGame(pin);
-    }, 1000);
+    showBetweenGamesScoreboard(pin, "knowledge");
 
     return;
   }
@@ -804,9 +857,7 @@ function endTrivia(pin) {
     ranking: getRanking(game)
   });
 
-  setTimeout(() => {
-    startNextSelectedGame(pin);
-  }, 2500);
+  showBetweenGamesScoreboard(pin, "knowledge");
 }
 
 function publicFriendQuestion(game) {
@@ -865,11 +916,7 @@ function startFriendTrivia(pin) {
   const questions = shuffleArray(getCampaignFriendQuestions(game));
 
   if (!questions.length) {
-    game.status = "friend_finished";
-
-    setTimeout(() => {
-      startNextSelectedGame(pin);
-    }, 1000);
+    showBetweenGamesScoreboard(pin, "friend");
 
     return;
   }
@@ -905,11 +952,7 @@ function nextFriendQuestion(pin) {
   game.friend.currentQuestionIndex++;
 
   if (game.friend.currentQuestionIndex >= questions.length) {
-    game.status = "friend_finished";
-
-    setTimeout(() => {
-      startNextSelectedGame(pin);
-    }, 1500);
+    showBetweenGamesScoreboard(pin, "friend");
 
     return;
   }
@@ -2485,11 +2528,7 @@ function finishCompleteGame(pin) {
 
   clearHeadsUpTimers(game);
 
-  game.status = "heads_finished";
-
-  setTimeout(() => {
-    startNextSelectedGame(pin);
-  }, 1500);
+  showBetweenGamesScoreboard(pin, "heads");
 }
 
 function clearWordConnectTimers(game) {
@@ -2575,11 +2614,7 @@ function beginWordConnect(pin) {
   const puzzles = getCampaignWordConnectPuzzles(game);
 
   if (!puzzles.length) {
-    game.status = "word_finished";
-
-    setTimeout(() => {
-      startNextSelectedGame(pin);
-    }, 1000);
+    showBetweenGamesScoreboard(pin, "word");
 
     return;
   }
@@ -2647,7 +2682,7 @@ function finishWordConnect(pin) {
   });
 
   setTimeout(() => {
-    startNextSelectedGame(pin);
+    showBetweenGamesScoreboard(pin, "word");
   }, 6000);
 }
 
@@ -2892,7 +2927,7 @@ function finishPokerGame(pin) {
   });
 
   setTimeout(() => {
-    startNextSelectedGame(pin);
+    showBetweenGamesScoreboard(pin, "poker");
   }, 2000);
 }
 
@@ -2920,6 +2955,7 @@ function getPublicPokerState(game, viewerId) {
 
     communityCards: game.poker.communityCards.filter(Boolean),
     yourCards: viewerPokerPlayer ? viewerPokerPlayer.hand.filter(Boolean) : [],
+    yourChips: viewerPokerPlayer ? viewerPokerPlayer.chips : 0,
 
     lastActionMessage: game.poker.message,
     message: game.poker.message,
@@ -2999,6 +3035,7 @@ function finishFinalGame(pin) {
   game.heads = null;
   game.word = null;
   game.poker = null;
+  game.betweenGames = null;
 
   io.to(pin).emit("game_finished", {
     game: publicGame(game),
@@ -3265,6 +3302,72 @@ io.on("connection", (socket) => {
     io.to(cleanGamePin).emit("game_updated", publicGame(game));
   });
 
+  socket.on("remove_player", ({ pin, playerId }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game) {
+      callback({
+        ok: false,
+        message: "La partida no existe."
+      });
+      return;
+    }
+
+    if (game.status !== "lobby") {
+      callback({
+        ok: false,
+        message: "Solo puedes eliminar jugadores en el lobby."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede eliminar jugadores."
+      });
+      return;
+    }
+
+    if (!playerId || playerId === game.leaderId) {
+      callback({
+        ok: false,
+        message: "No puedes eliminar al líder de la partida."
+      });
+      return;
+    }
+
+    const playerExists = game.players.some((player) => player.id === playerId);
+
+    if (!playerExists) {
+      callback({
+        ok: false,
+        message: "Ese jugador ya no está en la partida."
+      });
+      return;
+    }
+
+    game.players = game.players.filter((player) => player.id !== playerId);
+    game.selectedGames = sanitizeSelectedGames(game.selectedGames, game.players.length, game.campaign);
+
+    const removedSocket = io.sockets.sockets.get(playerId);
+
+    if (removedSocket) {
+      removedSocket.emit("removed_from_game", {
+        message: "El líder te eliminó de la partida."
+      });
+      removedSocket.leave(cleanGamePin);
+      removedSocket.data.pin = null;
+    }
+
+    callback({
+      ok: true
+    });
+
+    io.to(cleanGamePin).emit("game_updated", publicGame(game));
+  });
+
   socket.on("start_game", ({ pin }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -3313,6 +3416,40 @@ io.on("connection", (socket) => {
     });
 
     startNextSelectedGame(cleanGamePin);
+  });
+
+  socket.on("continue_after_scoreboard", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "between_games") {
+      callback({
+        ok: false,
+        message: "El marcador de la partida no está activo."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede continuar."
+      });
+      return;
+    }
+
+    const hasNextGame = Boolean(game.betweenGames && game.betweenGames.hasNextGame);
+
+    callback({
+      ok: true
+    });
+
+    if (hasNextGame) {
+      startNextSelectedGame(cleanGamePin);
+      return;
+    }
+
+    finishFinalGame(cleanGamePin);
   });
 
   socket.on("submit_theme_vote", ({ pin, theme }, callback) => {
@@ -4130,6 +4267,11 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
 
     if (wasLeader) {
       game.leaderId = game.players[0].id;
+    }
+
+    if (game.status === "between_games") {
+      showBetweenGamesScoreboard(pin, game.betweenGames?.finishedGameId);
+      return;
     }
 
     if (game.status === "theme_vote") {

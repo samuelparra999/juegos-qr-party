@@ -37,6 +37,7 @@ const headsResultScreen = document.getElementById("headsResultScreen");
 const wordIntroScreen = document.getElementById("wordIntroScreen");
 const wordScreen = document.getElementById("wordScreen");
 const wordResultScreen = document.getElementById("wordResultScreen");
+const betweenGamesScreen = document.getElementById("betweenGamesScreen");
 const pokerIntroScreen = document.getElementById("pokerIntroScreen");
 const pokerRankingsScreen = document.getElementById("pokerRankingsScreen");
 const pokerScreen = document.getElementById("pokerScreen");
@@ -151,6 +152,13 @@ const validWordsText = document.getElementById("validWordsText");
 const wordResultsList = document.getElementById("wordResultsList");
 const wordFinalRankingList = document.getElementById("wordFinalRankingList");
 
+// Marcador entre juegos
+const betweenGamesLeaderControls = document.getElementById("betweenGamesLeaderControls");
+const continueAfterScoreboardBtn = document.getElementById("continueAfterScoreboardBtn");
+const betweenGamesTitle = document.getElementById("betweenGamesTitle");
+const betweenGamesSubtitle = document.getElementById("betweenGamesSubtitle");
+const betweenGamesRankingList = document.getElementById("betweenGamesRankingList");
+
 // Poker
 const pokerLeaderSettings = document.getElementById("pokerLeaderSettings");
 const pokerSettingsSummary = document.getElementById("pokerSettingsSummary");
@@ -187,6 +195,7 @@ const pokerShowdownList = document.getElementById("pokerShowdownList");
 
 const pokerActionPanel = document.getElementById("pokerActionPanel");
 const pokerTurnText = document.getElementById("pokerTurnText");
+const pokerCurrentChipsText = document.getElementById("pokerCurrentChipsText");
 const pokerCheckBtn = document.getElementById("pokerCheckBtn");
 const pokerCallBtn = document.getElementById("pokerCallBtn");
 const pokerFoldBtn = document.getElementById("pokerFoldBtn");
@@ -290,6 +299,7 @@ function showScreen(screen) {
   wordIntroScreen.classList.add("hidden");
   wordScreen.classList.add("hidden");
   wordResultScreen.classList.add("hidden");
+  betweenGamesScreen.classList.add("hidden");
   pokerIntroScreen.classList.add("hidden");
   pokerRankingsScreen.classList.add("hidden");
   pokerScreen.classList.add("hidden");
@@ -631,6 +641,16 @@ startGameBtn.addEventListener("click", () => {
   });
 });
 
+continueAfterScoreboardBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("continue_after_scoreboard", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo continuar.");
+    }
+  });
+});
+
 copyLinkBtn.addEventListener("click", async () => {
   if (!currentGame) return;
 
@@ -818,7 +838,7 @@ socket.on("trivia_question_result", (data) => {
 
 socket.on("knowledge_trivia_finished", (data) => {
   currentGame = data.game;
-  showToast("Trivia de conocimiento terminada. Ahora viene Trivia de amigos.");
+  showToast("Trivia de conocimiento terminada.");
 });
 
 socket.on("friend_trivia_cancelled_insufficient_players", (data) => {
@@ -968,6 +988,17 @@ socket.on("poker_finished", (data) => {
   showToast(data.message || "Poker terminado.");
 });
 
+socket.on("between_games_scoreboard", (data) => {
+  currentGame = data.game;
+  isLeader = data.game.leaderId === socket.id;
+
+  renderBetweenGamesScoreboard(data);
+});
+
+socket.on("removed_from_game", (data) => {
+  returnToCampaignHome(data.message || "Fuiste eliminado de la partida.");
+});
+
 socket.on("game_cancelled_lack_players", (data) => {
   const joinedFromDirectLink = Boolean(directJoinPin);
   currentGame = null;
@@ -1026,6 +1057,19 @@ function updateSelectedGamesFromLobby() {
   });
 }
 
+function removePlayerFromLobby(playerId) {
+  if (!currentGame || !isLeader || !playerId) return;
+
+  socket.emit("remove_player", {
+    pin: currentGame.pin,
+    playerId
+  }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo eliminar al jugador.");
+    }
+  });
+}
+
 function renderGameSelection(game) {
   const selectedGames = game.selectedGames || ["knowledge", "heads", "word"];
   const playerCount = game.players.length;
@@ -1062,17 +1106,40 @@ function renderLobby(game) {
 
   game.players.forEach((player) => {
     const li = document.createElement("li");
+    li.className = "player-row";
+
+    const playerInfo = document.createElement("span");
+    playerInfo.className = "player-row-info";
 
     const nameSpan = document.createElement("span");
+    nameSpan.className = "player-row-name";
     nameSpan.textContent = player.name;
 
-    li.appendChild(nameSpan);
+    playerInfo.appendChild(nameSpan);
 
     if (player.isLeader) {
       const leaderTag = document.createElement("span");
       leaderTag.className = "leader-tag";
       leaderTag.textContent = "Líder";
-      li.appendChild(leaderTag);
+      playerInfo.appendChild(leaderTag);
+    }
+
+    li.appendChild(playerInfo);
+
+    if (isLeader && !player.isLeader) {
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "remove-player-btn";
+      removeButton.setAttribute("aria-label", `Eliminar a ${player.name}`);
+      removeButton.innerHTML = `
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z"></path>
+        </svg>
+      `;
+      removeButton.addEventListener("click", () => {
+        removePlayerFromLobby(player.id);
+      });
+      li.appendChild(removeButton);
     }
 
     playersList.appendChild(li);
@@ -1758,6 +1825,29 @@ function renderWordConnectResult(data) {
   showScreen(wordResultScreen);
 }
 
+function renderBetweenGamesScoreboard(data) {
+  clearInterval(timerInterval);
+
+  const finishedGameName = data.finishedGameName || "Juego";
+  betweenGamesTitle.textContent = `Puntos actuales`;
+
+  if (isLeader) {
+    betweenGamesLeaderControls.classList.remove("hidden");
+    betweenGamesSubtitle.textContent = data.hasNextGame
+      ? `${finishedGameName} terminó. Toca Continuar para pasar al siguiente juego.`
+      : `${finishedGameName} terminó. Toca Continuar para cerrar la partida.`;
+  } else {
+    betweenGamesLeaderControls.classList.add("hidden");
+    betweenGamesSubtitle.textContent = data.hasNextGame
+      ? `${finishedGameName} terminó. Esperando a que el líder continúe...`
+      : `${finishedGameName} terminó. Esperando a que el líder cierre la partida...`;
+  }
+
+  renderRankingList(betweenGamesRankingList, data.ranking || []);
+
+  showScreen(betweenGamesScreen);
+}
+
 function renderPokerSettingsSummary(settings) {
   if (!settings) return;
 
@@ -2053,6 +2143,8 @@ function renderPokerActions(pokerState) {
   } else {
     pokerTurnText.textContent = "Tu panel";
   }
+
+  pokerCurrentChipsText.textContent = `${pokerState.yourChips || 0} fichas`;
 
   pokerCheckBtn.classList.toggle("hidden", !actions.check);
   pokerCallBtn.classList.toggle("hidden", !actions.call);

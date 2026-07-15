@@ -456,6 +456,25 @@
       <ul id="wordFinalRankingList" class="ranking-list"></ul>
     </section>
 
+    <!-- Marcador entre juegos -->
+    <section id="betweenGamesScreen" class="card hidden">
+      <div id="betweenGamesLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueAfterScoreboardBtn" class="primary-btn">
+          Continuar
+        </button>
+      </div>
+
+      <p class="small-title">Marcador de partida</p>
+
+      <h2 id="betweenGamesTitle">Puntos actuales</h2>
+
+      <p id="betweenGamesSubtitle" class="waiting-text">
+        Esperando a que el líder continúe...
+      </p>
+
+      <ul id="betweenGamesRankingList" class="ranking-list"></ul>
+    </section>
+
     <!-- Instrucciones de Poker -->
     <section id="pokerIntroScreen" class="card hidden">
       <p class="small-title">Poker Texas Hold’em</p>
@@ -573,6 +592,14 @@
           <span id="pokerActionTimerText" class="poker-inline-timer hidden"></span>
         </div>
 
+        <div class="poker-current-chips-box">
+          <span class="poker-chip-icon" aria-hidden="true"></span>
+          <span class="poker-current-chips-text">
+            <small>Fichas actuales</small>
+            <strong id="pokerCurrentChipsText">0 fichas</strong>
+          </span>
+        </div>
+
         <div class="poker-player-panel-main">
           <div class="poker-player-cards-block">
             <div id="pokerPlayerCards" class="poker-cards-row"></div>
@@ -585,7 +612,7 @@
           </div>
 
           <div class="poker-bet-area">
-            <input id="pokerBetAmountInput" type="number" min="1" step="10" placeholder="Cantidad" />
+            <input id="pokerBetAmountInput" type="number" inputmode="numeric" pattern="[0-9]*" min="1" step="10" placeholder="Cantidad" />
 
             <button id="pokerBetBtn" class="primary-btn hidden">Apostar</button>
             <button id="pokerRaiseBtn" class="primary-btn hidden">Subir</button>
