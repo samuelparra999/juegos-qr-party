@@ -464,6 +464,13 @@ function cleanPin(pin) {
     .trim();
 }
 
+function cleanClientId(clientId) {
+  return String(clientId || "")
+    .trim()
+    .slice(0, 80)
+    .replace(/[^\w.-]/g, "");
+}
+
 function getThemeName(themeId) {
   const theme = THEMES.find((item) => item.id === themeId);
   return theme ? theme.name : themeId;
@@ -3017,6 +3024,175 @@ function emitPokerState(pin, game) {
   });
 }
 
+function moveObjectKey(object, oldKey, newKey) {
+  if (!object || oldKey === newKey || object[oldKey] === undefined) return;
+
+  object[newKey] = object[oldKey];
+  delete object[oldKey];
+}
+
+function replaceObjectValue(object, oldValue, newValue) {
+  if (!object || oldValue === newValue) return;
+
+  Object.keys(object).forEach((key) => {
+    if (object[key] === oldValue) {
+      object[key] = newValue;
+    }
+  });
+}
+
+function reassignPlayerSocket(game, player, newSocketId) {
+  if (!game || !player || !newSocketId || player.id === newSocketId) return;
+
+  const oldSocketId = player.id;
+
+  player.id = newSocketId;
+
+  if (game.leaderId === oldSocketId) {
+    game.leaderId = newSocketId;
+  }
+
+  moveObjectKey(game.themeVotes, oldSocketId, newSocketId);
+
+  if (game.trivia) {
+    moveObjectKey(game.trivia.answers, oldSocketId, newSocketId);
+  }
+
+  if (game.friend) {
+    moveObjectKey(game.friend.votes, oldSocketId, newSocketId);
+    replaceObjectValue(game.friend.votes, oldSocketId, newSocketId);
+  }
+
+  if (game.heads) {
+    game.heads.playersOrder = (game.heads.playersOrder || []).map((playerId) => {
+      return playerId === oldSocketId ? newSocketId : playerId;
+    });
+
+    if (game.heads.currentPlayerId === oldSocketId) {
+      game.heads.currentPlayerId = newSocketId;
+    }
+
+    moveObjectKey(game.heads.wordVotes, oldSocketId, newSocketId);
+  }
+
+  if (game.word) {
+    moveObjectKey(game.word.wordsByPlayer, oldSocketId, newSocketId);
+  }
+
+  if (game.poker && Array.isArray(game.poker.players)) {
+    const pokerPlayer = getPokerPlayer(game, oldSocketId);
+
+    if (pokerPlayer) {
+      pokerPlayer.id = newSocketId;
+    }
+  }
+}
+
+function sendCurrentStateToSocket(pin, socket, game) {
+  if (!game) return;
+
+  if (game.status === "lobby") {
+    socket.emit("game_updated", publicGame(game));
+    return;
+  }
+
+  if (game.status === "theme_vote") {
+    socket.emit("theme_vote_started", {
+      game: publicGame(game),
+      themes: getCampaignThemes(game),
+      votes: getThemeVoteCounts(game)
+    });
+    return;
+  }
+
+  if (game.status === "trivia" && game.trivia && game.trivia.questionOpen) {
+    socket.emit("trivia_question", {
+      game: publicGame(game),
+      question: publicQuestion(game)
+    });
+    return;
+  }
+
+  if (game.status === "friend_intro") {
+    socket.emit("friend_trivia_intro", {
+      game: publicGame(game)
+    });
+    return;
+  }
+
+  if (game.status === "friend_trivia" && game.friend && game.friend.questionOpen) {
+    socket.emit("friend_question", {
+      game: publicGame(game),
+      question: publicFriendQuestion(game)
+    });
+    return;
+  }
+
+  if (game.status === "heads_intro") {
+    socket.emit("heads_up_intro", {
+      game: publicGame(game)
+    });
+    return;
+  }
+
+  if (game.status === "heads_up" && game.heads && game.heads.open) {
+    socket.emit("heads_up_word", {
+      game: publicGame(game),
+      turn: publicHeadsUpTurn(game, socket.id)
+    });
+    return;
+  }
+
+  if (game.status === "word_intro") {
+    socket.emit("word_connect_intro", {
+      game: publicGame(game)
+    });
+    return;
+  }
+
+  if (game.status === "word_connect" && game.word && game.word.open) {
+    socket.emit("word_connect_started", {
+      game: publicGame(game),
+      wordState: getPublicWordConnectState(game, socket.id)
+    });
+    return;
+  }
+
+  if (game.status === "poker_intro") {
+    socket.emit("poker_intro", {
+      game: publicGame(game),
+      settings: game.poker?.settings || sanitizePokerSettings(null, game)
+    });
+    return;
+  }
+
+  if (game.status === "poker_rankings") {
+    socket.emit("poker_rankings", {
+      game: publicGame(game),
+      rankings: POKER_HAND_RANKINGS
+    });
+    return;
+  }
+
+  if (game.status === "poker" && game.poker) {
+    socket.emit("poker_state", {
+      game: publicGame(game),
+      pokerState: getPublicPokerState(game, socket.id)
+    });
+    return;
+  }
+
+  if (game.status === "between_games") {
+    socket.emit("between_games_scoreboard", {
+      game: publicGame(game),
+      finishedGameId: game.betweenGames?.finishedGameId || getCurrentSelectedGameId(game),
+      finishedGameName: GAME_LABELS[game.betweenGames?.finishedGameId] || "Juego",
+      hasNextGame: Boolean(game.betweenGames?.hasNextGame),
+      ranking: getRanking(game)
+    });
+  }
+}
+
 function finishFinalGame(pin) {
   const game = games.get(pin);
 
@@ -3174,13 +3350,16 @@ function getLocalIPs() {
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
-  socket.on("create_game", ({ name, campaignSlug }, callback) => {
+  socket.on("create_game", ({ name, campaignSlug, clientId }, callback) => {
     const pin = generatePin();
+    const cleanPlayerClientId = cleanClientId(clientId) || socket.id;
 
     const player = {
       id: socket.id,
+      clientId: cleanPlayerClientId,
       name: cleanName(name) || "Líder",
-      score: 0
+      score: 0,
+      connected: true
     };
 
     const campaign = loadCampaign(campaignSlug || DEFAULT_CAMPAIGN_SLUG);
@@ -3210,6 +3389,7 @@ io.on("connection", (socket) => {
 
     socket.join(pin);
     socket.data.pin = pin;
+    socket.data.clientId = cleanPlayerClientId;
 
     callback({
       ok: true,
@@ -3219,15 +3399,40 @@ io.on("connection", (socket) => {
     io.to(pin).emit("game_updated", publicGame(game));
   });
 
-  socket.on("join_game", ({ pin, name }, callback) => {
+  socket.on("join_game", ({ pin, name, clientId }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
+    const cleanPlayerClientId = cleanClientId(clientId) || socket.id;
 
     if (!game) {
       callback({
         ok: false,
         message: "Ese PIN no existe."
       });
+      return;
+    }
+
+    const returningPlayer = game.players.find((player) => {
+      return player.clientId && player.clientId === cleanPlayerClientId;
+    });
+
+    if (returningPlayer) {
+      reassignPlayerSocket(game, returningPlayer, socket.id);
+      returningPlayer.name = cleanName(name) || returningPlayer.name;
+      returningPlayer.connected = true;
+      returningPlayer.disconnectedAt = null;
+
+      socket.join(cleanGamePin);
+      socket.data.pin = cleanGamePin;
+      socket.data.clientId = cleanPlayerClientId;
+
+      callback({
+        ok: true,
+        game: publicGame(game)
+      });
+
+      sendCurrentStateToSocket(cleanGamePin, socket, game);
+      io.to(cleanGamePin).emit("game_updated", publicGame(game));
       return;
     }
 
@@ -3241,8 +3446,10 @@ io.on("connection", (socket) => {
 
     const player = {
       id: socket.id,
+      clientId: cleanPlayerClientId,
       name: cleanName(name) || "Jugador",
-      score: 0
+      score: 0,
+      connected: true
     };
 
     const alreadyInside = game.players.some((p) => p.id === socket.id);
@@ -3255,6 +3462,7 @@ io.on("connection", (socket) => {
 
     socket.join(cleanGamePin);
     socket.data.pin = cleanGamePin;
+    socket.data.clientId = cleanPlayerClientId;
 
     callback({
       ok: true,
@@ -3262,6 +3470,45 @@ io.on("connection", (socket) => {
     });
 
     io.to(cleanGamePin).emit("game_updated", publicGame(game));
+  });
+
+  socket.on("resume_game", ({ pin, clientId }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const cleanPlayerClientId = cleanClientId(clientId);
+    const game = games.get(cleanGamePin);
+
+    if (!game || !cleanPlayerClientId) {
+      callback({
+        ok: false,
+        message: "No se pudo reanudar la partida."
+      });
+      return;
+    }
+
+    const player = game.players.find((item) => item.clientId === cleanPlayerClientId);
+
+    if (!player) {
+      callback({
+        ok: false,
+        message: "No se encontró tu jugador en esta partida."
+      });
+      return;
+    }
+
+    reassignPlayerSocket(game, player, socket.id);
+    player.connected = true;
+    player.disconnectedAt = null;
+
+    socket.join(cleanGamePin);
+    socket.data.pin = cleanGamePin;
+    socket.data.clientId = cleanPlayerClientId;
+
+    callback({
+      ok: true,
+      game: publicGame(game)
+    });
+
+    sendCurrentStateToSocket(cleanGamePin, socket, game);
   });
 
   socket.on("update_selected_games", ({ pin, selectedGames }, callback) => {
@@ -4243,6 +4490,15 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     if (!game) return;
 
     const wasLeader = game.leaderId === socket.id;
+    const disconnectingPlayer = game.players.find((player) => player.id === socket.id);
+
+    if (!disconnectingPlayer) return;
+
+    if (game.status !== "lobby") {
+      disconnectingPlayer.connected = false;
+      disconnectingPlayer.disconnectedAt = Date.now();
+      return;
+    }
 
     game.players = game.players.filter((player) => player.id !== socket.id);
 

@@ -13,6 +13,8 @@ let selectedWordLetterIndexes = [];
 let wordConnectOpen = false;
 let wordSubmissionPending = false;
 
+const CLIENT_ID_STORAGE_KEY = "juegosQrPartyClientId";
+
 const THEMES = [
   { id: "deportes", name: "Deportes" },
   { id: "historia", name: "Historia" },
@@ -307,6 +309,24 @@ function showScreen(screen) {
   finalScreen.classList.add("hidden");
 
   screen.classList.remove("hidden");
+
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  });
+}
+
+function getClientId() {
+  let clientId = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+
+  if (!clientId) {
+    clientId = window.crypto && typeof window.crypto.randomUUID === "function"
+      ? window.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
+  }
+
+  return clientId;
 }
 
 function getPlayerName() {
@@ -551,7 +571,11 @@ directPlayerNameInput.addEventListener("input", () => {
 createGameBtn.addEventListener("click", () => {
   const name = getPlayerName() || "Jugador";
 
-  socket.emit("create_game", { name, campaignSlug: currentCampaignSlug }, (response) => {
+  socket.emit("create_game", {
+    name,
+    campaignSlug: currentCampaignSlug,
+    clientId: getClientId()
+  }, (response) => {
     if (!response.ok) {
       showToast(response.message || "No se pudo crear la partida.");
       return;
@@ -579,7 +603,7 @@ joinGameBtn.addEventListener("click", () => {
     return;
   }
 
-  socket.emit("join_game", { pin, name }, (response) => {
+  socket.emit("join_game", { pin, name, clientId: getClientId() }, (response) => {
     if (!response.ok) {
       showToast(response.message || "No se pudo unir a la partida.");
       return;
@@ -588,7 +612,9 @@ joinGameBtn.addEventListener("click", () => {
     currentGame = response.game;
     isLeader = response.game.leaderId === socket.id;
 
-    renderLobby(response.game);
+    if (response.game.status === "lobby") {
+      renderLobby(response.game);
+    }
   });
 });
 
@@ -606,7 +632,7 @@ directJoinBtn.addEventListener("click", () => {
     return;
   }
 
-  socket.emit("join_game", { pin: directJoinPin, name }, (response) => {
+  socket.emit("join_game", { pin: directJoinPin, name, clientId: getClientId() }, (response) => {
     if (!response.ok) {
       returnToCampaignHome(response.message || "La partida ya no está disponible.");
       return;
@@ -615,7 +641,9 @@ directJoinBtn.addEventListener("click", () => {
     currentGame = response.game;
     isLeader = response.game.leaderId === socket.id;
 
-    renderLobby(response.game);
+    if (response.game.status === "lobby") {
+      renderLobby(response.game);
+    }
   });
 });
 
@@ -798,6 +826,20 @@ submitWordBtn.addEventListener("click", () => {
 // Eventos del servidor
 // --------------------------------------------------
 
+socket.on("connect", () => {
+  if (!currentGame || !currentGame.pin) return;
+
+  socket.emit("resume_game", {
+    pin: currentGame.pin,
+    clientId: getClientId()
+  }, (response) => {
+    if (!response || !response.ok) return;
+
+    currentGame = response.game;
+    isLeader = response.game.leaderId === socket.id;
+  });
+});
+
 socket.on("game_updated", (game) => {
   currentGame = game;
   isLeader = game.leaderId === socket.id;
@@ -823,7 +865,6 @@ socket.on("theme_votes_updated", (data) => {
 
 socket.on("theme_chosen", (data) => {
   currentGame = data.game;
-  showToast(`Tema elegido: ${data.themeName}`);
 });
 
 socket.on("trivia_question", (data) => {
@@ -838,7 +879,6 @@ socket.on("trivia_question_result", (data) => {
 
 socket.on("knowledge_trivia_finished", (data) => {
   currentGame = data.game;
-  showToast("Trivia de conocimiento terminada.");
 });
 
 socket.on("friend_trivia_cancelled_insufficient_players", (data) => {
@@ -859,7 +899,6 @@ socket.on("friend_trivia_intro", (data) => {
 
 socket.on("friend_trivia_started", (data) => {
   currentGame = data.game;
-  showToast("Empieza Trivia de amigos.");
 });
 
 socket.on("friend_question", (data) => {
@@ -879,12 +918,10 @@ socket.on("heads_up_intro", (data) => {
 
 socket.on("heads_up_started", (data) => {
   currentGame = data.game;
-  showToast("Empieza Heads Up.");
 });
 
 socket.on("heads_up_turn_started", (data) => {
   currentGame = data.game;
-  showToast(`Turno de ${data.playerName}`);
 });
 
 socket.on("heads_up_word", (data) => {
@@ -985,7 +1022,6 @@ socket.on("poker_state", (data) => {
 
 socket.on("poker_finished", (data) => {
   currentGame = data.game;
-  showToast(data.message || "Poker terminado.");
 });
 
 socket.on("between_games_scoreboard", (data) => {
@@ -1131,11 +1167,7 @@ function renderLobby(game) {
       removeButton.type = "button";
       removeButton.className = "remove-player-btn";
       removeButton.setAttribute("aria-label", `Eliminar a ${player.name}`);
-      removeButton.innerHTML = `
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z"></path>
-        </svg>
-      `;
+      removeButton.textContent = "-";
       removeButton.addEventListener("click", () => {
         removePlayerFromLobby(player.id);
       });

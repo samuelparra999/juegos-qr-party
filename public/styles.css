@@ -20,7 +20,7 @@ body {
   color: var(--text-color);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .app {
@@ -215,15 +215,12 @@ button:disabled {
   padding: 0;
   border-radius: 10px;
   background: #ffffff;
-  color: #141827;
+  color: #d62828;
   display: grid;
   place-items: center;
-}
-
-.remove-player-btn svg {
-  width: 20px;
-  height: 20px;
-  fill: currentColor;
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 900;
 }
 
 .leader-tag {
