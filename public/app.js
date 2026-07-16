@@ -12,6 +12,7 @@ let wordConnectLetters = [];
 let selectedWordLetterIndexes = [];
 let wordConnectOpen = false;
 let wordSubmissionPending = false;
+let activeScreen = null;
 
 const CLIENT_ID_STORAGE_KEY = "juegosQrPartyClientId";
 
@@ -136,6 +137,8 @@ const headsCorrectCount = document.getElementById("headsCorrectCount");
 const headsPassCount = document.getElementById("headsPassCount");
 const headsTurnScore = document.getElementById("headsTurnScore");
 const headsRankingList = document.getElementById("headsRankingList");
+const headsResultLeaderControls = document.getElementById("headsResultLeaderControls");
+const continueHeadsTurnBtn = document.getElementById("continueHeadsTurnBtn");
 
 // Word Connect
 const startWordConnectBtn = document.getElementById("startWordConnectBtn");
@@ -153,6 +156,8 @@ const wordRankingList = document.getElementById("wordRankingList");
 const validWordsText = document.getElementById("validWordsText");
 const wordResultsList = document.getElementById("wordResultsList");
 const wordFinalRankingList = document.getElementById("wordFinalRankingList");
+const wordResultLeaderControls = document.getElementById("wordResultLeaderControls");
+const continueWordResultBtn = document.getElementById("continueWordResultBtn");
 
 // Marcador entre juegos
 const betweenGamesLeaderControls = document.getElementById("betweenGamesLeaderControls");
@@ -186,6 +191,7 @@ const pokerRoundText = document.getElementById("pokerRoundText");
 const pokerBlindText = document.getElementById("pokerBlindText");
 const pokerPlayersRing = document.getElementById("pokerPlayersRing");
 const pokerCommunityCards = document.getElementById("pokerCommunityCards");
+const pokerPotText = document.getElementById("pokerPotText");
 const pokerPlayerCards = document.getElementById("pokerPlayerCards");
 const pokerStatusText = document.getElementById("pokerStatusText");
 const pokerCurrentTurnText = document.getElementById("pokerCurrentTurnText");
@@ -280,9 +286,16 @@ function loadLobbyQR(pin) {
 }
 
 function showScreen(screen) {
+  const isNewScreen = activeScreen !== screen;
+
   if (screen !== pokerScreen && pokerActionTimerInterval) {
     clearInterval(pokerActionTimerInterval);
     pokerActionTimerInterval = null;
+  }
+
+  if (!isNewScreen) {
+    screen.classList.remove("hidden");
+    return;
   }
 
   homeScreen.classList.add("hidden");
@@ -309,10 +322,13 @@ function showScreen(screen) {
   finalScreen.classList.add("hidden");
 
   screen.classList.remove("hidden");
+  activeScreen = screen;
 
-  requestAnimationFrame(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  });
+  if (isNewScreen) {
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+  }
 }
 
 function getClientId() {
@@ -723,6 +739,16 @@ startHeadsUpBtn.addEventListener("click", () => {
   });
 });
 
+continueHeadsTurnBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("continue_heads_up_turn", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo continuar.");
+    }
+  });
+});
+
 startWordConnectBtn.addEventListener("click", () => {
   if (!currentGame) return;
 
@@ -837,6 +863,16 @@ socket.on("connect", () => {
 
     currentGame = response.game;
     isLeader = response.game.leaderId === socket.id;
+  });
+});
+
+continueWordResultBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("continue_word_connect_result", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo continuar.");
+    }
   });
 });
 
@@ -1629,7 +1665,8 @@ function renderHeadsUpWordResult(data) {
   }
 
   if (data.result === "passed") {
-    headsWordText.textContent = `Pasaste: ${data.revealedWord}`;
+    const passedLabel = data.playerId === socket.id ? "Pasaste" : "Pasado";
+    headsWordText.textContent = `${passedLabel}: ${data.revealedWord}`;
     headsInstructionText.textContent = "La palabra fue saltada. Siguiente palabra...";
     headsStatusText.textContent = "";
   }
@@ -1648,6 +1685,13 @@ function renderHeadsUpTurnResult(data) {
   headsCorrectCount.textContent = data.correctCount;
   headsPassCount.textContent = data.passCount;
   headsTurnScore.textContent = `${data.turnScore} pts`;
+  isLeader = data.game && data.game.leaderId === socket.id;
+
+  if (isLeader) {
+    headsResultLeaderControls.classList.remove("hidden");
+  } else {
+    headsResultLeaderControls.classList.add("hidden");
+  }
 
   renderRankingList(headsRankingList, data.ranking);
 
@@ -1853,6 +1897,13 @@ function renderWordConnectResult(data) {
   });
 
   renderRankingList(wordFinalRankingList, data.ranking);
+  isLeader = data.game && data.game.leaderId === socket.id;
+
+  if (isLeader) {
+    wordResultLeaderControls.classList.remove("hidden");
+  } else {
+    wordResultLeaderControls.classList.add("hidden");
+  }
 
   showScreen(wordResultScreen);
 }
@@ -2005,6 +2056,7 @@ function renderPokerTable(pokerState) {
   pokerCurrentTurnText.textContent = pokerState.currentPlayerName
     ? `Turno actual: ${pokerState.currentPlayerName}`
     : "Sin turno activo";
+  pokerPotText.textContent = `Bote: ${pokerState.pot || 0}`;
 
   renderPokerActionTimer(pokerState);
 
@@ -2057,7 +2109,6 @@ function renderPokerTable(pokerState) {
       <strong>${player.name}</strong>
       <span>${player.chips} fichas</span>
       <small>Invertido mano: ${player.committed}</small>
-      <small>Apuesta ronda: ${player.streetBet}</small>
       <small>${badges.join(" · ")}</small>
       ${handHtml}
       ${payoutHtml}

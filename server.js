@@ -2331,6 +2331,8 @@ function startHeadsUpIntro(pin) {
     endAt: null,
     turnTimer: null,
     betweenTimer: null,
+    awaitingContinue: false,
+    lastTurnResult: null,
     open: false,
     wordOpen: false
   };
@@ -2391,6 +2393,8 @@ function startNextHeadsUpTurn(pin) {
   game.heads.turnScore = 0;
   game.heads.correctCount = 0;
   game.heads.passCount = 0;
+  game.heads.awaitingContinue = false;
+  game.heads.lastTurnResult = null;
   game.heads.open = true;
   game.heads.wordOpen = false;
   game.heads.endAt = Date.now() + game.heads.durationMs;
@@ -2463,6 +2467,7 @@ function finishHeadsUpWordAsCorrect(pin) {
     revealedWord: currentWord.word,
     category: currentWord.category,
     wordNumber: game.heads.wordIndex + 1,
+    playerId: activePlayer ? activePlayer.id : null,
     playerName: activePlayer ? activePlayer.name : "Jugador",
     correctVotes: getHeadsUpCorrectVotes(game),
     majorityNeeded: getHeadsUpMajorityNeeded(game)
@@ -2491,6 +2496,7 @@ function finishHeadsUpWordAsPassed(pin) {
     revealedWord: currentWord.word,
     category: currentWord.category,
     wordNumber: game.heads.wordIndex + 1,
+    playerId: activePlayer ? activePlayer.id : null,
     playerName: activePlayer ? activePlayer.name : "Jugador",
     correctVotes: getHeadsUpCorrectVotes(game),
     majorityNeeded: getHeadsUpMajorityNeeded(game)
@@ -2509,23 +2515,25 @@ function finishHeadsUpTurn(pin) {
 
   game.heads.open = false;
   game.heads.wordOpen = false;
+  game.heads.awaitingContinue = true;
 
   clearHeadsUpTimers(game);
 
   const activePlayer = game.players.find((player) => player.id === game.heads.currentPlayerId);
-
-  io.to(pin).emit("heads_up_turn_result", {
-    game: publicGame(game),
+  const result = {
     playerName: activePlayer ? activePlayer.name : "Jugador",
     correctCount: game.heads.correctCount,
     passCount: game.heads.passCount,
     turnScore: game.heads.turnScore,
     ranking: getRanking(game)
-  });
+  };
 
-  game.heads.betweenTimer = setTimeout(() => {
-    startNextHeadsUpTurn(pin);
-  }, 5000);
+  game.heads.lastTurnResult = result;
+
+  io.to(pin).emit("heads_up_turn_result", {
+    game: publicGame(game),
+    ...result
+  });
 }
 
 function finishCompleteGame(pin) {
@@ -2605,6 +2613,8 @@ function startWordConnectIntro(pin) {
     durationMs: getCampaignWordConnectDuration(game),
     endAt: null,
     gameTimer: null,
+    awaitingContinue: false,
+    lastResult: null,
     open: false
   };
 
@@ -2635,6 +2645,8 @@ function beginWordConnect(pin) {
   };
   game.word.wordsByPlayer = {};
   game.word.endAt = Date.now() + game.word.durationMs;
+  game.word.awaitingContinue = false;
+  game.word.lastResult = null;
   game.word.open = true;
 
   game.players.forEach((player) => {
@@ -2660,6 +2672,7 @@ function finishWordConnect(pin) {
   if (!game.word.open) return;
 
   game.word.open = false;
+  game.word.awaitingContinue = true;
 
   clearWordConnectTimers(game);
 
@@ -2680,17 +2693,20 @@ function finishWordConnect(pin) {
     };
   });
 
-  io.to(pin).emit("word_connect_finished", {
-    game: publicGame(game),
+  const result = {
     letters: game.word.puzzle.letters,
     validWords: game.word.puzzle.validWords,
     playerResults,
     ranking: getRanking(game)
+  };
+
+  game.word.lastResult = result;
+
+  io.to(pin).emit("word_connect_finished", {
+    game: publicGame(game),
+    ...result
   });
 
-  setTimeout(() => {
-    showBetweenGamesScoreboard(pin, "word");
-  }, 6000);
 }
 
 function startPokerIntro(pin) {
@@ -3135,6 +3151,14 @@ function sendCurrentStateToSocket(pin, socket, game) {
     return;
   }
 
+  if (game.status === "heads_up" && game.heads && game.heads.awaitingContinue && game.heads.lastTurnResult) {
+    socket.emit("heads_up_turn_result", {
+      game: publicGame(game),
+      ...game.heads.lastTurnResult
+    });
+    return;
+  }
+
   if (game.status === "heads_up" && game.heads && game.heads.open) {
     socket.emit("heads_up_word", {
       game: publicGame(game),
@@ -3146,6 +3170,14 @@ function sendCurrentStateToSocket(pin, socket, game) {
   if (game.status === "word_intro") {
     socket.emit("word_connect_intro", {
       game: publicGame(game)
+    });
+    return;
+  }
+
+  if (game.status === "word_connect" && game.word && game.word.awaitingContinue && game.word.lastResult) {
+    socket.emit("word_connect_finished", {
+      game: publicGame(game),
+      ...game.word.lastResult
     });
     return;
   }
@@ -4066,6 +4098,35 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("continue_heads_up_turn", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "heads_up" || !game.heads || !game.heads.awaitingContinue) {
+      callback({
+        ok: false,
+        message: "Heads Up todavía no está listo para continuar."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede continuar."
+      });
+      return;
+    }
+
+    game.heads.awaitingContinue = false;
+
+    callback({
+      ok: true
+    });
+
+    startNextHeadsUpTurn(cleanGamePin);
+  });
+
   socket.on("start_word_connect_game", ({ pin }, callback) => {
   const cleanGamePin = cleanPin(pin);
   const game = games.get(cleanGamePin);
@@ -4194,6 +4255,35 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     ranking: getRanking(game)
   });
 });
+
+  socket.on("continue_word_connect_result", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "word_connect" || !game.word || !game.word.awaitingContinue) {
+      callback({
+        ok: false,
+        message: "Word Connect todavía no está listo para continuar."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede continuar."
+      });
+      return;
+    }
+
+    game.word.awaitingContinue = false;
+
+    callback({
+      ok: true
+    });
+
+    showBetweenGamesScoreboard(cleanGamePin, "word");
+  });
 
   socket.on("update_poker_settings", ({ pin, settings }, callback) => {
     const cleanGamePin = cleanPin(pin);

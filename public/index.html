@@ -350,6 +350,12 @@
 
     <!-- Resultado de turno de Heads Up -->
     <section id="headsResultScreen" class="card hidden">
+      <div id="headsResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueHeadsTurnBtn" class="primary-btn">
+          Continuar
+        </button>
+      </div>
+
       <p class="small-title">Resultado de Heads Up</p>
 
       <h2 id="headsResultTitle"></h2>
@@ -442,6 +448,12 @@
 
     <!-- Resultado de Word Connect -->
     <section id="wordResultScreen" class="card hidden">
+      <div id="wordResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueWordResultBtn" class="primary-btn">
+          Continuar
+        </button>
+      </div>
+
       <p class="small-title">Resultado de Word Connect</p>
 
       <h2>Ronda terminada</h2>
@@ -572,6 +584,7 @@
 
       <div class="poker-table-compact">
         <div id="pokerCommunityCards" class="poker-community-cards"></div>
+        <div id="pokerPotText" class="poker-pot-text">Bote: 0</div>
       </div>
 
       <div class="poker-context-stack">

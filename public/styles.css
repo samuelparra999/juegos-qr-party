@@ -809,13 +809,15 @@ button:disabled {
 
 .poker-ranking-row {
   display: grid;
-  grid-template-columns: 42px 1fr;
+  grid-template-columns: 42px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   padding: 12px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.11);
   border: 1px solid rgba(255, 255, 255, 0.16);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .poker-ranking-position {
@@ -834,12 +836,14 @@ button:disabled {
   gap: 5px;
   flex-wrap: wrap;
   align-items: center;
+  min-width: 0;
 }
 
 .poker-ranking-text {
   grid-column: 2;
   display: grid;
   gap: 3px;
+  min-width: 0;
 }
 
 .poker-ranking-text strong {
@@ -864,16 +868,6 @@ button:disabled {
 
 .poker-card.ranking-card-sample .poker-card-suit {
   font-size: 16px;
-}
-
-@media (min-width: 700px) {
-  .poker-ranking-row {
-    grid-template-columns: 42px minmax(190px, 1fr) minmax(180px, 1fr);
-  }
-
-  .poker-ranking-text {
-    grid-column: auto;
-  }
 }
 
 .poker-top-row {
@@ -914,8 +908,9 @@ button:disabled {
 }
 
 .poker-table-compact {
+  position: relative;
   margin: 8px 0 14px;
-  padding: 16px 14px;
+  padding: 16px 14px 34px;
   border-radius: 999px;
   background: #1d6b56;
   border: 3px solid rgba(255, 255, 255, 0.1);
@@ -923,6 +918,21 @@ button:disabled {
   justify-content: center;
   align-items: center;
   min-height: 92px;
+}
+
+.poker-pot-text {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: rgba(0, 0, 0, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .poker-community-cards {
