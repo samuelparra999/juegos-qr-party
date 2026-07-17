@@ -101,7 +101,7 @@ const correctAnswerText = document.getElementById("correctAnswerText");
 const answersList = document.getElementById("answersList");
 const roundRankingList = document.getElementById("roundRankingList");
 
-// Trivia de amigos
+// Votazo
 const startFriendTriviaBtn = document.getElementById("startFriendTriviaBtn");
 const friendIntroWaitingText = document.getElementById("friendIntroWaitingText");
 const friendCancelledText = document.getElementById("friendCancelledText");
@@ -113,6 +113,9 @@ const friendOptionsList = document.getElementById("friendOptionsList");
 const friendAnswerStatus = document.getElementById("friendAnswerStatus");
 
 const friendResultTitle = document.getElementById("friendResultTitle");
+const friendResultLeaderControls = document.getElementById("friendResultLeaderControls");
+const continueFriendQuestionBtn = document.getElementById("continueFriendQuestionBtn");
+const friendOptionsResultList = document.getElementById("friendOptionsResultList");
 const friendAnswersList = document.getElementById("friendAnswersList");
 const friendRankingList = document.getElementById("friendRankingList");
 
@@ -724,7 +727,17 @@ startFriendTriviaBtn.addEventListener("click", () => {
 
   socket.emit("start_friend_trivia_game", { pin: currentGame.pin }, (response) => {
     if (!response.ok) {
-      showToast(response.message || "No se pudo empezar Trivia de amigos.");
+      showToast(response.message || "No se pudo empezar Votazo.");
+    }
+  });
+});
+
+continueFriendQuestionBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("continue_friend_question", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo continuar.");
     }
   });
 });
@@ -923,7 +936,7 @@ socket.on("friend_trivia_cancelled_insufficient_players", (data) => {
   clearInterval(timerInterval);
 
   friendCancelledText.textContent =
-    data.message || "La Trivia de amigos se canceló porque no hay suficientes jugadores conectados.";
+    data.message || "Votazo se canceló porque no hay suficientes jugadores conectados.";
 
   showScreen(friendCancelledScreen);
 });
@@ -1144,8 +1157,6 @@ function removePlayerFromLobby(playerId) {
 
 function renderGameSelection(game) {
   const selectedGames = game.selectedGames || ["knowledge", "heads", "word"];
-  const playerCount = game.players.length;
-  const friendUnlocked = playerCount >= 3;
 
   if (gameKnowledge) gameKnowledge.checked = selectedGames.includes("knowledge");
   if (gameFriend) gameFriend.checked = selectedGames.includes("friend");
@@ -1159,11 +1170,7 @@ function renderGameSelection(game) {
   if (gameWord) gameWord.disabled = !isLeader;
   if (gamePoker) gamePoker.disabled = !isLeader;
 
-  if (friendUnlocked) {
-    friendGameHelp.textContent = "Disponible.";
-  } else {
-    friendGameHelp.textContent = `Se desbloquea con 3 jugadores. Conectados: ${playerCount}/3.`;
-  }
+  friendGameHelp.textContent = "Disponible.";
 }
 
 function renderLobby(game) {
@@ -1406,7 +1413,7 @@ function renderQuestionResult(data) {
 }
 
 // --------------------------------------------------
-// Trivia de amigos
+// Votazo
 // --------------------------------------------------
 
 function renderFriendTriviaIntro(game) {
@@ -1433,15 +1440,13 @@ function renderFriendQuestion(question) {
 
   friendOptionsList.innerHTML = "";
 
-  const otherPlayers = question.players.filter((player) => player.id !== socket.id);
-
-  otherPlayers.forEach((player) => {
+  question.options.forEach((option) => {
     const button = document.createElement("button");
     button.className = "option-btn";
-    button.textContent = player.name;
+    button.textContent = `${option.letter}. ${option.text}`;
 
     button.addEventListener("click", () => {
-      submitFriendVote(player.id, button);
+      submitFriendVote(option.id, button);
     });
 
     friendOptionsList.appendChild(button);
@@ -1471,7 +1476,7 @@ function startFriendTimer(endAt, durationMs) {
   timerInterval = setInterval(updateTimer, 100);
 }
 
-function submitFriendVote(targetPlayerId, selectedButton) {
+function submitFriendVote(optionId, selectedButton) {
   if (!currentGame) return;
 
   selectedButton.classList.add("selected");
@@ -1479,7 +1484,7 @@ function submitFriendVote(targetPlayerId, selectedButton) {
 
   friendAnswerStatus.textContent = "Voto enviado. Esperando resultados...";
 
-  socket.emit("submit_friend_vote", { pin: currentGame.pin, targetPlayerId }, (response) => {
+  socket.emit("submit_friend_vote", { pin: currentGame.pin, optionId }, (response) => {
     if (!response.ok) {
       showToast(response.message || "No se pudo enviar el voto.");
     }
@@ -1497,25 +1502,52 @@ function disableFriendButtons() {
 function renderFriendQuestionResult(data) {
   clearInterval(timerInterval);
 
-  const winners = data.winnerNames.length > 0
-    ? data.winnerNames.join(", ")
-    : "Nadie";
+  friendResultTitle.textContent = data.question;
 
-  friendResultTitle.textContent = `Mayoría: ${winners}`;
+  isLeader = data.game && data.game.leaderId === socket.id;
+
+  if (isLeader) {
+    friendResultLeaderControls.classList.remove("hidden");
+  } else {
+    friendResultLeaderControls.classList.add("hidden");
+  }
+
+  friendOptionsResultList.innerHTML = "";
+
+  (data.options || []).forEach((option) => {
+    const li = document.createElement("li");
+    li.className = "votazo-option-result";
+
+    const text = document.createElement("span");
+    text.textContent = `${option.letter}. ${option.text}`;
+
+    const count = document.createElement("strong");
+    count.textContent = `${option.votes} voto${option.votes === 1 ? "" : "s"}`;
+
+    if (option.isWinner) {
+      li.classList.add("is-winner");
+    }
+
+    li.appendChild(text);
+    li.appendChild(count);
+    friendOptionsResultList.appendChild(li);
+  });
 
   friendAnswersList.innerHTML = "";
 
   data.answers.forEach((answer) => {
     const li = document.createElement("li");
+    li.className = "votazo-player-vote";
 
-    li.innerHTML = `
-      <strong>${answer.playerName}</strong><br>
-      Votó por: ${answer.votedForName}<br>
-      Puntos ganados: ${answer.points}<br>
-      <span class="${answer.votedWinner ? "correct-pill" : "wrong-pill"}">
-        ${answer.votedWinner ? "Votó con la mayoría" : "No votó con la mayoría"}
-      </span>
-    `;
+    const name = document.createElement("span");
+    name.textContent = answer.playerName;
+
+    const vote = document.createElement("strong");
+    vote.className = `votazo-vote-letter ${answer.votedWinner ? "is-majority" : "is-minority"}`;
+    vote.textContent = answer.selectedLetter || "-";
+
+    li.appendChild(name);
+    li.appendChild(vote);
 
     friendAnswersList.appendChild(li);
   });

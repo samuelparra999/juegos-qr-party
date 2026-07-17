@@ -102,8 +102,8 @@
         <label id="gameFriendRow" class="game-option">
           <input id="gameFriend" class="game-checkbox-input" type="checkbox" value="friend" />
           <span>
-            <strong>Trivia de amigos</strong>
-            <small id="friendGameHelp">Se desbloquea con 3 jugadores.</small>
+            <strong>Votazo</strong>
+            <small id="friendGameHelp">Voten decisiones de grupo.</small>
           </span>
         </label>
 
@@ -192,57 +192,52 @@
       <ul id="roundRankingList" class="ranking-list"></ul>
     </section>
 
-<!-- Instrucciones de Trivia de amigos -->
+<!-- Instrucciones de Votazo -->
 <section id="friendIntroScreen" class="card hidden">
-  <p class="small-title">Trivia de amigos</p>
+  <p class="small-title">Votazo</p>
 
   <h2>Instrucciones</h2>
 
   <p class="subtitle">
-    En este juego aparecerán preguntas sobre el grupo. Cada jugador deberá votar
-    por la persona que mejor encaje con la pregunta.
+    En este juego aparecerán situaciones concretas. Cada jugador deberá elegir
+    la opción que tomaría el grupo.
   </p>
 
   <p class="subtitle">
-    No puedes votar por ti mismo. La respuesta ganadora será la que reciba más votos.
+    La opción ganadora será la que reciba más votos.
   </p>
 
   <p class="subtitle">
-    Ganas puntos si votas con la mayoría. Es decir, si eliges a la persona que termina
-    siendo la más votada, recibes puntos.
-  </p>
-
-  <p class="subtitle">
-    Además, la persona más votada recibe un bonus de puntos.
+    Ganas puntos si votas con la mayoría.
   </p>
 
   <button id="startFriendTriviaBtn" class="primary-btn hidden">
-    Empezar Trivia de amigos
+    Empezar Votazo
   </button>
 
   <p id="friendIntroWaitingText" class="waiting-text">
-    Esperando a que el líder empiece Trivia de amigos...
+    Esperando a que el líder empiece Votazo...
   </p>
 </section>
 
-<!-- Trivia de amigos cancelada -->
+<!-- Votazo cancelado -->
 <section id="friendCancelledScreen" class="card hidden">
-  <p class="small-title">Trivia de amigos</p>
+  <p class="small-title">Votazo</p>
 
-  <h2>Trivia de amigos cancelada</h2>
+  <h2>Votazo cancelado</h2>
 
   <p id="friendCancelledText" class="subtitle">
-    La Trivia de amigos se canceló porque no hay suficientes jugadores conectados.
+    Votazo se canceló porque no hay suficientes jugadores conectados.
   </p>
 
   <p class="subtitle">
-    Se necesitan al menos 3 jugadores para jugar esta ronda. El siguiente juego empezará en unos segundos.
+    Se necesitan al menos 2 jugadores para continuar jugando.
   </p>
 </section>
 
-    <!-- Trivia de amigos -->
+    <!-- Votazo -->
     <section id="friendScreen" class="card hidden">
-      <p class="small-title">Trivia de amigos</p>
+      <p class="small-title">Votazo</p>
 
       <div class="question-header">
         <span id="friendQuestionCounter"></span>
@@ -256,7 +251,7 @@
       <h2 id="friendQuestionText"></h2>
 
       <p class="subtitle">
-        Vota por la persona del grupo que mejor encaje. No puedes votar por ti mismo.
+        Vota por la decisión que elegirías en esta situación.
       </p>
 
       <div id="friendOptionsList" class="options-list"></div>
@@ -264,14 +259,23 @@
       <p id="friendAnswerStatus" class="answer-status"></p>
     </section>
 
-    <!-- Resultado de trivia de amigos -->
+    <!-- Resultado de Votazo -->
     <section id="friendResultScreen" class="card hidden">
-      <p class="small-title">Resultado de amigos</p>
+      <div id="friendResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueFriendQuestionBtn" class="primary-btn">
+          Continuar
+        </button>
+      </div>
+
+      <p class="small-title">Resultado de Votazo</p>
 
       <h2 id="friendResultTitle"></h2>
 
-      <h3>Votos</h3>
-      <ul id="friendAnswersList" class="answers-list"></ul>
+      <h3>Opciones</h3>
+      <ul id="friendOptionsResultList" class="answers-list"></ul>
+
+      <h3>Votos por jugador</h3>
+      <ul id="friendAnswersList" class="answers-list votazo-player-votes"></ul>
 
       <h3>Tabla acumulada</h3>
       <ul id="friendRankingList" class="ranking-list"></ul>

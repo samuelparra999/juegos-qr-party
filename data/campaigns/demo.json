@@ -292,12 +292,24 @@
             }
         ]
     },
-    "friendTrivia": {
+    "votazo": {
         "questions": [
-            "¿Quién de la mesa pediría postre aunque diga que está lleno?",
-            "¿Quién sería mejor chef?",
-            "¿Quién se demora más escogiendo qué pedir?",
-            "¿Quién probaría el plato más raro del menú?"
+            {
+                "question": "¿Qué llevarías a una isla desierta?",
+                "options": ["Bote", "Celular", "Linterna", "Machete"]
+            },
+            {
+                "question": "Si el grupo solo pudiera elegir una comida para todo el día, ¿cuál sería?",
+                "options": ["Hamburguesas", "Pasta", "Pizza", "Tacos"]
+            },
+            {
+                "question": "¿Qué harían primero si encuentran una caja misteriosa?",
+                "options": ["Abrirla", "Buscar pistas", "Grabar un video", "Llamar a alguien"]
+            },
+            {
+                "question": "¿Qué premio escogería el grupo?",
+                "options": ["Cena gratis", "Dinero", "Día libre", "Viaje sorpresa"]
+            }
         ]
     },
     "headsUp": {

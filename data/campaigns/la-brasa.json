@@ -81,12 +81,24 @@
             }
         ]
     },
-    "friendTrivia": {
+    "votazo": {
         "questions": [
-            "¿Quién pediría la hamburguesa más grande?",
-            "¿Quién aguanta mejor el picante?",
-            "¿Quién sería el crítico gastronómico de la mesa?",
-            "¿Quién pediría papas para compartir y terminaría comiéndoselas todas?"
+            {
+                "question": "Si solo pudieran pedir una entrada para compartir, ¿cuál sería?",
+                "options": ["Aros de cebolla", "Nachos", "Papas", "Tequeños"]
+            },
+            {
+                "question": "¿Qué salsa debería dominar la mesa?",
+                "options": ["BBQ", "Mostaza miel", "Picante", "Tártara"]
+            },
+            {
+                "question": "Si el grupo armara una hamburguesa, ¿qué ingrediente no puede faltar?",
+                "options": ["Aguacate", "Cebolla caramelizada", "Queso", "Tocineta"]
+            },
+            {
+                "question": "¿Qué escogerían para cerrar la comida?",
+                "options": ["Brownie", "Café", "Helado", "Malteada"]
+            }
         ]
     },
     "headsUp": {

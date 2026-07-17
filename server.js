@@ -18,7 +18,7 @@ const GAME_ORDER = ["knowledge", "friend", "heads", "word", "poker"];
 
 const GAME_LABELS = {
   knowledge: "Trivia de conocimiento",
-  friend: "Trivia de amigos",
+  friend: "Votazo",
   heads: "Heads Up",
   word: "Word Connect",
   poker: "Poker"
@@ -125,12 +125,27 @@ const triviaQuestions = {
   ]
 };
 
-const friendQuestions = [
-  "¿Quién del grupo sobreviviría más tiempo en una isla desierta?",
-  "¿Quién llegaría tarde a su propia boda?",
-  "¿Quién sería el mejor presidente del grupo?",
-  "¿Quién se gastaría todo el presupuesto en comida?",
-  "¿Quién sería el primero en hacerse famoso?"
+const votazoQuestions = [
+  {
+    question: "¿Qué llevarías a una isla desierta?",
+    options: ["Bote", "Celular", "Linterna", "Machete"]
+  },
+  {
+    question: "Si el grupo encuentra una puerta misteriosa, ¿qué harían primero?",
+    options: ["Abrirla", "Buscar pistas", "Grabar un video", "Salir corriendo"]
+  },
+  {
+    question: "¿Qué elegirías para sobrevivir una noche sin electricidad?",
+    options: ["Comida enlatada", "Linterna", "Radio", "Velas"]
+  },
+  {
+    question: "Si solo pudieran elegir una recompensa para el grupo, ¿cuál sería?",
+    options: ["Cena gratis", "Dinero", "Día libre", "Viaje sorpresa"]
+  },
+  {
+    question: "¿Qué harías si el grupo se pierde en una ciudad desconocida?",
+    options: ["Buscar Wi-Fi", "Llamar a alguien", "Pedir ayuda", "Seguir caminando"]
+  }
 ];
 
 const headsUpWords = [
@@ -239,13 +254,40 @@ function getCampaignKnowledgeQuestions(game, themeId) {
 }
 
 function getCampaignFriendQuestions(game) {
-  const questions = game.campaign?.friendTrivia?.questions;
+  const questions = game.campaign?.votazo?.questions || game.campaign?.friendTrivia?.questions;
 
   if (Array.isArray(questions) && questions.length) {
-    return questions;
+    return questions
+      .map(normalizeVotazoQuestion)
+      .filter(Boolean);
   }
 
-  return friendQuestions;
+  return votazoQuestions;
+}
+
+function normalizeVotazoQuestion(rawQuestion) {
+  if (!rawQuestion) return null;
+
+  if (typeof rawQuestion === "string") {
+    return {
+      question: rawQuestion,
+      options: ["Aventura", "Comodidad", "Plan seguro", "Sorpresa"]
+    };
+  }
+
+  const question = String(rawQuestion.question || rawQuestion.text || "").trim();
+  const options = Array.isArray(rawQuestion.options)
+    ? rawQuestion.options
+        .map((option) => String(option || "").trim())
+        .filter(Boolean)
+    : [];
+
+  if (!question || options.length < 2) return null;
+
+  return {
+    question,
+    options
+  };
 }
 
 function getCampaignHeadsUpWords(game) {
@@ -529,10 +571,6 @@ function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
     if (!GAME_ORDER.includes(gameId)) return false;
     if (!available[gameId]) return false;
 
-    if (gameId === "friend" && playerCount < 3) {
-      return false;
-    }
-
     return true;
   });
 
@@ -549,10 +587,6 @@ function hasNextSelectedGame(game) {
 
   for (let index = game.currentGameIndex + 1; index < game.selectedGames.length; index++) {
     const gameId = game.selectedGames[index];
-
-    if (gameId === "friend" && game.players.length < 3) {
-      continue;
-    }
 
     if (GAME_ORDER.includes(gameId)) {
       return true;
@@ -607,23 +641,12 @@ function startNextSelectedGame(pin) {
   while (game.currentGameIndex < game.selectedGames.length) {
     const nextGame = game.selectedGames[game.currentGameIndex];
 
-    if (nextGame === "friend" && game.players.length < 3) {
-      game.currentGameIndex++;
-      continue;
-    }
-
     if (nextGame === "knowledge") {
       startKnowledgeThemeVote(pin);
       return;
     }
 
     if (nextGame === "friend") {
-      if (game.players.length < 3) {
-        removeFriendTriviaFromQueue(game);
-        startNextSelectedGame(pin);
-        return;
-      }
-
       startFriendTriviaIntro(pin);
       return;
     }
@@ -871,19 +894,32 @@ function publicFriendQuestion(game) {
   const questions = game.friend.questions || [];
   const index = game.friend.currentQuestionIndex;
   const question = questions[index];
+  const options = getVotazoOptions(question);
 
   return {
     index,
     number: index + 1,
     total: questions.length,
-    question,
+    question: question.question,
+    options,
     durationMs: game.friend.durationMs,
-    endAt: game.friend.endAt,
-    players: game.players.map((player) => ({
-      id: player.id,
-      name: player.name
-    }))
+    endAt: game.friend.endAt
   };
+}
+
+function getVotazoOptions(question) {
+  const optionTexts = Array.isArray(question?.options) ? question.options : [];
+
+  return [...optionTexts]
+    .map((text, originalIndex) => ({
+      id: String(originalIndex),
+      text
+    }))
+    .sort((a, b) => a.text.localeCompare(b.text, "es", { sensitivity: "base" }))
+    .map((option, index) => ({
+      ...option,
+      letter: String.fromCharCode(65 + index)
+    }));
 }
 
 function clearFriendTimers(game) {
@@ -902,11 +938,6 @@ function startFriendTriviaIntro(pin) {
   const game = games.get(pin);
 
   if (!game) return;
-
-  if (game.players.length < 3) {
-    startNextSelectedGame(pin);
-    return;
-  }
 
   game.status = "friend_intro";
 
@@ -934,6 +965,8 @@ function startFriendTrivia(pin) {
     currentQuestionIndex: -1,
     votes: {},
     questionOpen: false,
+    awaitingContinue: false,
+    lastResult: null,
     durationMs: 20000,
     endAt: null,
     questionTimer: null,
@@ -966,6 +999,8 @@ function nextFriendQuestion(pin) {
 
   game.friend.votes = {};
   game.friend.questionOpen = true;
+  game.friend.awaitingContinue = false;
+  game.friend.lastResult = null;
   game.friend.endAt = Date.now() + game.friend.durationMs;
 
   io.to(pin).emit("friend_question", {
@@ -985,74 +1020,72 @@ function finishFriendQuestion(pin) {
   if (!game.friend.questionOpen) return;
 
   game.friend.questionOpen = false;
+  game.friend.awaitingContinue = true;
 
   if (game.friend.questionTimer) {
     clearTimeout(game.friend.questionTimer);
     game.friend.questionTimer = null;
   }
 
+  const currentQuestion = game.friend.questions[game.friend.currentQuestionIndex];
+  const options = getVotazoOptions(currentQuestion);
   const voteCounts = {};
 
-  game.players.forEach((player) => {
-    voteCounts[player.id] = 0;
+  options.forEach((option) => {
+    voteCounts[option.id] = 0;
   });
 
-  Object.values(game.friend.votes).forEach((targetPlayerId) => {
-    if (voteCounts[targetPlayerId] !== undefined) {
-      voteCounts[targetPlayerId]++;
+  Object.values(game.friend.votes).forEach((optionId) => {
+    if (voteCounts[optionId] !== undefined) {
+      voteCounts[optionId]++;
     }
   });
 
-  const highestVotes = Math.max(...Object.values(voteCounts));
-  const winnerIds = highestVotes > 0
-    ? Object.keys(voteCounts).filter((playerId) => voteCounts[playerId] === highestVotes)
+  const highestVotes = Math.max(0, ...Object.values(voteCounts));
+  const winningOptionIds = highestVotes > 0
+    ? Object.keys(voteCounts).filter((optionId) => voteCounts[optionId] === highestVotes)
     : [];
 
-  const winnerNames = game.players
-    .filter((player) => winnerIds.includes(player.id))
-    .map((player) => player.name);
+  const resultOptions = options.map((option) => ({
+    ...option,
+    votes: voteCounts[option.id] || 0,
+    isWinner: winningOptionIds.includes(option.id)
+  }));
 
   const answers = game.players.map((player) => {
-    const votedForId = game.friend.votes[player.id];
-    const votedForPlayer = game.players.find((item) => item.id === votedForId);
-
-    const votedWinner = winnerIds.includes(votedForId);
-    const wasMostVoted = winnerIds.includes(player.id);
-
-    let points = 0;
-
-    if (votedWinner) {
-      points += 100;
-    }
-
-    if (wasMostVoted) {
-      points += 50;
-    }
+    const selectedOptionId = game.friend.votes[player.id];
+    const selectedOption = options.find((option) => option.id === selectedOptionId);
+    const votedWinner = winningOptionIds.includes(selectedOptionId);
+    const points = votedWinner ? 100 : 0;
 
     player.score += points;
 
     return {
       playerId: player.id,
       playerName: player.name,
-      votedForName: votedForPlayer ? votedForPlayer.name : "Sin voto",
+      selectedOptionId,
+      selectedText: selectedOption ? selectedOption.text : "Sin voto",
+      selectedLetter: selectedOption ? selectedOption.letter : "-",
       votedWinner,
-      wasMostVoted,
       points,
       totalScore: player.score
     };
   });
 
-  io.to(pin).emit("friend_question_result", {
-    game: publicGame(game),
-    question: game.friend.questions[game.friend.currentQuestionIndex],
-    winnerNames,
+  const result = {
+    question: currentQuestion.question,
+    options: resultOptions,
+    winningOptionIds,
     answers,
     ranking: getRanking(game)
-  });
+  };
 
-  game.friend.betweenTimer = setTimeout(() => {
-    nextFriendQuestion(pin);
-  }, 5000);
+  game.friend.lastResult = result;
+
+  io.to(pin).emit("friend_question_result", {
+    game: publicGame(game),
+    ...result
+  });
 }
 
 function endFullGame(pin) {
@@ -3076,7 +3109,6 @@ function reassignPlayerSocket(game, player, newSocketId) {
 
   if (game.friend) {
     moveObjectKey(game.friend.votes, oldSocketId, newSocketId);
-    replaceObjectValue(game.friend.votes, oldSocketId, newSocketId);
   }
 
   if (game.heads) {
@@ -3132,6 +3164,14 @@ function sendCurrentStateToSocket(pin, socket, game) {
   if (game.status === "friend_intro") {
     socket.emit("friend_trivia_intro", {
       game: publicGame(game)
+    });
+    return;
+  }
+
+  if (game.status === "friend_trivia" && game.friend && game.friend.awaitingContinue && game.friend.lastResult) {
+    socket.emit("friend_question_result", {
+      game: publicGame(game),
+      ...game.friend.lastResult
     });
     return;
   }
@@ -3344,7 +3384,7 @@ function cancelCurrentFriendTriviaIfNeeded(pin) {
 
   io.to(pin).emit("friend_trivia_cancelled_insufficient_players", {
     game: publicGame(game),
-    message: "La Trivia de amigos se canceló porque no hay suficientes jugadores conectados."
+    message: "Votazo se canceló porque no hay suficientes jugadores conectados."
   });
 
   setTimeout(() => {
@@ -3868,7 +3908,7 @@ io.on("connection", (socket) => {
     if (!game || game.status !== "friend_intro") {
       callback({
         ok: false,
-        message: "La Trivia de amigos todavía no está lista."
+        message: "Votazo todavía no está listo."
       });
       return;
     }
@@ -3876,15 +3916,7 @@ io.on("connection", (socket) => {
     if (game.leaderId !== socket.id) {
       callback({
         ok: false,
-        message: "Solo el líder puede empezar Trivia de amigos."
-      });
-      return;
-    }
-
-    if (game.players.length < 3) {
-      callback({
-        ok: false,
-        message: "Trivia de amigos necesita mínimo 3 jugadores."
+        message: "Solo el líder puede empezar Votazo."
       });
       return;
     }
@@ -3896,14 +3928,14 @@ io.on("connection", (socket) => {
     startFriendTrivia(cleanGamePin);
   });
 
-  socket.on("submit_friend_vote", ({ pin, targetPlayerId }, callback) => {
+  socket.on("submit_friend_vote", ({ pin, optionId }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
 
     if (!game || game.status !== "friend_trivia" || !game.friend) {
       callback({
         ok: false,
-        message: "La trivia de amigos no está activa."
+        message: "Votazo no está activo."
       });
       return;
     }
@@ -3925,7 +3957,10 @@ io.on("connection", (socket) => {
     }
 
     const voter = game.players.find((player) => player.id === socket.id);
-    const target = game.players.find((player) => player.id === targetPlayerId);
+    const currentQuestion = game.friend.questions[game.friend.currentQuestionIndex];
+    const options = getVotazoOptions(currentQuestion);
+    const selectedOptionId = String(optionId ?? "");
+    const selectedOption = options.find((option) => option.id === selectedOptionId);
 
     if (!voter) {
       callback({
@@ -3935,23 +3970,15 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (!target) {
+    if (!selectedOption) {
       callback({
         ok: false,
-        message: "Ese jugador no existe."
+        message: "Esa opción no existe."
       });
       return;
     }
 
-    if (target.id === socket.id) {
-      callback({
-        ok: false,
-        message: "No puedes votar por ti mismo."
-      });
-      return;
-    }
-
-    game.friend.votes[socket.id] = target.id;
+    game.friend.votes[socket.id] = selectedOption.id;
 
     callback({
       ok: true,
@@ -3963,6 +3990,40 @@ io.on("connection", (socket) => {
     if (votedPlayers.length >= game.players.length) {
       finishFriendQuestion(cleanGamePin);
     }
+  });
+
+  socket.on("continue_friend_question", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "friend_trivia" || !game.friend || !game.friend.awaitingContinue) {
+      callback({
+        ok: false,
+        message: "Votazo todavía no está listo para continuar."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede continuar."
+      });
+      return;
+    }
+
+    game.friend.awaitingContinue = false;
+
+    callback({
+      ok: true
+    });
+
+    if (game.friend.currentQuestionIndex >= game.friend.questions.length - 1) {
+      showBetweenGamesScoreboard(cleanGamePin, "friend");
+      return;
+    }
+
+    nextFriendQuestion(cleanGamePin);
   });
 
   socket.on("start_heads_up_game", ({ pin }, callback) => {
@@ -4496,7 +4557,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     if (target === "friend") {
       callback({
         ok: true,
-        message: "Saltando a Trivia de amigos."
+        message: "Saltando a Votazo."
       });
 
       startFriendTrivia(cleanGamePin);

@@ -326,6 +326,45 @@ button:disabled {
   color: #2c0000;
 }
 
+.votazo-option-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.votazo-option-result.is-winner {
+  border: 1px solid rgba(116, 255, 122, 0.72);
+  background: rgba(116, 255, 122, 0.18);
+}
+
+.votazo-player-vote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.votazo-vote-letter {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.votazo-vote-letter.is-majority {
+  background: #1f9d4d;
+}
+
+.votazo-vote-letter.is-minority {
+  background: #d62828;
+}
+
 .toast {
   position: fixed;
   left: 50%;
