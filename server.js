@@ -25,6 +25,11 @@ const GAME_LABELS = {
 };
 
 const DEFAULT_SELECTED_GAMES = ["knowledge", "heads", "word"];
+const MIN_CONNECTED_PLAYERS = 2;
+const LACK_PLAYERS_GRACE_MS = Math.max(
+  0,
+  Number(process.env.LACK_PLAYERS_GRACE_MS) || 30000
+);
 
 const DEFAULT_POKER_SETTINGS = {
   initialChips: 5000,
@@ -263,6 +268,12 @@ function getCampaignFriendQuestions(game) {
   }
 
   return votazoQuestions;
+}
+
+function getCampaignVotazoDuration(game) {
+  const durationMs = Number(game.campaign?.votazo?.durationMs);
+
+  return Number.isFinite(durationMs) && durationMs > 0 ? durationMs : 90000;
 }
 
 function normalizeVotazoQuestion(rawQuestion) {
@@ -967,7 +978,7 @@ function startFriendTrivia(pin) {
     questionOpen: false,
     awaitingContinue: false,
     lastResult: null,
-    durationMs: 20000,
+    durationMs: getCampaignVotazoDuration(game),
     endAt: null,
     questionTimer: null,
     betweenTimer: null
@@ -1041,10 +1052,11 @@ function finishFriendQuestion(pin) {
     }
   });
 
-  const highestVotes = Math.max(0, ...Object.values(voteCounts));
-  const winningOptionIds = highestVotes > 0
-    ? Object.keys(voteCounts).filter((optionId) => voteCounts[optionId] === highestVotes)
-    : [];
+  const totalVotes = Object.values(voteCounts).reduce((total, votes) => total + votes, 0);
+  const majorityOptionId = Object.keys(voteCounts).find((optionId) => {
+    return voteCounts[optionId] > totalVotes / 2;
+  });
+  const winningOptionIds = majorityOptionId === undefined ? [] : [majorityOptionId];
 
   const resultOptions = options.map((option) => ({
     ...option,
@@ -3295,6 +3307,7 @@ function clearAllGameTimers(game) {
   clearTriviaTimers(game);
   clearFriendTimers(game);
   clearHeadsUpTimers(game);
+  clearLackPlayersTimer(game);
 
   if (typeof clearWordConnectTimers === "function") {
     clearWordConnectTimers(game);
@@ -3303,6 +3316,56 @@ function clearAllGameTimers(game) {
   if (typeof clearPokerActionTimer === "function") {
     clearPokerActionTimer(game);
   }
+}
+
+function getConnectedPlayers(game) {
+  if (!game || !Array.isArray(game.players)) return [];
+
+  return game.players.filter((player) => player.connected !== false);
+}
+
+function haveAllConnectedPlayersResponded(game, responses) {
+  const connectedPlayers = getConnectedPlayers(game);
+
+  return (
+    connectedPlayers.length >= MIN_CONNECTED_PLAYERS &&
+    connectedPlayers.every((player) => responses && responses[player.id] !== undefined)
+  );
+}
+
+function clearLackPlayersTimer(game) {
+  if (!game || !game.lackPlayersTimer) return;
+
+  clearTimeout(game.lackPlayersTimer);
+  game.lackPlayersTimer = null;
+}
+
+function updateLackPlayersCountdown(pin) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  if (game.status === "lobby" || getConnectedPlayers(game).length >= MIN_CONNECTED_PLAYERS) {
+    clearLackPlayersTimer(game);
+    return;
+  }
+
+  if (game.lackPlayersTimer) return;
+
+  game.lackPlayersTimer = setTimeout(() => {
+    const latestGame = games.get(pin);
+
+    if (!latestGame) return;
+
+    latestGame.lackPlayersTimer = null;
+
+    if (
+      latestGame.status !== "lobby" &&
+      getConnectedPlayers(latestGame).length < MIN_CONNECTED_PLAYERS
+    ) {
+      cancelGameDueToLackOfPlayers(pin);
+    }
+  }, LACK_PLAYERS_GRACE_MS);
 }
 
 function cancelGameDueToLackOfPlayers(pin) {
@@ -3453,6 +3516,7 @@ io.on("connection", (socket) => {
       friend: null,
       heads: null,
       word: null,
+      lackPlayersTimer: null,
       campaignSlug: campaign.slug,
       campaign
     };
@@ -3493,6 +3557,7 @@ io.on("connection", (socket) => {
       returningPlayer.name = cleanName(name) || returningPlayer.name;
       returningPlayer.connected = true;
       returningPlayer.disconnectedAt = null;
+      updateLackPlayersCountdown(cleanGamePin);
 
       socket.join(cleanGamePin);
       socket.data.pin = cleanGamePin;
@@ -3570,6 +3635,7 @@ io.on("connection", (socket) => {
     reassignPlayerSocket(game, player, socket.id);
     player.connected = true;
     player.disconnectedAt = null;
+    updateLackPlayersCountdown(cleanGamePin);
 
     socket.join(cleanGamePin);
     socket.data.pin = cleanGamePin;
@@ -3813,7 +3879,7 @@ io.on("connection", (socket) => {
       totalPlayers: game.players.length
     });
 
-    const allPlayersVoted = game.players.every((player) => game.themeVotes[player.id]);
+    const allPlayersVoted = haveAllConnectedPlayersResponded(game, game.themeVotes);
 
     if (allPlayersVoted) {
       startTrivia(cleanGamePin);
@@ -3894,9 +3960,7 @@ io.on("connection", (socket) => {
       message: "Respuesta recibida."
     });
 
-    const answeredPlayers = game.players.filter((item) => game.trivia.answers[item.id]);
-
-    if (answeredPlayers.length >= game.players.length) {
+    if (haveAllConnectedPlayersResponded(game, game.trivia.answers)) {
       finishQuestion(cleanGamePin);
     }
   });
@@ -3985,9 +4049,7 @@ io.on("connection", (socket) => {
       message: "Voto recibido."
     });
 
-    const votedPlayers = game.players.filter((player) => game.friend.votes[player.id]);
-
-    if (votedPlayers.length >= game.players.length) {
+    if (haveAllConnectedPlayersResponded(game, game.friend.votes)) {
       finishFriendQuestion(cleanGamePin);
     }
   });
@@ -4648,6 +4710,37 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     if (game.status !== "lobby") {
       disconnectingPlayer.connected = false;
       disconnectingPlayer.disconnectedAt = Date.now();
+
+      updateLackPlayersCountdown(pin);
+
+      if (
+        game.status === "theme_vote" &&
+        haveAllConnectedPlayersResponded(game, game.themeVotes)
+      ) {
+        startTrivia(pin);
+        return;
+      }
+
+      if (
+        game.status === "trivia" &&
+        game.trivia &&
+        game.trivia.questionOpen &&
+        haveAllConnectedPlayersResponded(game, game.trivia.answers)
+      ) {
+        finishQuestion(pin);
+        return;
+      }
+
+      if (
+        game.status === "friend_trivia" &&
+        game.friend &&
+        game.friend.questionOpen &&
+        haveAllConnectedPlayersResponded(game, game.friend.votes)
+      ) {
+        finishFriendQuestion(pin);
+        return;
+      }
+
       return;
     }
 

@@ -293,22 +293,367 @@
         ]
     },
     "votazo": {
+        "durationMs": 90000,
         "questions": [
             {
-                "question": "¿Qué llevarías a una isla desierta?",
-                "options": ["Bote", "Celular", "Linterna", "Machete"]
+                "question": "Solo puedes conservar un servicio durante un apagón de un mes.",
+                "options": [
+                    "Agua caliente",
+                    "Internet",
+                    "Nevera",
+                    "Transporte"
+                ]
             },
             {
-                "question": "Si el grupo solo pudiera elegir una comida para todo el día, ¿cuál sería?",
-                "options": ["Hamburguesas", "Pasta", "Pizza", "Tacos"]
+                "question": "Debes cruzar un territorio peligroso acompañado por alguien.",
+                "options": [
+                    "Atleta profesional",
+                    "Bombero",
+                    "Médico",
+                    "Militar retirado"
+                ]
             },
             {
-                "question": "¿Qué harían primero si encuentran una caja misteriosa?",
-                "options": ["Abrirla", "Buscar pistas", "Grabar un video", "Llamar a alguien"]
+                "question": "¿Qué habilidad casi inútil sería más tranquilizadora durante una crisis?",
+                "options": [
+                    "Contar chistes malos",
+                    "Doblar perfectamente sábanas ajustables",
+                    "Imitar cualquier alarma",
+                    "Reconocer marcas de alimentos enlatados"
+                ]
             },
             {
-                "question": "¿Qué premio escogería el grupo?",
-                "options": ["Cena gratis", "Dinero", "Día libre", "Viaje sorpresa"]
+                "question": "Te ofrecen duplicar tu salario, pero debes aceptar una condición.",
+                "options": [
+                    "Cambiar de ciudad",
+                    "No usar redes sociales",
+                    "Trabajar algunos domingos",
+                    "Viajar constantemente"
+                ]
+            },
+            {
+                "question": "Tu vivienda ideal solo puede tener una característica extraordinaria.",
+                "options": [
+                    "Biblioteca enorme",
+                    "Cine privado",
+                    "Jardín espectacular",
+                    "Piscina"
+                ]
+            },
+            {
+                "question": "¿Por cuál trabajo extraño aceptarías un buen salario?",
+                "options": [
+                    "Asistir a reuniones para preguntar “¿por qué?”",
+                    "Bautizar nubes para una aplicación",
+                    "Pedir disculpas a plantas mal cuidadas",
+                    "Probar sillas ocho horas al día"
+                ]
+            },
+            {
+                "question": "¿Qué objeto sería más difícil dejar de usar durante un año?",
+                "options": [
+                    "Audífonos",
+                    "Microondas",
+                    "Teléfono",
+                    "Televisor"
+                ]
+            },
+            {
+                "question": "¿Qué reputación preferirías tener en la oficina?",
+                "options": [
+                    "Arregla la impresora",
+                    "Conoce todos los rumores",
+                    "Lleva snacks",
+                    "Siempre tiene cargador"
+                ]
+            },
+            {
+                "question": "Tu casa incorpora un objeto extraordinario. ¿Cuál soportarías mejor?",
+                "options": [
+                    "Cafetera perfecta, pero exige una pregunta profunda",
+                    "Cama reparadora, pero te expulsa al posponer la alarma",
+                    "Espejo halagador, pero brutalmente honesto",
+                    "Nevera saludable, pero critica cada compra"
+                ]
+            },
+            {
+                "question": "¿Qué hábito extraño de otra persona tolerarías mejor?",
+                "options": [
+                    "Aplaudir cuando termina el microondas",
+                    "Etiquetar todas las sobras",
+                    "Hablar con las mascotas como gerente",
+                    "Programar doce alarmas"
+                ]
+            },
+            {
+                "question": "Puedes eliminar una tarea doméstica, pero aceptas una condición.",
+                "options": [
+                    "Cocinar, pero comes el mismo menú entre semana",
+                    "Hacer compras, pero planeas todo con siete días de anticipación",
+                    "Lavar ropa, pero solo usas tres colores",
+                    "Limpiar, pero recibes una inspección mensual"
+                ]
+            },
+            {
+                "question": "¿Qué espacio de tu casa aceptarías tener siempre desordenado?",
+                "options": [
+                    "Armario",
+                    "Dormitorio",
+                    "Escritorio",
+                    "Garaje o bodega"
+                ]
+            },
+            {
+                "question": "Un amigo cancela un plan una hora antes. ¿Qué excusa perdonas más fácilmente?",
+                "options": [
+                    "Está agotado",
+                    "Olvidó otro compromiso",
+                    "Se enfermó",
+                    "Surgió un problema familiar"
+                ]
+            },
+            {
+                "question": "Tu pareja revela un secreto anterior a la relación. ¿Cuál sería más fácil de perdonar?",
+                "options": [
+                    "Deuda ocultada, pero ya pagada",
+                    "Expareja confidente, pero sin límites cruzados",
+                    "Gusto fingido que terminó volviéndose real",
+                    "Problema familiar ocultado para protegerte"
+                ]
+            },
+            {
+                "question": "A ti y a un amigo les ofrecen el mismo ascenso. ¿Qué pacto elegirías?",
+                "options": [
+                    "Compartir el cargo con menos autoridad individual",
+                    "Competir abiertamente y no hablar del tema fuera del trabajo",
+                    "Dejar que el jefe decida y aceptar el resultado",
+                    "Uno se retira ahora y recibe apoyo después"
+                ]
+            },
+            {
+                "question": "Tu familia posee una habitación secreta. ¿Qué sería más inquietante descubrir?",
+                "options": [
+                    "Archivo de predicciones antiguas sobre tu vida",
+                    "Libro de favores emocionales pendientes",
+                    "Retratos con una persona recortada",
+                    "Santuario dedicado al pariente que todos critican"
+                ]
+            },
+            {
+                "question": "Una pareja puede conocer una verdad imposible. ¿Cuál elegirías?",
+                "options": [
+                    "Borrar una pelea, pero perder un buen recuerdo de ese día",
+                    "Conocer la fecha de una ruptura, pero no su causa",
+                    "Leer pensamientos un minuto diario, pero en ambos sentidos",
+                    "Saber cada mentira, pero nunca el motivo"
+                ]
+            },
+            {
+                "question": "Una inteligencia artificial puede hacer una tarea por ti para siempre.",
+                "options": [
+                    "Administrar tus finanzas",
+                    "Contestar tus mensajes",
+                    "Organizar tu agenda",
+                    "Planear tus comidas"
+                ]
+            },
+            {
+                "question": "Puedes instalarte una mejora tecnológica. ¿Cuál eliges?",
+                "options": [
+                    "Memoria perfecta",
+                    "No necesitar dormir",
+                    "Traducir cualquier idioma",
+                    "Ver en la oscuridad"
+                ]
+            },
+            {
+                "question": "Una tecnología puede modificar recuerdos. ¿Qué uso aceptarías?",
+                "options": [
+                    "Borrar dolor, pero perder la lección",
+                    "Compartir un recuerdo, pero la otra persona conserva una copia",
+                    "Recordarlo todo, pero sentirlo siempre con la misma intensidad",
+                    "Revivir una memoria, pero alterarla un poco cada vez"
+                ]
+            },
+            {
+                "question": "Crean una copia digital consciente de ti. ¿Qué función permitirías?",
+                "options": [
+                    "Aconsejarte, pero conocer todos tus pensamientos",
+                    "Hablar con tu familia después de tu muerte, pero seguir cambiando",
+                    "Hacer tu trabajo, pero reclamar derechos",
+                    "Vivir en la nube, pero depender de una empresa"
+                ]
+            },
+            {
+                "question": "Una ciudad inteligente puede resolver un problema, pero exige un precio. ¿Cuál aceptas?",
+                "options": [
+                    "Atención médica gratis, pero un algoritmo decide prioridades",
+                    "Cero delitos, pero vigilancia constante",
+                    "Empleo garantizado, pero una IA asigna tu oficio",
+                    "Tráfico perfecto, pero sin vehículos privados"
+                ]
+            },
+            {
+                "question": "Puedes conocer la respuesta verdadera a una pregunta.",
+                "options": [
+                    "Cómo será tu futuro",
+                    "Qué ocurre después de la muerte",
+                    "Si existe vida extraterrestre",
+                    "Qué piensan realmente los demás de ti"
+                ]
+            },
+            {
+                "question": "¿Qué forma de inmortalidad elegirías?",
+                "options": [
+                    "Cuerpo eterno, pero memoria que se borra cada siglo",
+                    "Envejecer muy lentamente, pero ver partir a todos",
+                    "Reencarnar, pero sin recuerdos",
+                    "Vivir digitalmente, pero sin cuerpo"
+                ]
+            },
+            {
+                "question": "Puedes obtener un poder con una consecuencia. ¿Cuál eliges?",
+                "options": [
+                    "Cambiar una decisión al año, pero olvidar la vida original",
+                    "Conocer intenciones, pero perder la sorpresa",
+                    "Curar a otros, pero sentir su dolor",
+                    "Detener el tiempo, pero envejecer durante la pausa"
+                ]
+            },
+            {
+                "question": "¿Qué revelación cósmica te permitiría seguir trabajando normalmente?",
+                "options": [
+                    "El déjà vu es una pantalla de carga",
+                    "El universo lo administran becarios",
+                    "Los gatos conocen la fecha final",
+                    "Los sueños son publicidad"
+                ]
+            },
+            {
+                "question": "Puedes conocer el propósito de tu vida. ¿Bajo qué condición lo aceptarías?",
+                "options": [
+                    "Conocerlo a los setenta años",
+                    "Recibir una versión aproximada que puede fallar",
+                    "Saberlo con exactitud, pero no poder contarlo",
+                    "Verlo ahora, pero quedar obligado a seguirlo"
+                ]
+            },
+            {
+                "question": "El universo te concede un milagro diminuto cada día. ¿Cuál eliges?",
+                "options": [
+                    "Aguacates siempre en su punto",
+                    "Ascensores que siempre esperan",
+                    "Medias que nunca se separan",
+                    "Plantas que aplauden al regarlas"
+                ]
+            },
+            {
+                "question": "Debes participar mañana en un evento sin preparación.",
+                "options": [
+                    "Concurso de baile",
+                    "Debate público",
+                    "Karaoke",
+                    "Monólogo de comedia"
+                ]
+            },
+            {
+                "question": "Te quedas encerrado seis horas con una persona desconocida. ¿Dónde prefieres estar?",
+                "options": [
+                    "Ascensor",
+                    "Avión",
+                    "Biblioteca",
+                    "Tren"
+                ]
+            },
+            {
+                "question": "Debes volverte famoso por algo extraño.",
+                "options": [
+                    "Una caída viral",
+                    "Un invento absurdo",
+                    "Un récord mundial inútil",
+                    "Una canción pegajosa"
+                ]
+            },
+            {
+                "question": "En una reunión importante, ¿qué ventaja social con costo elegirías?",
+                "options": [
+                    "Decir siempre la verdad, pero sin tacto",
+                    "Recordar todos los nombres, pero no las relaciones",
+                    "Saber secretos, pero no poder insinuarlos",
+                    "Ser encantador durante veinte minutos y luego agotarte"
+                ]
+            },
+            {
+                "question": "¿Qué mensaje accidental preferirías enviar públicamente?",
+                "options": [
+                    "“Estoy aquí” a cincuenta personas",
+                    "Lista del supermercado al chat de la empresa",
+                    "Nota de voz criticando la reunión al grupo de la reunión",
+                    "Selfie de prueba al chat familiar"
+                ]
+            },
+            {
+                "question": "Tu asistente personal responde siempre con una frase. ¿Cuál sería la más insoportable?",
+                "options": [
+                    "“Como ordene, jefe”",
+                    "“Interesante elección”",
+                    "“Registrado como evidencia”",
+                    "“Tu madre no estaría de acuerdo”"
+                ]
+            },
+            {
+                "question": "¿Qué forma de vida elegirías?",
+                "options": [
+                    "Admirado, pero rara vez comprendido",
+                    "Libre, pero poco arraigado",
+                    "Querido, pero menos independiente",
+                    "Sereno, pero menos ambicioso"
+                ]
+            },
+            {
+                "question": "Un museo exhibirá un objeto que represente tu vida. ¿Cuál eliges?",
+                "options": [
+                    "Cajón de cables sin explicación",
+                    "Silla donde tomaste malas decisiones",
+                    "Taza más vieja de la casa",
+                    "Teléfono eternamente con 1 % de batería"
+                ]
+            },
+            {
+                "question": "Puedes eliminar una debilidad, pero perderías algo útil. ¿Cuál eliges?",
+                "options": [
+                    "Eliminar el arrepentimiento, pero aprender menos",
+                    "Eliminar la envidia, pero perder competitividad",
+                    "Eliminar el miedo, pero perder cautela",
+                    "Eliminar la vergüenza, pero perder autoconciencia"
+                ]
+            },
+            {
+                "question": "Debes aceptar una maldición útil la mitad del tiempo. ¿Cuál eliges?",
+                "options": [
+                    "Las puertas se abren solas, incluso las que no querías",
+                    "Los animales te entienden, pero también te juzgan",
+                    "Los relojes se detienen cuando te aburres, pero solo para ti",
+                    "Predices la lluvia, pero estornudas brillantina antes de cada tormenta"
+                ]
+            },
+            {
+                "question": "¿Qué preferirías tener garantizado durante toda tu vida?",
+                "options": [
+                    "Amor",
+                    "Dinero",
+                    "Propósito",
+                    "Salud"
+                ]
+            },
+            {
+                "question": "¿Qué recurso desearías tener en cantidades ilimitadas?",
+                "options": [
+                    "Dinero",
+                    "Energía personal",
+                    "Tiempo",
+                    "Creatividad"
+                ]
             }
         ]
     },
@@ -554,10 +899,9 @@
                     "MAPA",
                     "PASA",
                     "TAPA",
-                    "TAPAS",
+                    "PATA",
                     "PASTA",
                     "MATA",
-                    "PATA",
                     "TASA",
                     "AMA"
                 ]
@@ -591,7 +935,8 @@
                     "SAL",
                     "SER",
                     "ERA",
-                    "PAR"
+                    "PAR",
+                    "RES"
                 ]
             },
             {

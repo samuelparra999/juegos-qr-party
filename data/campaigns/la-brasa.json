@@ -82,6 +82,7 @@
         ]
     },
     "votazo": {
+        "durationMs": 90000,
         "questions": [
             {
                 "question": "Si solo pudieran pedir una entrada para compartir, ¿cuál sería?",

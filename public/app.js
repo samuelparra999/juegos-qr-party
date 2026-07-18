@@ -1085,14 +1085,8 @@ socket.on("removed_from_game", (data) => {
 });
 
 socket.on("game_cancelled_lack_players", (data) => {
-  const joinedFromDirectLink = Boolean(directJoinPin);
   currentGame = null;
   clearInterval(timerInterval);
-
-  if (joinedFromDirectLink) {
-    returnToCampaignHome(data.message || "La partida terminó por falta de jugadores.");
-    return;
-  }
 
   showToast(data.message || "La partida terminó por falta de jugadores.");
   showScreen(cancelScreen);
