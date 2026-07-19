@@ -124,6 +124,14 @@
         </label>
 
         <label class="game-option">
+          <input id="gameStop" class="game-checkbox-input" type="checkbox" value="stop" />
+          <span>
+            <strong>STOP</strong>
+            <small>Responde categorías con una letra y valida las palabras del grupo.</small>
+          </span>
+        </label>
+
+        <label class="game-option">
           <input id="gamePoker" class="game-checkbox-input" type="checkbox" value="poker" />
           <span>
             <strong>Poker Texas Hold’em</strong>
@@ -470,6 +478,135 @@
 
       <h3>Tabla final acumulada</h3>
       <ul id="wordFinalRankingList" class="ranking-list"></ul>
+    </section>
+
+    <!-- Instrucciones de STOP -->
+    <section id="stopIntroScreen" class="card hidden">
+      <p class="small-title">STOP</p>
+
+      <h2>Instrucciones</h2>
+
+      <p class="subtitle">
+        Se seleccionará una letra y una lista de categorías al azar. Tendrás 10 segundos
+        para escribir una palabra de cada categoría que comience por esa letra.
+      </p>
+
+      <p class="subtitle">
+        Puedes enviar una respuesta o pasar. Al terminar, los demás jugadores decidirán
+        si cada palabra se acepta o se rechaza.
+      </p>
+
+      <p class="subtitle">
+        Cada palabra aceptada vale 100 puntos. No podrás votar por tus propias respuestas.
+      </p>
+
+      <button id="startStopBtn" class="primary-btn hidden">
+        Continuar
+      </button>
+
+      <p id="stopIntroWaitingText" class="waiting-text">
+        Esperando a que el líder continúe...
+      </p>
+    </section>
+
+    <!-- Selección de letra de STOP -->
+    <section id="stopLetterScreen" class="card hidden">
+      <p class="small-title">STOP</p>
+
+      <h2>A continuación la letra es...</h2>
+
+      <div class="stop-letter-stage" aria-live="polite">
+        <span id="stopLetterDisplay">A</span>
+      </div>
+
+      <p id="stopLetterStatus" class="waiting-text">Seleccionando letra...</p>
+    </section>
+
+    <!-- Respuestas de STOP -->
+    <section id="stopAnswerScreen" class="card hidden">
+      <p class="small-title">STOP</p>
+
+      <div class="question-header">
+        <span id="stopCategoryCounter"></span>
+        <span id="stopAnswerTimerText"></span>
+      </div>
+
+      <div class="timer-track">
+        <div id="stopAnswerTimerFill" class="timer-fill"></div>
+      </div>
+
+      <div class="stop-letter-badge">
+        Letra <strong id="stopAnswerLetter"></strong>
+      </div>
+
+      <h2 id="stopCategoryText"></h2>
+
+      <label for="stopAnswerInput">Tu palabra</label>
+      <input
+        id="stopAnswerInput"
+        type="text"
+        maxlength="60"
+        autocomplete="off"
+        autocapitalize="words"
+        placeholder="Escribe una palabra"
+      />
+
+      <div class="stop-answer-actions">
+        <button id="passStopAnswerBtn" class="secondary-btn">Pasar</button>
+        <button id="submitStopAnswerBtn" class="primary-btn" disabled>Enviar</button>
+      </div>
+
+      <p id="stopAnswerStatus" class="answer-status"></p>
+    </section>
+
+    <!-- Espera de respuestas de STOP -->
+    <section id="stopAnswersWaitingScreen" class="card hidden">
+      <p class="small-title">STOP</p>
+      <h2>Lista terminada</h2>
+      <p class="waiting-text">Esperando a que los demás jugadores terminen sus categorías...</p>
+    </section>
+
+    <!-- Votación de STOP -->
+    <section id="stopVotingScreen" class="card hidden">
+      <p class="small-title">Votación de STOP</p>
+
+      <div class="question-header">
+        <span id="stopVoteCounter"></span>
+        <span id="stopVoteTimerText"></span>
+      </div>
+
+      <div class="timer-track">
+        <div id="stopVoteTimerFill" class="timer-fill"></div>
+      </div>
+
+      <p id="stopVoteCategory" class="stop-vote-category"></p>
+      <p id="stopVotePlayer" class="subtitle"></p>
+      <div id="stopVoteWord" class="stop-vote-word"></div>
+
+      <div id="stopVoteControls" class="stop-vote-controls hidden">
+        <button id="rejectStopVoteBtn" class="stop-reject-btn">Rechazar</button>
+        <button id="acceptStopVoteBtn" class="stop-accept-btn">Aceptar</button>
+      </div>
+
+      <p id="stopVoteStatus" class="answer-status"></p>
+    </section>
+
+    <!-- Resultado de STOP -->
+    <section id="stopResultScreen" class="card hidden">
+      <div id="stopResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueStopResultBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p class="small-title">Resultado de STOP</p>
+      <h2 id="stopResultTitle">Palabras aceptadas</h2>
+
+      <ul id="stopPlayerResultsList" class="answers-list"></ul>
+
+      <h3>Revisión de palabras</h3>
+      <ul id="stopVoteResultsList" class="answers-list"></ul>
+
+      <h3>Tabla acumulada</h3>
+      <ul id="stopFinalRankingList" class="ranking-list"></ul>
     </section>
 
     <!-- Marcador entre juegos -->

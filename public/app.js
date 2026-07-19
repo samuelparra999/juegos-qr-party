@@ -13,6 +13,9 @@ let selectedWordLetterIndexes = [];
 let wordConnectOpen = false;
 let wordSubmissionPending = false;
 let activeScreen = null;
+let stopLetterInterval = null;
+let stopAnswerPending = false;
+let stopVotePending = false;
 
 const CLIENT_ID_STORAGE_KEY = "juegosQrPartyClientId";
 
@@ -40,6 +43,12 @@ const headsResultScreen = document.getElementById("headsResultScreen");
 const wordIntroScreen = document.getElementById("wordIntroScreen");
 const wordScreen = document.getElementById("wordScreen");
 const wordResultScreen = document.getElementById("wordResultScreen");
+const stopIntroScreen = document.getElementById("stopIntroScreen");
+const stopLetterScreen = document.getElementById("stopLetterScreen");
+const stopAnswerScreen = document.getElementById("stopAnswerScreen");
+const stopAnswersWaitingScreen = document.getElementById("stopAnswersWaitingScreen");
+const stopVotingScreen = document.getElementById("stopVotingScreen");
+const stopResultScreen = document.getElementById("stopResultScreen");
 const betweenGamesScreen = document.getElementById("betweenGamesScreen");
 const pokerIntroScreen = document.getElementById("pokerIntroScreen");
 const pokerRankingsScreen = document.getElementById("pokerRankingsScreen");
@@ -73,10 +82,18 @@ const gameSelectionBox = document.getElementById("gameSelectionBox");
 const gameFriend = document.getElementById("gameFriend");
 const gameHeads = document.getElementById("gameHeads");
 const gameWord = document.getElementById("gameWord");
+const gameStop = document.getElementById("gameStop");
 const friendGameHelp = document.getElementById("friendGameHelp");
 const gamePoker = document.getElementById("gamePoker");
 
-const gameCheckboxes = [gameKnowledge, gameFriend, gameHeads, gameWord, gamePoker].filter(Boolean);
+const gameCheckboxes = [
+  gameKnowledge,
+  gameFriend,
+  gameHeads,
+  gameWord,
+  gameStop,
+  gamePoker
+].filter(Boolean);
 // QR
 const qrImage = document.getElementById("qrImage");
 const qrUrl = document.getElementById("qrUrl");
@@ -161,6 +178,37 @@ const wordResultsList = document.getElementById("wordResultsList");
 const wordFinalRankingList = document.getElementById("wordFinalRankingList");
 const wordResultLeaderControls = document.getElementById("wordResultLeaderControls");
 const continueWordResultBtn = document.getElementById("continueWordResultBtn");
+
+// STOP
+const startStopBtn = document.getElementById("startStopBtn");
+const stopIntroWaitingText = document.getElementById("stopIntroWaitingText");
+const stopLetterDisplay = document.getElementById("stopLetterDisplay");
+const stopLetterStatus = document.getElementById("stopLetterStatus");
+const stopCategoryCounter = document.getElementById("stopCategoryCounter");
+const stopAnswerTimerText = document.getElementById("stopAnswerTimerText");
+const stopAnswerTimerFill = document.getElementById("stopAnswerTimerFill");
+const stopAnswerLetter = document.getElementById("stopAnswerLetter");
+const stopCategoryText = document.getElementById("stopCategoryText");
+const stopAnswerInput = document.getElementById("stopAnswerInput");
+const passStopAnswerBtn = document.getElementById("passStopAnswerBtn");
+const submitStopAnswerBtn = document.getElementById("submitStopAnswerBtn");
+const stopAnswerStatus = document.getElementById("stopAnswerStatus");
+const stopVoteCounter = document.getElementById("stopVoteCounter");
+const stopVoteTimerText = document.getElementById("stopVoteTimerText");
+const stopVoteTimerFill = document.getElementById("stopVoteTimerFill");
+const stopVoteCategory = document.getElementById("stopVoteCategory");
+const stopVotePlayer = document.getElementById("stopVotePlayer");
+const stopVoteWord = document.getElementById("stopVoteWord");
+const stopVoteControls = document.getElementById("stopVoteControls");
+const rejectStopVoteBtn = document.getElementById("rejectStopVoteBtn");
+const acceptStopVoteBtn = document.getElementById("acceptStopVoteBtn");
+const stopVoteStatus = document.getElementById("stopVoteStatus");
+const stopResultLeaderControls = document.getElementById("stopResultLeaderControls");
+const continueStopResultBtn = document.getElementById("continueStopResultBtn");
+const stopResultTitle = document.getElementById("stopResultTitle");
+const stopPlayerResultsList = document.getElementById("stopPlayerResultsList");
+const stopVoteResultsList = document.getElementById("stopVoteResultsList");
+const stopFinalRankingList = document.getElementById("stopFinalRankingList");
 
 // Marcador entre juegos
 const betweenGamesLeaderControls = document.getElementById("betweenGamesLeaderControls");
@@ -291,6 +339,11 @@ function loadLobbyQR(pin) {
 function showScreen(screen) {
   const isNewScreen = activeScreen !== screen;
 
+  if (screen !== stopLetterScreen && stopLetterInterval) {
+    clearInterval(stopLetterInterval);
+    stopLetterInterval = null;
+  }
+
   if (screen !== pokerScreen && pokerActionTimerInterval) {
     clearInterval(pokerActionTimerInterval);
     pokerActionTimerInterval = null;
@@ -317,6 +370,12 @@ function showScreen(screen) {
   wordIntroScreen.classList.add("hidden");
   wordScreen.classList.add("hidden");
   wordResultScreen.classList.add("hidden");
+  stopIntroScreen.classList.add("hidden");
+  stopLetterScreen.classList.add("hidden");
+  stopAnswerScreen.classList.add("hidden");
+  stopAnswersWaitingScreen.classList.add("hidden");
+  stopVotingScreen.classList.add("hidden");
+  stopResultScreen.classList.add("hidden");
   betweenGamesScreen.classList.add("hidden");
   pokerIntroScreen.classList.add("hidden");
   pokerRankingsScreen.classList.add("hidden");
@@ -525,6 +584,10 @@ function applyCampaignGameAvailability(campaign) {
 
   if (gameWord && gameWord.closest(".game-option")) {
     gameWord.closest(".game-option").classList.toggle("hidden", !available.word);
+  }
+
+  if (gameStop && gameStop.closest(".game-option")) {
+    gameStop.closest(".game-option").classList.toggle("hidden", !available.stop);
   }
 
   if (gamePoker && gamePoker.closest(".game-option")) {
@@ -879,10 +942,57 @@ socket.on("connect", () => {
   });
 });
 
+startStopBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("start_stop_game", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo empezar STOP.");
+    }
+  });
+});
+
+stopAnswerInput.addEventListener("input", () => {
+  submitStopAnswerBtn.disabled = stopAnswerPending || !stopAnswerInput.value.trim();
+});
+
+stopAnswerInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || submitStopAnswerBtn.disabled) return;
+
+  event.preventDefault();
+  submitStopAnswer(false);
+});
+
+passStopAnswerBtn.addEventListener("click", () => {
+  submitStopAnswer(true);
+});
+
+submitStopAnswerBtn.addEventListener("click", () => {
+  submitStopAnswer(false);
+});
+
+rejectStopVoteBtn.addEventListener("click", () => {
+  submitStopVote(false);
+});
+
+acceptStopVoteBtn.addEventListener("click", () => {
+  submitStopVote(true);
+});
+
 continueWordResultBtn.addEventListener("click", () => {
   if (!currentGame) return;
 
   socket.emit("continue_word_connect_result", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo continuar.");
+    }
+  });
+});
+
+continueStopResultBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("continue_stop_result", { pin: currentGame.pin }, (response) => {
     if (!response.ok) {
       showToast(response.message || "No se pudo continuar.");
     }
@@ -1011,6 +1121,67 @@ socket.on("word_connect_finished", (data) => {
   renderWordConnectResult(data);
 });
 
+socket.on("stop_intro", (data) => {
+  currentGame = data.game;
+  renderStopIntro(data.game);
+});
+
+socket.on("stop_letter_selection_started", (data) => {
+  currentGame = data.game;
+  renderStopLetterSelection(data);
+});
+
+socket.on("stop_letter_revealed", (data) => {
+  currentGame = data.game;
+  renderStopLetterRevealed(data);
+});
+
+socket.on("stop_category_prompt", (data) => {
+  currentGame = data.game;
+  renderStopCategoryPrompt(data.prompt);
+});
+
+socket.on("stop_answers_complete", (data) => {
+  currentGame = data.game;
+  clearInterval(timerInterval);
+  showScreen(stopAnswersWaitingScreen);
+});
+
+socket.on("stop_voting_started", (data) => {
+  currentGame = data.game;
+  stopVoteCounter.textContent = data.totalWords
+    ? `Preparando ${data.totalWords} palabra${data.totalWords === 1 ? "" : "s"}`
+    : "Sin palabras para votar";
+  stopVoteTimerText.textContent = "";
+  stopVoteTimerFill.style.width = "100%";
+  stopVoteCategory.textContent = "";
+  stopVotePlayer.textContent = "";
+  stopVoteWord.textContent = "Preparando votación...";
+  stopVoteControls.classList.add("hidden");
+  stopVoteStatus.textContent = "";
+  showScreen(stopVotingScreen);
+});
+
+socket.on("stop_vote_item", (data) => {
+  currentGame = data.game;
+  renderStopVoteItem(data.vote);
+});
+
+socket.on("stop_votes_updated", (data) => {
+  stopVoteStatus.textContent =
+    `Votos recibidos: ${data.receivedVotes}/${data.totalVoters}`;
+});
+
+socket.on("stop_vote_result", (data) => {
+  currentGame = data.game;
+  renderStopVoteResult(data.result);
+});
+
+socket.on("stop_finished", (data) => {
+  currentGame = data.game;
+  renderStopResult(data);
+});
+
 socket.on("poker_intro", (data) => {
   currentGame = data.game;
   renderPokerIntro(data.game, data.settings);
@@ -1116,6 +1287,7 @@ function getSelectedGamesFromLobby() {
   if (gameFriend && gameFriend.checked) selectedGames.push("friend");
   if (gameHeads && gameHeads.checked) selectedGames.push("heads");
   if (gameWord && gameWord.checked) selectedGames.push("word");
+  if (gameStop && gameStop.checked) selectedGames.push("stop");
   if (gamePoker && gamePoker.checked) selectedGames.push("poker");
 
   return selectedGames;
@@ -1156,12 +1328,14 @@ function renderGameSelection(game) {
   if (gameFriend) gameFriend.checked = selectedGames.includes("friend");
   if (gameHeads) gameHeads.checked = selectedGames.includes("heads");
   if (gameWord) gameWord.checked = selectedGames.includes("word");
+  if (gameStop) gameStop.checked = selectedGames.includes("stop");
   if (gamePoker) gamePoker.checked = selectedGames.includes("poker");
 
   if (gameKnowledge) gameKnowledge.disabled = !isLeader;
   if (gameFriend) gameFriend.disabled = !isLeader;
   if (gameHeads) gameHeads.disabled = !isLeader;
   if (gameWord) gameWord.disabled = !isLeader;
+  if (gameStop) gameStop.disabled = !isLeader;
   if (gamePoker) gamePoker.disabled = !isLeader;
 
   friendGameHelp.textContent = "Disponible.";
@@ -1932,6 +2106,265 @@ function renderWordConnectResult(data) {
   }
 
   showScreen(wordResultScreen);
+}
+
+// --------------------------------------------------
+// STOP
+// --------------------------------------------------
+
+function renderStopIntro(game) {
+  isLeader = game.leaderId === socket.id;
+
+  if (isLeader) {
+    startStopBtn.classList.remove("hidden");
+    stopIntroWaitingText.classList.add("hidden");
+  } else {
+    startStopBtn.classList.add("hidden");
+    stopIntroWaitingText.classList.remove("hidden");
+  }
+
+  showScreen(stopIntroScreen);
+}
+
+function renderStopLetterSelection(data) {
+  clearInterval(stopLetterInterval);
+  clearInterval(timerInterval);
+
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  stopLetterDisplay.classList.remove("is-selected");
+  stopLetterStatus.textContent = "Seleccionando letra...";
+  stopLetterDisplay.textContent = letters[Math.floor(Math.random() * letters.length)];
+
+  stopLetterInterval = setInterval(() => {
+    stopLetterDisplay.textContent = letters[Math.floor(Math.random() * letters.length)];
+  }, 90);
+
+  const remaining = Math.max(0, data.endAt - Date.now());
+
+  setTimeout(() => {
+    if (stopLetterInterval && Date.now() >= data.endAt) {
+      clearInterval(stopLetterInterval);
+      stopLetterInterval = null;
+      stopLetterDisplay.textContent = "...";
+    }
+  }, remaining + 30);
+
+  showScreen(stopLetterScreen);
+}
+
+function renderStopLetterRevealed(data) {
+  clearInterval(stopLetterInterval);
+  stopLetterInterval = null;
+  stopLetterDisplay.textContent = data.letter;
+  stopLetterDisplay.classList.add("is-selected");
+  stopLetterStatus.textContent =
+    `${data.listName} · ${data.totalCategories} categorías`;
+  showScreen(stopLetterScreen);
+}
+
+function startStopTimer(endAt, durationMs, textElement, fillElement, onEnd) {
+  clearInterval(timerInterval);
+
+  function updateTimer() {
+    const remaining = Math.max(0, endAt - Date.now());
+    const seconds = Math.ceil(remaining / 1000);
+    const percent = Math.max(0, Math.min(100, (remaining / durationMs) * 100));
+
+    textElement.textContent = `${seconds}s`;
+    fillElement.style.width = `${percent}%`;
+
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      onEnd();
+    }
+  }
+
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 100);
+}
+
+function renderStopCategoryPrompt(prompt) {
+  stopAnswerPending = false;
+  stopCategoryCounter.textContent = `Categoría ${prompt.number}/${prompt.total}`;
+  stopAnswerLetter.textContent = prompt.letter;
+  stopCategoryText.textContent = prompt.category;
+  stopAnswerInput.value = "";
+  stopAnswerInput.placeholder = `Palabra con ${prompt.letter}`;
+  stopAnswerInput.dataset.categoryIndex = String(prompt.categoryIndex);
+  stopAnswerInput.disabled = false;
+  passStopAnswerBtn.disabled = false;
+  submitStopAnswerBtn.disabled = true;
+  stopAnswerStatus.textContent = "";
+
+  startStopTimer(
+    prompt.endAt,
+    prompt.durationMs,
+    stopAnswerTimerText,
+    stopAnswerTimerFill,
+    () => {
+      stopAnswerInput.disabled = true;
+      passStopAnswerBtn.disabled = true;
+      submitStopAnswerBtn.disabled = true;
+      stopAnswerStatus.textContent = "Tiempo terminado. Pasando a la siguiente categoría...";
+    }
+  );
+
+  showScreen(stopAnswerScreen);
+}
+
+function submitStopAnswer(passed) {
+  if (!currentGame || stopAnswerPending) return;
+
+  const word = stopAnswerInput.value.trim();
+  const categoryIndex = Number(stopAnswerInput.dataset.categoryIndex);
+
+  if (!passed && !word) return;
+
+  stopAnswerPending = true;
+  stopAnswerInput.disabled = true;
+  passStopAnswerBtn.disabled = true;
+  submitStopAnswerBtn.disabled = true;
+  stopAnswerStatus.textContent = passed ? "Pasando..." : "Enviando...";
+
+  socket.emit("submit_stop_answer", {
+    pin: currentGame.pin,
+    word,
+    passed,
+    categoryIndex
+  }, (response) => {
+    if (response.ok) return;
+    if (Number(stopAnswerInput.dataset.categoryIndex) !== categoryIndex) return;
+
+    stopAnswerPending = false;
+    stopAnswerInput.disabled = false;
+    passStopAnswerBtn.disabled = false;
+    submitStopAnswerBtn.disabled = !stopAnswerInput.value.trim();
+    stopAnswerStatus.textContent = response.message || "No se pudo enviar la respuesta.";
+  });
+}
+
+function renderStopVoteItem(vote) {
+  clearInterval(timerInterval);
+  stopVotePending = false;
+  stopVoteCounter.textContent = `Palabra ${vote.number}/${vote.total}`;
+  stopVoteCategory.textContent = `${vote.category} · Letra ${vote.letter}`;
+  stopVotePlayer.textContent = `Respuesta de ${vote.playerName}`;
+  stopVoteWord.textContent = vote.word;
+  rejectStopVoteBtn.disabled = false;
+  acceptStopVoteBtn.disabled = false;
+
+  if (vote.canVote && !vote.hasVoted) {
+    stopVoteControls.classList.remove("hidden");
+    stopVoteStatus.textContent = "¿Se acepta esta palabra?";
+  } else {
+    stopVoteControls.classList.add("hidden");
+    stopVoteStatus.textContent = vote.isAuthor
+      ? "Los demás jugadores están votando tu palabra."
+      : "Voto enviado. Esperando a los demás...";
+  }
+
+  startStopTimer(
+    vote.endAt,
+    vote.durationMs,
+    stopVoteTimerText,
+    stopVoteTimerFill,
+    () => {
+      stopVoteControls.classList.add("hidden");
+      stopVoteStatus.textContent = "Votación cerrada.";
+    }
+  );
+
+  showScreen(stopVotingScreen);
+}
+
+function submitStopVote(accept) {
+  if (!currentGame || stopVotePending) return;
+
+  stopVotePending = true;
+  rejectStopVoteBtn.disabled = true;
+  acceptStopVoteBtn.disabled = true;
+  stopVoteStatus.textContent = "Voto enviado. Esperando a los demás...";
+
+  socket.emit("submit_stop_vote", {
+    pin: currentGame.pin,
+    accept
+  }, (response) => {
+    if (response.ok) return;
+
+    stopVotePending = false;
+    rejectStopVoteBtn.disabled = false;
+    acceptStopVoteBtn.disabled = false;
+    stopVoteStatus.textContent = response.message || "No se pudo enviar el voto.";
+  });
+}
+
+function renderStopVoteResult(result) {
+  clearInterval(timerInterval);
+  stopVoteControls.classList.add("hidden");
+  stopVoteCounter.textContent = `Palabra ${result.number}/${result.total}`;
+  stopVoteTimerText.textContent = "";
+  stopVoteTimerFill.style.width = "0%";
+  stopVoteCategory.textContent = `${result.category} · Letra ${result.letter}`;
+  stopVotePlayer.textContent = `Respuesta de ${result.playerName}`;
+  stopVoteWord.textContent = result.word;
+  stopVoteStatus.textContent = result.accepted
+    ? `Aceptada · ${result.acceptVotes} a favor`
+    : `Rechazada · ${result.rejectVotes} en contra`;
+  showScreen(stopVotingScreen);
+}
+
+function renderStopResult(data) {
+  clearInterval(timerInterval);
+  isLeader = data.game && data.game.leaderId === socket.id;
+
+  stopResultTitle.textContent = `Letra ${data.letter} · ${data.listName}`;
+  stopResultLeaderControls.classList.toggle("hidden", !isLeader);
+  stopPlayerResultsList.innerHTML = "";
+
+  data.playerResults.forEach((result) => {
+    const li = document.createElement("li");
+    li.className = "stop-result-row";
+
+    const text = document.createElement("span");
+    text.textContent = `${result.playerName} · ${result.submittedCount} enviadas`;
+
+    const count = document.createElement("strong");
+    count.className = "stop-result-count";
+    count.textContent = `${result.acceptedCount} aceptadas`;
+
+    li.appendChild(text);
+    li.appendChild(count);
+    stopPlayerResultsList.appendChild(li);
+  });
+
+  stopVoteResultsList.innerHTML = "";
+
+  if (!data.voteResults.length) {
+    const li = document.createElement("li");
+    li.textContent = "No se enviaron palabras para revisar.";
+    stopVoteResultsList.appendChild(li);
+  }
+
+  data.voteResults.forEach((result) => {
+    const li = document.createElement("li");
+    li.className = "stop-vote-result-row";
+
+    const text = document.createElement("span");
+    text.textContent = `${result.category}: ${result.word} · ${result.playerName}`;
+
+    const decision = document.createElement("strong");
+    decision.className =
+      `stop-vote-decision ${result.accepted ? "is-accepted" : "is-rejected"}`;
+    decision.textContent = result.accepted ? "Aceptada" : "Rechazada";
+
+    li.appendChild(text);
+    li.appendChild(decision);
+    stopVoteResultsList.appendChild(li);
+  });
+
+  renderRankingList(stopFinalRankingList, data.ranking || []);
+  showScreen(stopResultScreen);
 }
 
 function renderBetweenGamesScoreboard(data) {

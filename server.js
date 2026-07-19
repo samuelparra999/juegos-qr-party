@@ -14,13 +14,14 @@ const PORT = process.env.PORT || 3000;
 
 const games = new Map();
 
-const GAME_ORDER = ["knowledge", "friend", "heads", "word", "poker"];
+const GAME_ORDER = ["knowledge", "friend", "heads", "word", "stop", "poker"];
 
 const GAME_LABELS = {
   knowledge: "Trivia de conocimiento",
   friend: "Votazo",
   heads: "Heads Up",
   word: "Word Connect",
+  stop: "STOP",
   poker: "Poker"
 };
 
@@ -30,6 +31,44 @@ const LACK_PLAYERS_GRACE_MS = Math.max(
   0,
   Number(process.env.LACK_PLAYERS_GRACE_MS) || 30000
 );
+
+const DEFAULT_STOP_LETTERS = [
+  "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+  "L", "M", "N", "O", "P", "R", "S", "T", "U", "V"
+];
+
+const DEFAULT_STOP_LISTS = [
+  {
+    name: "Lista 1",
+    categories: [
+      "Animales",
+      "Apodos o sobrenombres",
+      "Ciudades",
+      "Vegetales",
+      "Verbos",
+      "Personajes de películas",
+      "Medios de transporte",
+      "Sabores de helado",
+      "Profesiones",
+      "Empresas conocidas"
+    ]
+  },
+  {
+    name: "Lista 2",
+    categories: [
+      "Partes del cuerpo",
+      "Asignaturas de estudio",
+      "Herramientas",
+      "Países",
+      "Objetos en este cuarto",
+      "Electrodomésticos",
+      "Bebidas",
+      "Ingredientes de cocina",
+      "Colores",
+      "Cosas calientes"
+    ]
+  }
+];
 
 const DEFAULT_POKER_SETTINGS = {
   initialChips: 5000,
@@ -329,6 +368,47 @@ function getCampaignWordConnectDuration(game) {
   return game.campaign?.wordConnect?.durationMs || 60000;
 }
 
+function getCampaignStopSettings(game) {
+  const rawStop = game.campaign?.stop || {};
+  const lists = Array.isArray(rawStop.lists)
+    ? rawStop.lists
+        .map((list, index) => {
+          const categories = Array.isArray(list)
+            ? list
+            : Array.isArray(list?.categories)
+              ? list.categories
+              : [];
+
+          return {
+            name: String(list?.name || `Lista ${index + 1}`).trim(),
+            categories: categories
+              .map((category) => String(category || "").trim())
+              .filter(Boolean)
+          };
+        })
+        .filter((list) => list.categories.length)
+    : [];
+  const letters = Array.isArray(rawStop.letters)
+    ? rawStop.letters
+        .map((letter) => String(letter || "").trim().toUpperCase())
+        .filter((letter) => /^[A-Z]$/.test(letter))
+    : [];
+
+  return {
+    lists: lists.length ? lists : DEFAULT_STOP_LISTS,
+    letters: letters.length ? [...new Set(letters)] : DEFAULT_STOP_LETTERS,
+    letterRevealMs: getPositiveDuration(rawStop.letterRevealMs, 5000),
+    answerDurationMs: getPositiveDuration(rawStop.answerDurationMs, 10000),
+    voteDurationMs: getPositiveDuration(rawStop.voteDurationMs, 15000)
+  };
+}
+
+function getPositiveDuration(value, fallback) {
+  const duration = Number(value);
+
+  return Number.isFinite(duration) && duration > 0 ? duration : fallback;
+}
+
 function getCampaignPokerSettings(game) {
   const campaignPoker = game.campaign?.poker || {};
 
@@ -575,6 +655,7 @@ function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
     friend: true,
     heads: true,
     word: true,
+    stop: true,
     poker: true
   };
 
@@ -669,6 +750,11 @@ function startNextSelectedGame(pin) {
 
     if (nextGame === "word") {
       startWordConnectIntro(pin);
+      return;
+    }
+
+    if (nextGame === "stop") {
+      startStopIntro(pin);
       return;
     }
 
@@ -2754,6 +2840,486 @@ function finishWordConnect(pin) {
 
 }
 
+function cleanStopAnswer(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 60);
+}
+
+function normalizeStopComparableText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+function clearStopProgressTimer(progress) {
+  if (!progress?.timer) return;
+
+  clearTimeout(progress.timer);
+  progress.timer = null;
+}
+
+function clearStopTimers(game) {
+  if (!game?.stop) return;
+
+  ["letterTimer", "answerStartTimer", "voteTimer", "betweenTimer"].forEach((timerKey) => {
+    if (game.stop[timerKey]) {
+      clearTimeout(game.stop[timerKey]);
+      game.stop[timerKey] = null;
+    }
+  });
+
+  Object.values(game.stop.progress || {}).forEach(clearStopProgressTimer);
+}
+
+function startStopIntro(pin) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  const settings = getCampaignStopSettings(game);
+
+  game.status = "stop_intro";
+  game.stop = {
+    ...settings,
+    list: null,
+    letter: null,
+    letterEndAt: null,
+    letterRevealed: false,
+    letterTimer: null,
+    answerStartTimer: null,
+    progress: {},
+    voteQueue: [],
+    voteIndex: -1,
+    currentVote: null,
+    voteResults: [],
+    voteTimer: null,
+    betweenTimer: null,
+    acceptedByPlayer: {},
+    awaitingContinue: false,
+    lastResult: null
+  };
+
+  io.to(pin).emit("stop_intro", {
+    game: publicGame(game)
+  });
+}
+
+function beginStop(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "stop_intro" || !game.stop) return;
+
+  const [selectedList] = shuffleArray(game.stop.lists);
+  const [selectedLetter] = shuffleArray(game.stop.letters);
+
+  if (!selectedList || !selectedLetter) {
+    showBetweenGamesScoreboard(pin, "stop");
+    return;
+  }
+
+  game.status = "stop_letter";
+  game.stop.list = {
+    name: selectedList.name,
+    categories: [...selectedList.categories]
+  };
+  game.stop.letter = selectedLetter;
+  game.stop.letterRevealed = false;
+  game.stop.letterEndAt = Date.now() + game.stop.letterRevealMs;
+
+  io.to(pin).emit("stop_letter_selection_started", {
+    game: publicGame(game),
+    durationMs: game.stop.letterRevealMs,
+    endAt: game.stop.letterEndAt
+  });
+
+  game.stop.letterTimer = setTimeout(() => {
+    revealStopLetter(pin);
+  }, game.stop.letterRevealMs);
+}
+
+function revealStopLetter(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "stop_letter" || !game.stop) return;
+
+  game.stop.letterTimer = null;
+  game.stop.letterRevealed = true;
+
+  io.to(pin).emit("stop_letter_revealed", {
+    game: publicGame(game),
+    letter: game.stop.letter,
+    listName: game.stop.list.name,
+    totalCategories: game.stop.list.categories.length
+  });
+
+  game.stop.answerStartTimer = setTimeout(() => {
+    beginStopAnswers(pin);
+  }, 1200);
+}
+
+function beginStopAnswers(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "stop_letter" || !game.stop) return;
+
+  game.stop.answerStartTimer = null;
+  game.status = "stop_answers";
+  game.stop.progress = {};
+
+  game.players.forEach((player) => {
+    game.stop.progress[player.clientId] = {
+      categoryIndex: 0,
+      answers: [],
+      endAt: null,
+      timer: null,
+      done: false
+    };
+  });
+
+  game.players.forEach((player) => {
+    sendStopCategoryPrompt(pin, player);
+  });
+}
+
+function getPublicStopPrompt(game, player) {
+  const progress = game.stop.progress[player.clientId];
+  const categoryIndex = progress.categoryIndex;
+
+  return {
+    letter: game.stop.letter,
+    listName: game.stop.list.name,
+    category: game.stop.list.categories[categoryIndex],
+    categoryIndex,
+    number: categoryIndex + 1,
+    total: game.stop.list.categories.length,
+    durationMs: game.stop.answerDurationMs,
+    endAt: progress.endAt
+  };
+}
+
+function sendStopCategoryPrompt(pin, player) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "stop_answers" || !game.stop || !player) return;
+
+  const progress = game.stop.progress[player.clientId];
+
+  if (!progress || progress.done) return;
+
+  if (progress.categoryIndex >= game.stop.list.categories.length) {
+    progress.done = true;
+    progress.endAt = null;
+
+    io.to(player.id).emit("stop_answers_complete", {
+      game: publicGame(game)
+    });
+
+    maybeBeginStopVoting(pin);
+    return;
+  }
+
+  clearStopProgressTimer(progress);
+  progress.endAt = Date.now() + game.stop.answerDurationMs;
+
+  io.to(player.id).emit("stop_category_prompt", {
+    game: publicGame(game),
+    prompt: getPublicStopPrompt(game, player)
+  });
+
+  const expectedIndex = progress.categoryIndex;
+
+  progress.timer = setTimeout(() => {
+    const latestGame = games.get(pin);
+    const latestPlayer = latestGame?.players.find((item) => item.clientId === player.clientId);
+
+    if (!latestGame || !latestPlayer) return;
+
+    recordStopAnswer(pin, latestPlayer, "", true, expectedIndex, true);
+  }, game.stop.answerDurationMs + 100);
+}
+
+function recordStopAnswer(pin, player, rawWord, passed, expectedIndex, allowExpired = false) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "stop_answers" || !game.stop || !player) {
+    return { ok: false, message: "STOP no está activo." };
+  }
+
+  const progress = game.stop.progress[player.clientId];
+
+  if (!progress || progress.done) {
+    return { ok: false, message: "Ya terminaste todas las categorías." };
+  }
+
+  if (Number(expectedIndex) !== progress.categoryIndex) {
+    return { ok: false, message: "Esa categoría ya terminó." };
+  }
+
+  if (!allowExpired && Date.now() >= progress.endAt) {
+    recordStopAnswer(pin, player, "", true, expectedIndex, true);
+    return { ok: false, message: "El tiempo de esa categoría terminó." };
+  }
+
+  const word = passed ? "" : cleanStopAnswer(rawWord);
+
+  if (!passed && !word) {
+    return { ok: false, message: "Escribe una palabra antes de enviarla." };
+  }
+
+  if (!passed && !normalizeStopComparableText(word).startsWith(game.stop.letter)) {
+    return {
+      ok: false,
+      message: `La palabra debe comenzar por ${game.stop.letter}.`
+    };
+  }
+
+  clearStopProgressTimer(progress);
+
+  const category = game.stop.list.categories[progress.categoryIndex];
+
+  progress.answers[progress.categoryIndex] = {
+    category,
+    word,
+    passed: !word
+  };
+  progress.categoryIndex++;
+  progress.endAt = null;
+
+  sendStopCategoryPrompt(pin, player);
+
+  return {
+    ok: true,
+    word,
+    passed: !word
+  };
+}
+
+function maybeBeginStopVoting(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "stop_answers" || !game.stop) return;
+
+  const allPlayersFinished = game.players.every((player) => {
+    return game.stop.progress[player.clientId]?.done;
+  });
+
+  if (!allPlayersFinished) return;
+
+  beginStopVoting(pin);
+}
+
+function beginStopVoting(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "stop_answers" || !game.stop) return;
+
+  game.status = "stop_voting";
+  game.stop.voteQueue = [];
+  game.stop.voteIndex = -1;
+  game.stop.voteResults = [];
+  game.stop.currentVote = null;
+  game.stop.acceptedByPlayer = {};
+
+  game.stop.list.categories.forEach((category, categoryIndex) => {
+    game.players.forEach((player) => {
+      const answer = game.stop.progress[player.clientId]?.answers[categoryIndex];
+
+      if (answer?.word) {
+        game.stop.voteQueue.push({
+          category,
+          categoryIndex,
+          authorClientId: player.clientId,
+          playerName: player.name,
+          word: answer.word
+        });
+      }
+    });
+  });
+
+  io.to(pin).emit("stop_voting_started", {
+    game: publicGame(game),
+    totalWords: game.stop.voteQueue.length
+  });
+
+  if (!game.stop.voteQueue.length) {
+    finishStopGame(pin);
+    return;
+  }
+
+  game.stop.betweenTimer = setTimeout(() => {
+    startNextStopVote(pin);
+  }, 600);
+}
+
+function getPublicStopVote(game, player) {
+  const currentVote = game.stop.currentVote;
+  const voterClientId = player?.clientId || "";
+  const isAuthor = voterClientId === currentVote.authorClientId;
+
+  return {
+    index: game.stop.voteIndex,
+    number: game.stop.voteIndex + 1,
+    total: game.stop.voteQueue.length,
+    letter: game.stop.letter,
+    category: currentVote.category,
+    playerName: currentVote.playerName,
+    word: currentVote.word,
+    durationMs: game.stop.voteDurationMs,
+    endAt: currentVote.endAt,
+    canVote: currentVote.open && !isAuthor,
+    isAuthor,
+    hasVoted: currentVote.votes[voterClientId] !== undefined
+  };
+}
+
+function emitStopVoteItem(pin, game) {
+  game.players.forEach((player) => {
+    io.to(player.id).emit("stop_vote_item", {
+      game: publicGame(game),
+      vote: getPublicStopVote(game, player)
+    });
+  });
+}
+
+function startNextStopVote(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "stop_voting" || !game.stop) return;
+
+  if (game.stop.betweenTimer) {
+    clearTimeout(game.stop.betweenTimer);
+    game.stop.betweenTimer = null;
+  }
+
+  game.stop.voteIndex++;
+
+  if (game.stop.voteIndex >= game.stop.voteQueue.length) {
+    finishStopGame(pin);
+    return;
+  }
+
+  const item = game.stop.voteQueue[game.stop.voteIndex];
+
+  game.stop.currentVote = {
+    ...item,
+    votes: {},
+    eligibleVoters: game.players
+      .filter((player) => player.clientId !== item.authorClientId)
+      .map((player) => player.clientId),
+    endAt: Date.now() + game.stop.voteDurationMs,
+    open: true
+  };
+
+  emitStopVoteItem(pin, game);
+
+  game.stop.voteTimer = setTimeout(() => {
+    finishStopVoteItem(pin);
+  }, game.stop.voteDurationMs + 100);
+}
+
+function haveAllStopVotersResponded(game) {
+  const currentVote = game.stop?.currentVote;
+
+  if (!currentVote) return false;
+
+  return currentVote.eligibleVoters.every((clientId) => {
+    return currentVote.votes[clientId] !== undefined;
+  });
+}
+
+function finishStopVoteItem(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "stop_voting" || !game.stop?.currentVote) return;
+
+  const currentVote = game.stop.currentVote;
+
+  if (!currentVote.open) return;
+
+  currentVote.open = false;
+
+  if (game.stop.voteTimer) {
+    clearTimeout(game.stop.voteTimer);
+    game.stop.voteTimer = null;
+  }
+
+  const acceptVotes = currentVote.eligibleVoters.filter((clientId) => {
+    return currentVote.votes[clientId] === true;
+  }).length;
+  const rejectVotes = currentVote.eligibleVoters.length - acceptVotes;
+  const accepted = acceptVotes > currentVote.eligibleVoters.length / 2;
+  const author = game.players.find((player) => player.clientId === currentVote.authorClientId);
+
+  if (accepted && author) {
+    author.score += 100;
+    game.stop.acceptedByPlayer[author.clientId] =
+      (game.stop.acceptedByPlayer[author.clientId] || 0) + 1;
+  }
+
+  const result = {
+    number: game.stop.voteIndex + 1,
+    total: game.stop.voteQueue.length,
+    letter: game.stop.letter,
+    category: currentVote.category,
+    playerName: currentVote.playerName,
+    word: currentVote.word,
+    accepted,
+    acceptVotes,
+    rejectVotes
+  };
+
+  game.stop.voteResults.push(result);
+
+  io.to(pin).emit("stop_vote_result", {
+    game: publicGame(game),
+    result
+  });
+
+  game.stop.betweenTimer = setTimeout(() => {
+    startNextStopVote(pin);
+  }, 1200);
+}
+
+function finishStopGame(pin) {
+  const game = games.get(pin);
+
+  if (!game || !game.stop) return;
+
+  clearStopTimers(game);
+  game.status = "stop_result";
+  game.stop.awaitingContinue = true;
+
+  const playerResults = game.players
+    .map((player) => ({
+      playerId: player.id,
+      playerName: player.name,
+      acceptedCount: game.stop.acceptedByPlayer[player.clientId] || 0,
+      submittedCount: (game.stop.progress[player.clientId]?.answers || [])
+        .filter((answer) => answer?.word).length,
+      points: (game.stop.acceptedByPlayer[player.clientId] || 0) * 100,
+      totalScore: player.score
+    }))
+    .sort((a, b) => b.acceptedCount - a.acceptedCount || a.playerName.localeCompare(b.playerName));
+
+  const result = {
+    letter: game.stop.letter,
+    listName: game.stop.list.name,
+    playerResults,
+    voteResults: game.stop.voteResults,
+    ranking: getRanking(game)
+  };
+
+  game.stop.lastResult = result;
+
+  io.to(pin).emit("stop_finished", {
+    game: publicGame(game),
+    ...result
+  });
+}
+
 function startPokerIntro(pin) {
   const game = games.get(pin);
 
@@ -3242,6 +3808,82 @@ function sendCurrentStateToSocket(pin, socket, game) {
     return;
   }
 
+  if (game.status === "stop_intro") {
+    socket.emit("stop_intro", {
+      game: publicGame(game)
+    });
+    return;
+  }
+
+  if (game.status === "stop_letter" && game.stop) {
+    if (game.stop.letterRevealed) {
+      socket.emit("stop_letter_revealed", {
+        game: publicGame(game),
+        letter: game.stop.letter,
+        listName: game.stop.list.name,
+        totalCategories: game.stop.list.categories.length
+      });
+    } else {
+      socket.emit("stop_letter_selection_started", {
+        game: publicGame(game),
+        durationMs: game.stop.letterRevealMs,
+        endAt: game.stop.letterEndAt
+      });
+    }
+    return;
+  }
+
+  if (game.status === "stop_answers" && game.stop) {
+    const player = game.players.find((item) => item.id === socket.id);
+    const progress = player ? game.stop.progress[player.clientId] : null;
+
+    if (player && progress && !progress.done) {
+      socket.emit("stop_category_prompt", {
+        game: publicGame(game),
+        prompt: getPublicStopPrompt(game, player)
+      });
+    } else {
+      socket.emit("stop_answers_complete", {
+        game: publicGame(game)
+      });
+    }
+    return;
+  }
+
+  if (game.status === "stop_voting" && game.stop && game.stop.currentVote) {
+    const player = game.players.find((item) => item.id === socket.id);
+
+    if (!game.stop.currentVote.open && game.stop.voteResults.length) {
+      socket.emit("stop_vote_result", {
+        game: publicGame(game),
+        result: game.stop.voteResults[game.stop.voteResults.length - 1]
+      });
+      return;
+    }
+
+    socket.emit("stop_vote_item", {
+      game: publicGame(game),
+      vote: getPublicStopVote(game, player)
+    });
+    return;
+  }
+
+  if (game.status === "stop_voting" && game.stop) {
+    socket.emit("stop_voting_started", {
+      game: publicGame(game),
+      totalWords: game.stop.voteQueue.length
+    });
+    return;
+  }
+
+  if (game.status === "stop_result" && game.stop?.lastResult) {
+    socket.emit("stop_finished", {
+      game: publicGame(game),
+      ...game.stop.lastResult
+    });
+    return;
+  }
+
   if (game.status === "poker_intro") {
     socket.emit("poker_intro", {
       game: publicGame(game),
@@ -3294,6 +3936,7 @@ function finishFinalGame(pin) {
   game.friend = null;
   game.heads = null;
   game.word = null;
+  game.stop = null;
   game.poker = null;
   game.betweenGames = null;
 
@@ -3307,6 +3950,7 @@ function clearAllGameTimers(game) {
   clearTriviaTimers(game);
   clearFriendTimers(game);
   clearHeadsUpTimers(game);
+  clearStopTimers(game);
   clearLackPlayersTimer(game);
 
   if (typeof clearWordConnectTimers === "function") {
@@ -3516,6 +4160,7 @@ io.on("connection", (socket) => {
       friend: null,
       heads: null,
       word: null,
+      stop: null,
       lackPlayersTimer: null,
       campaignSlug: campaign.slug,
       campaign
@@ -4408,6 +5053,136 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     showBetweenGamesScoreboard(cleanGamePin, "word");
   });
 
+  socket.on("start_stop_game", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "stop_intro" || !game.stop) {
+      callback({
+        ok: false,
+        message: "STOP todavía no está listo."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede empezar STOP."
+      });
+      return;
+    }
+
+    callback({ ok: true });
+    beginStop(cleanGamePin);
+  });
+
+  socket.on("submit_stop_answer", ({ pin, word, passed, categoryIndex }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+
+    if (!game || game.status !== "stop_answers" || !game.stop || !player) {
+      callback({
+        ok: false,
+        message: "STOP no está activo."
+      });
+      return;
+    }
+
+    const result = recordStopAnswer(
+      cleanGamePin,
+      player,
+      word,
+      Boolean(passed),
+      categoryIndex
+    );
+
+    callback(result);
+  });
+
+  socket.on("submit_stop_vote", ({ pin, accept }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    const currentVote = game?.stop?.currentVote;
+
+    if (!game || game.status !== "stop_voting" || !game.stop || !currentVote?.open || !player) {
+      callback({
+        ok: false,
+        message: "La votación de STOP no está activa."
+      });
+      return;
+    }
+
+    if (player.clientId === currentVote.authorClientId) {
+      callback({
+        ok: false,
+        message: "No puedes votar tu propia palabra."
+      });
+      return;
+    }
+
+    if (currentVote.votes[player.clientId] !== undefined) {
+      callback({
+        ok: false,
+        message: "Ya votaste esta palabra."
+      });
+      return;
+    }
+
+    if (typeof accept !== "boolean") {
+      callback({
+        ok: false,
+        message: "Ese voto no es válido."
+      });
+      return;
+    }
+
+    currentVote.votes[player.clientId] = accept;
+
+    const acceptVotes = Object.values(currentVote.votes).filter((vote) => vote === true).length;
+    const rejectVotes = Object.values(currentVote.votes).filter((vote) => vote === false).length;
+
+    callback({ ok: true });
+
+    io.to(cleanGamePin).emit("stop_votes_updated", {
+      acceptVotes,
+      rejectVotes,
+      receivedVotes: Object.keys(currentVote.votes).length,
+      totalVoters: currentVote.eligibleVoters.length
+    });
+
+    if (haveAllStopVotersResponded(game)) {
+      finishStopVoteItem(cleanGamePin);
+    }
+  });
+
+  socket.on("continue_stop_result", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "stop_result" || !game.stop?.awaitingContinue) {
+      callback({
+        ok: false,
+        message: "STOP todavía no está listo para continuar."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede continuar."
+      });
+      return;
+    }
+
+    game.stop.awaitingContinue = false;
+    callback({ ok: true });
+    showBetweenGamesScoreboard(cleanGamePin, "stop");
+  });
+
   socket.on("update_poker_settings", ({ pin, settings }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -4568,6 +5343,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     clearTriviaTimers(game);
     clearFriendTimers(game);
     clearHeadsUpTimers(game);
+    clearStopTimers(game);
 
     if (typeof clearWordConnectTimers === "function") {
       clearWordConnectTimers(game);
@@ -4576,6 +5352,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     game.trivia = null;
     game.friend = null;
     game.heads = null;
+    game.stop = null;
 
     if (game.word !== undefined) {
       game.word = null;

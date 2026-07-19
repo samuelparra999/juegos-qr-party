@@ -27,6 +27,7 @@
             "friend": true,
             "heads": true,
             "word": false,
+            "stop": true,
             "poker": true
         }
     },
@@ -146,6 +147,47 @@
                     "RAS",
                     "SARA",
                     "BASA"
+                ]
+            }
+        ]
+    },
+    "stop": {
+        "letterRevealMs": 5000,
+        "answerDurationMs": 10000,
+        "voteDurationMs": 15000,
+        "letters": [
+            "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+            "L", "M", "N", "O", "P", "R", "S", "T", "U", "V"
+        ],
+        "lists": [
+            {
+                "name": "Lista 1",
+                "categories": [
+                    "Animales",
+                    "Apodos/Sobrenombres",
+                    "Ciudades",
+                    "Vegetales",
+                    "Verbos",
+                    "Personajes de películas",
+                    "Medios de transporte",
+                    "Sabores de helado",
+                    "Profesiones",
+                    "Empresas conocidas"
+                ]
+            },
+            {
+                "name": "Lista 2",
+                "categories": [
+                    "Partes del cuerpo",
+                    "Asignaturas de estudio",
+                    "Herramientas",
+                    "Países",
+                    "Objetos en este cuarto",
+                    "Electrodomésticos",
+                    "Bebidas",
+                    "Ingredientes de cocina",
+                    "Colores",
+                    "Cosas calientes"
                 ]
             }
         ]

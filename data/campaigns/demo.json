@@ -27,6 +27,7 @@
             "friend": true,
             "heads": true,
             "word": true,
+            "stop": true,
             "poker": true
         }
     },
@@ -296,21 +297,21 @@
         "durationMs": 90000,
         "questions": [
             {
-                "question": "Solo puedes conservar un servicio durante un apagón de un mes.",
+                "question": "Solo puedes conservar un servicio durante un mes debido a una falla.",
                 "options": [
                     "Agua caliente",
                     "Internet",
                     "Nevera",
-                    "Transporte"
+                    "Gas"
                 ]
             },
             {
-                "question": "Debes cruzar un territorio peligroso acompañado por alguien.",
+                "question": "Debes cruzar una selva hostil acompañado por alguien.",
                 "options": [
-                    "Atleta profesional",
-                    "Bombero",
-                    "Médico",
-                    "Militar retirado"
+                    "Sacerdote",
+                    "Anciano indígena",
+                    "Biólogo",
+                    "Puma domesticado"
                 ]
             },
             {
@@ -352,19 +353,19 @@
             {
                 "question": "¿Qué objeto sería más difícil dejar de usar durante un año?",
                 "options": [
-                    "Audífonos",
-                    "Microondas",
-                    "Teléfono",
-                    "Televisor"
+                    "Cubiertos",
+                    "Asientos",
+                    "Celular",
+                    "IA"
                 ]
             },
             {
                 "question": "¿Qué reputación preferirías tener en la oficina?",
                 "options": [
-                    "Arregla la impresora",
-                    "Conoce todos los rumores",
-                    "Lleva snacks",
-                    "Siempre tiene cargador"
+                    "Ser vulgar",
+                    "Chismosear",
+                    "Sabiondo(a)",
+                    "Cumplir favores"
                 ]
             },
             {
@@ -408,51 +409,33 @@
                 "options": [
                     "Está agotado",
                     "Olvidó otro compromiso",
-                    "Se enfermó",
-                    "Surgió un problema familiar"
+                    "Fue a hacer ejercicio",
+                    "Se quedó sin transporte"
                 ]
             },
             {
-                "question": "Tu pareja revela un secreto anterior a la relación. ¿Cuál sería más fácil de perdonar?",
-                "options": [
-                    "Deuda ocultada, pero ya pagada",
-                    "Expareja confidente, pero sin límites cruzados",
-                    "Gusto fingido que terminó volviéndose real",
-                    "Problema familiar ocultado para protegerte"
-                ]
-            },
-            {
-                "question": "A ti y a un amigo les ofrecen el mismo ascenso. ¿Qué pacto elegirías?",
+                "question": "A ti y a tu mejor amigo les ofrecen el mismo ascenso. ¿Qué pacto elegirías?",
                 "options": [
                     "Compartir el cargo con menos autoridad individual",
-                    "Competir abiertamente y no hablar del tema fuera del trabajo",
-                    "Dejar que el jefe decida y aceptar el resultado",
-                    "Uno se retira ahora y recibe apoyo después"
+                    "Competir abiertamente",
+                    "Ceder el ascenso al amigo",
+                    "Dejar el trabajo"
                 ]
             },
             {
                 "question": "Tu familia posee una habitación secreta. ¿Qué sería más inquietante descubrir?",
                 "options": [
-                    "Archivo de predicciones antiguas sobre tu vida",
-                    "Libro de favores emocionales pendientes",
+                    "Archivo de predicciones antiguas, pero verdaderas, sobre tu vida",
+                    "Lotería millonaria vencida y no reclamada",
                     "Retratos con una persona recortada",
-                    "Santuario dedicado al pariente que todos critican"
-                ]
-            },
-            {
-                "question": "Una pareja puede conocer una verdad imposible. ¿Cuál elegirías?",
-                "options": [
-                    "Borrar una pelea, pero perder un buen recuerdo de ese día",
-                    "Conocer la fecha de una ruptura, pero no su causa",
-                    "Leer pensamientos un minuto diario, pero en ambos sentidos",
-                    "Saber cada mentira, pero nunca el motivo"
+                    "Manuales y mapas para contrabando"
                 ]
             },
             {
                 "question": "Una inteligencia artificial puede hacer una tarea por ti para siempre.",
                 "options": [
                     "Administrar tus finanzas",
-                    "Contestar tus mensajes",
+                    "Recomendar tus vestimentas",
                     "Organizar tu agenda",
                     "Planear tus comidas"
                 ]
@@ -470,7 +453,7 @@
                 "question": "Una tecnología puede modificar recuerdos. ¿Qué uso aceptarías?",
                 "options": [
                     "Borrar dolor, pero perder la lección",
-                    "Compartir un recuerdo, pero la otra persona conserva una copia",
+                    "Compartir un recuerdo, pero la otra persona conserva una copia publicable",
                     "Recordarlo todo, pero sentirlo siempre con la misma intensidad",
                     "Revivir una memoria, pero alterarla un poco cada vez"
                 ]
@@ -478,17 +461,17 @@
             {
                 "question": "Crean una copia digital consciente de ti. ¿Qué función permitirías?",
                 "options": [
-                    "Aconsejarte, pero conocer todos tus pensamientos",
+                    "Entenderte perfectamente, pero criticarte duramente",
                     "Hablar con tu familia después de tu muerte, pero seguir cambiando",
                     "Hacer tu trabajo, pero reclamar derechos",
-                    "Vivir en la nube, pero depender de una empresa"
+                    "Ser la personalidad tuya en el sexo opuesto"
                 ]
             },
             {
                 "question": "Una ciudad inteligente puede resolver un problema, pero exige un precio. ¿Cuál aceptas?",
                 "options": [
                     "Atención médica gratis, pero un algoritmo decide prioridades",
-                    "Cero delitos, pero vigilancia constante",
+                    "Cero delitos, pero vigilancia minuciosa",
                     "Empleo garantizado, pero una IA asigna tu oficio",
                     "Tráfico perfecto, pero sin vehículos privados"
                 ]
@@ -498,17 +481,17 @@
                 "options": [
                     "Cómo será tu futuro",
                     "Qué ocurre después de la muerte",
-                    "Si existe vida extraterrestre",
-                    "Qué piensan realmente los demás de ti"
+                    "El propósito real del universo",
+                    "Cómo leer mentes"
                 ]
             },
             {
                 "question": "¿Qué forma de inmortalidad elegirías?",
                 "options": [
-                    "Cuerpo eterno, pero memoria que se borra cada siglo",
-                    "Envejecer muy lentamente, pero ver partir a todos",
-                    "Reencarnar, pero sin recuerdos",
-                    "Vivir digitalmente, pero sin cuerpo"
+                    "Cuerpo eterno, pero que todos te olviden a diario",
+                    "Vivir como un animal no humano",
+                    "Reencarnar, pero con recuerdos pasados",
+                    "Vivir en un robot"
                 ]
             },
             {
@@ -523,9 +506,9 @@
             {
                 "question": "¿Qué revelación cósmica te permitiría seguir trabajando normalmente?",
                 "options": [
-                    "El déjà vu es una pantalla de carga",
-                    "El universo lo administran becarios",
-                    "Los gatos conocen la fecha final",
+                    "Eres parte de un videojuego",
+                    "Hay un ojo flotante invisible junto a tí",
+                    "Tu imaginación está siendo robada",
                     "Los sueños son publicidad"
                 ]
             },
@@ -541,7 +524,7 @@
             {
                 "question": "El universo te concede un milagro diminuto cada día. ¿Cuál eliges?",
                 "options": [
-                    "Aguacates siempre en su punto",
+                    "La ropa se ordena por colores",
                     "Ascensores que siempre esperan",
                     "Medias que nunca se separan",
                     "Plantas que aplauden al regarlas"
@@ -551,18 +534,18 @@
                 "question": "Debes participar mañana en un evento sin preparación.",
                 "options": [
                     "Concurso de baile",
-                    "Debate público",
-                    "Karaoke",
+                    "Debate por televisión",
+                    "Concierto",
                     "Monólogo de comedia"
                 ]
             },
             {
                 "question": "Te quedas encerrado seis horas con una persona desconocida. ¿Dónde prefieres estar?",
                 "options": [
-                    "Ascensor",
-                    "Avión",
+                    "Almacén de 4 metros cuadrados",
+                    "Teleférico",
                     "Biblioteca",
-                    "Tren"
+                    "Montaña rusa"
                 ]
             },
             {
@@ -584,7 +567,7 @@
                 ]
             },
             {
-                "question": "¿Qué mensaje accidental preferirías enviar públicamente?",
+                "question": "¿Qué mensaje accidental preferirías no enviar públicamente?",
                 "options": [
                     "“Estoy aquí” a cincuenta personas",
                     "Lista del supermercado al chat de la empresa",
@@ -595,7 +578,7 @@
             {
                 "question": "Tu asistente personal responde siempre con una frase. ¿Cuál sería la más insoportable?",
                 "options": [
-                    "“Como ordene, jefe”",
+                    "“Como ordene, mi amo”",
                     "“Interesante elección”",
                     "“Registrado como evidencia”",
                     "“Tu madre no estaría de acuerdo”"
@@ -989,6 +972,47 @@
                     "LATA",
                     "NATA",
                     "PATA"
+                ]
+            }
+        ]
+    },
+    "stop": {
+        "letterRevealMs": 5000,
+        "answerDurationMs": 10000,
+        "voteDurationMs": 15000,
+        "letters": [
+            "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+            "L", "M", "N", "O", "P", "R", "S", "T", "U", "V"
+        ],
+        "lists": [
+            {
+                "name": "Lista 1",
+                "categories": [
+                    "Animales",
+                    "Apodos/Sobrenombres",
+                    "Ciudades",
+                    "Vegetales",
+                    "Verbos",
+                    "Personajes de películas",
+                    "Medios de transporte",
+                    "Sabores de helado",
+                    "Profesiones",
+                    "Empresas conocidas"
+                ]
+            },
+            {
+                "name": "Lista 2",
+                "categories": [
+                    "Partes del cuerpo",
+                    "Asignaturas de estudio",
+                    "Herramientas",
+                    "Países",
+                    "Objetos en este cuarto",
+                    "Electrodomésticos",
+                    "Bebidas",
+                    "Ingredientes de cocina",
+                    "Colores",
+                    "Cosas calientes"
                 ]
             }
         ]
