@@ -1526,6 +1526,329 @@ button:disabled {
   display: none !important;
 }
 
+.impostor-role-panel {
+  position: relative;
+  min-height: 210px;
+  margin: 18px 0;
+  padding: 24px 18px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.impostor-role-panel.is-impostor {
+  border-color: #ff6969;
+  background: rgba(131, 20, 35, 0.34);
+}
+
+.impostor-role-panel > p {
+  margin: 0;
+}
+
+.impostor-role-panel > strong {
+  color: var(--color-tertiary);
+  font-size: 32px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.impostor-role-panel.is-impostor > strong {
+  color: #ffffff;
+}
+
+.impostor-role-panel.is-hidden-role > * {
+  visibility: hidden;
+}
+
+.impostor-role-panel.is-hidden-role::after {
+  content: "Rol oculto";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.impostor-vote-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.impostor-vote-option {
+  min-height: 54px;
+  margin: 0;
+  border: 2px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.impostor-vote-option.is-selected {
+  border-color: #62e6a7;
+  background: rgba(20, 120, 77, 0.56);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.impostor-vote-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.impostor-reveal {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+  display: grid;
+  gap: 5px;
+  text-align: center;
+}
+
+.impostor-reveal strong {
+  color: var(--color-tertiary);
+  font-size: 24px;
+}
+
+.impostor-reveal small {
+  color: var(--muted-text-color);
+}
+
+.cacho-players-list,
+.cacho-revealed-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+  display: grid;
+  gap: 8px;
+}
+
+.cacho-player-row {
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.09);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cacho-player-row.is-current {
+  border-color: var(--color-tertiary);
+  background: rgba(255, 255, 255, 0.17);
+}
+
+.cacho-player-row.is-eliminated {
+  opacity: 0.48;
+}
+
+.cacho-player-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cacho-player-row strong {
+  flex: 0 0 auto;
+  color: var(--color-tertiary);
+  font-size: 13px;
+}
+
+.cacho-current-bid {
+  min-height: 112px;
+  margin: 16px 0;
+  padding: 14px;
+  border: 2px solid var(--color-tertiary);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.cacho-current-bid.is-empty {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.cacho-current-bid span,
+.cacho-current-bid small {
+  color: var(--muted-text-color);
+}
+
+.cacho-current-bid strong {
+  color: #ffffff;
+  font-size: 27px;
+}
+
+.cacho-dice,
+.cacho-revealed-dice {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 9px;
+}
+
+.cacho-dice {
+  min-height: 72px;
+  margin: 14px 0;
+  align-items: center;
+}
+
+.cacho-die {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  border: 2px solid #d7dceb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #161927;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.24);
+  display: grid;
+  place-items: center;
+  font-family: "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
+  font-size: 49px;
+  line-height: 1;
+}
+
+.cacho-die.is-small {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+  border-radius: 6px;
+  font-size: 32px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.22);
+}
+
+.cacho-no-dice {
+  color: var(--muted-text-color);
+  text-align: center;
+}
+
+.cacho-controls {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.cacho-quantity-control {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: var(--muted-text-color);
+  font-weight: 800;
+}
+
+.cacho-quantity-control input {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.cacho-face-selector {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cacho-face-btn {
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-family: "Segoe UI Symbol", "Arial Unicode MS", sans-serif;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.cacho-face-btn.is-selected {
+  border-color: #62e6a7;
+  background: rgba(20, 120, 77, 0.58);
+}
+
+.cacho-action-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.cacho-action-buttons button {
+  width: 100%;
+  min-height: 50px;
+  margin: 0;
+}
+
+.cacho-doubt-btn {
+  border: 1px solid #ff8b8b;
+  border-radius: 8px;
+  background: #b6293d;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.cacho-doubt-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.cacho-count-result {
+  margin: 16px 0;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--color-tertiary);
+  text-align: center;
+  font-weight: 900;
+}
+
+.cacho-revealed-row {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.09);
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.cacho-revealed-row.lost-die {
+  border-color: #ff7474;
+  background: rgba(138, 25, 43, 0.3);
+}
+
+.cacho-revealed-row strong {
+  overflow-wrap: anywhere;
+}
+
+.cacho-loser-text {
+  color: #ffffff;
+  font-weight: 900;
+  text-align: center;
+}
+
 @media (max-width: 520px) {
   #stopLetterDisplay {
     font-size: 96px;
@@ -1551,5 +1874,17 @@ button:disabled {
 
   .poker-cards-row .poker-card {
     width: 58px;
+  }
+
+  .impostor-vote-list {
+    grid-template-columns: 1fr;
+  }
+
+  .cacho-revealed-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cacho-revealed-dice {
+    justify-content: flex-start;
   }
 }

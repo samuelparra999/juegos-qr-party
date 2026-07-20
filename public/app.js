@@ -16,6 +16,9 @@ let activeScreen = null;
 let stopLetterInterval = null;
 let stopAnswerPending = false;
 let stopVotePending = false;
+let currentCachoState = null;
+let selectedCachoFace = 2;
+let cachoActionPending = false;
 let currentLastCardState = null;
 let lastCardActionPending = false;
 let selectedWildCardId = null;
@@ -53,6 +56,13 @@ const stopAnswerScreen = document.getElementById("stopAnswerScreen");
 const stopAnswersWaitingScreen = document.getElementById("stopAnswersWaitingScreen");
 const stopVotingScreen = document.getElementById("stopVotingScreen");
 const stopResultScreen = document.getElementById("stopResultScreen");
+const impostorIntroScreen = document.getElementById("impostorIntroScreen");
+const impostorRoleScreen = document.getElementById("impostorRoleScreen");
+const impostorVotingScreen = document.getElementById("impostorVotingScreen");
+const impostorResultScreen = document.getElementById("impostorResultScreen");
+const cachoIntroScreen = document.getElementById("cachoIntroScreen");
+const cachoScreen = document.getElementById("cachoScreen");
+const cachoResultScreen = document.getElementById("cachoResultScreen");
 const lastCardIntroScreen = document.getElementById("lastCardIntroScreen");
 const lastCardScreen = document.getElementById("lastCardScreen");
 const lastCardResultScreen = document.getElementById("lastCardResultScreen");
@@ -90,6 +100,8 @@ const gameFriend = document.getElementById("gameFriend");
 const gameHeads = document.getElementById("gameHeads");
 const gameWord = document.getElementById("gameWord");
 const gameStop = document.getElementById("gameStop");
+const gameImpostor = document.getElementById("gameImpostor");
+const gameCacho = document.getElementById("gameCacho");
 const gameLastCard = document.getElementById("gameLastCard");
 const friendGameHelp = document.getElementById("friendGameHelp");
 const gamePoker = document.getElementById("gamePoker");
@@ -100,6 +112,8 @@ const gameCheckboxes = [
   gameHeads,
   gameWord,
   gameStop,
+  gameImpostor,
+  gameCacho,
   gameLastCard,
   gamePoker
 ].filter(Boolean);
@@ -218,6 +232,62 @@ const stopResultTitle = document.getElementById("stopResultTitle");
 const stopPlayerResultsList = document.getElementById("stopPlayerResultsList");
 const stopVoteResultsList = document.getElementById("stopVoteResultsList");
 const stopFinalRankingList = document.getElementById("stopFinalRankingList");
+
+// Impostor
+const startImpostorBtn = document.getElementById("startImpostorBtn");
+const impostorIntroWaitingText = document.getElementById("impostorIntroWaitingText");
+const impostorRolePanel = document.getElementById("impostorRolePanel");
+const impostorRoleLabel = document.getElementById("impostorRoleLabel");
+const impostorRoleValue = document.getElementById("impostorRoleValue");
+const impostorRoleHint = document.getElementById("impostorRoleHint");
+const impostorReadyBtn = document.getElementById("impostorReadyBtn");
+const impostorRoleStatus = document.getElementById("impostorRoleStatus");
+const impostorVotingLeaderControls = document.getElementById("impostorVotingLeaderControls");
+const finishImpostorRoundBtn = document.getElementById("finishImpostorRoundBtn");
+const impostorVotingTitle = document.getElementById("impostorVotingTitle");
+const impostorPlayersList = document.getElementById("impostorPlayersList");
+const impostorVoteStatus = document.getElementById("impostorVoteStatus");
+const impostorVoteProgress = document.getElementById("impostorVoteProgress");
+const impostorResultLeaderControls = document.getElementById("impostorResultLeaderControls");
+const continueImpostorRoundBtn = document.getElementById("continueImpostorRoundBtn");
+const impostorResultTitle = document.getElementById("impostorResultTitle");
+const impostorResultText = document.getElementById("impostorResultText");
+const impostorRevealBox = document.getElementById("impostorRevealBox");
+const impostorRevealName = document.getElementById("impostorRevealName");
+const impostorRevealWord = document.getElementById("impostorRevealWord");
+const impostorActiveTitle = document.getElementById("impostorActiveTitle");
+const impostorActivePlayersList = document.getElementById("impostorActivePlayersList");
+const impostorFinalRanking = document.getElementById("impostorFinalRanking");
+const impostorRankingList = document.getElementById("impostorRankingList");
+
+// Cacho
+const startCachoBtn = document.getElementById("startCachoBtn");
+const cachoIntroWaitingText = document.getElementById("cachoIntroWaitingText");
+const cachoRoundText = document.getElementById("cachoRoundText");
+const cachoTimerText = document.getElementById("cachoTimerText");
+const cachoTimerFill = document.getElementById("cachoTimerFill");
+const cachoPlayersList = document.getElementById("cachoPlayersList");
+const cachoCurrentBid = document.getElementById("cachoCurrentBid");
+const cachoCurrentBidText = document.getElementById("cachoCurrentBidText");
+const cachoCurrentBidder = document.getElementById("cachoCurrentBidder");
+const cachoTurnText = document.getElementById("cachoTurnText");
+const cachoDice = document.getElementById("cachoDice");
+const cachoControls = document.getElementById("cachoControls");
+const cachoQuantityInput = document.getElementById("cachoQuantityInput");
+const cachoFaceSelector = document.getElementById("cachoFaceSelector");
+const cachoFaceButtons = document.querySelectorAll(".cacho-face-btn");
+const submitCachoBidBtn = document.getElementById("submitCachoBidBtn");
+const callCachoDoubtBtn = document.getElementById("callCachoDoubtBtn");
+const cachoStatusText = document.getElementById("cachoStatusText");
+const cachoResultLeaderControls = document.getElementById("cachoResultLeaderControls");
+const continueCachoResultBtn = document.getElementById("continueCachoResultBtn");
+const cachoResultTitle = document.getElementById("cachoResultTitle");
+const cachoResultSummary = document.getElementById("cachoResultSummary");
+const cachoCountResult = document.getElementById("cachoCountResult");
+const cachoRevealedDiceList = document.getElementById("cachoRevealedDiceList");
+const cachoLoserText = document.getElementById("cachoLoserText");
+const cachoFinalRanking = document.getElementById("cachoFinalRanking");
+const cachoRankingList = document.getElementById("cachoRankingList");
 
 // ÚLTIMA CARTA
 const startLastCardBtn = document.getElementById("startLastCardBtn");
@@ -626,6 +696,14 @@ function applyCampaignGameAvailability(campaign) {
 
   if (gameStop && gameStop.closest(".game-option")) {
     gameStop.closest(".game-option").classList.toggle("hidden", !available.stop);
+  }
+
+  if (gameImpostor && gameImpostor.closest(".game-option")) {
+    gameImpostor.closest(".game-option").classList.toggle("hidden", !available.impostor);
+  }
+
+  if (gameCacho && gameCacho.closest(".game-option")) {
+    gameCacho.closest(".game-option").classList.toggle("hidden", !available.cacho);
   }
 
   if (gameLastCard && gameLastCard.closest(".game-option")) {
@@ -1041,6 +1119,117 @@ continueStopResultBtn.addEventListener("click", () => {
   });
 });
 
+startImpostorBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("start_impostor_game", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo empezar Impostor.");
+    }
+  });
+});
+
+impostorReadyBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  impostorReadyBtn.disabled = true;
+  socket.emit("impostor_ready", { pin: currentGame.pin }, (response) => {
+    if (response.ok) {
+      impostorRolePanel.classList.add("is-hidden-role");
+      impostorRoleStatus.textContent = "Rol oculto. Esperando a los demás...";
+      return;
+    }
+
+    impostorReadyBtn.disabled = false;
+    showToast(response.message || "No se pudo confirmar tu rol.");
+  });
+});
+
+finishImpostorRoundBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  finishImpostorRoundBtn.disabled = true;
+  socket.emit("finish_impostor_round", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    finishImpostorRoundBtn.disabled = false;
+    showToast(response.message || "No se pudo terminar la ronda.");
+  });
+});
+
+continueImpostorRoundBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  continueImpostorRoundBtn.disabled = true;
+  socket.emit("continue_impostor_round", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    continueImpostorRoundBtn.disabled = false;
+    showToast(response.message || "No se pudo continuar.");
+  });
+});
+
+startCachoBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("start_cacho_game", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo empezar Cacho.");
+    }
+  });
+});
+
+cachoFaceButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    selectedCachoFace = Number(button.dataset.face);
+    renderCachoControls();
+  });
+});
+
+submitCachoBidBtn.addEventListener("click", () => {
+  if (!currentGame || cachoActionPending) return;
+
+  cachoActionPending = true;
+  renderCachoControls();
+  socket.emit("submit_cacho_bid", {
+    pin: currentGame.pin,
+    quantity: Number(cachoQuantityInput.value),
+    face: selectedCachoFace
+  }, (response) => {
+    if (response.ok) return;
+
+    cachoActionPending = false;
+    renderCachoControls();
+    showToast(response.message || "No se pudo hacer la apuesta.");
+  });
+});
+
+callCachoDoubtBtn.addEventListener("click", () => {
+  if (!currentGame || cachoActionPending) return;
+
+  cachoActionPending = true;
+  renderCachoControls();
+  socket.emit("call_cacho_doubt", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    cachoActionPending = false;
+    renderCachoControls();
+    showToast(response.message || "No se pudo declarar Dudo.");
+  });
+});
+
+continueCachoResultBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  continueCachoResultBtn.disabled = true;
+  socket.emit("continue_cacho_result", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    continueCachoResultBtn.disabled = false;
+    showToast(response.message || "No se pudo continuar.");
+  });
+});
+
 startLastCardBtn.addEventListener("click", () => {
   if (!currentGame) return;
 
@@ -1294,6 +1483,51 @@ socket.on("stop_finished", (data) => {
   renderStopResult(data);
 });
 
+socket.on("impostor_intro", (data) => {
+  currentGame = data.game;
+  renderImpostorIntro(data.game);
+});
+
+socket.on("impostor_role", (data) => {
+  currentGame = data.game;
+  renderImpostorRole(data.role);
+});
+
+socket.on("impostor_ready_progress", (data) => {
+  impostorRoleStatus.textContent =
+    `Listos: ${data.readyCount}/${data.totalPlayers}. Esperando a los demás...`;
+});
+
+socket.on("impostor_voting", (data) => {
+  currentGame = data.game;
+  renderImpostorVoting(data.voting);
+});
+
+socket.on("impostor_vote_progress", (data) => {
+  impostorVoteProgress.textContent =
+    `Votos enviados: ${data.submittedCount}/${data.totalVoters}`;
+});
+
+socket.on("impostor_round_result", (data) => {
+  currentGame = data.game;
+  renderImpostorResult(data.result);
+});
+
+socket.on("cacho_intro", (data) => {
+  currentGame = data.game;
+  renderCachoIntro(data.game);
+});
+
+socket.on("cacho_state", (data) => {
+  currentGame = data.game;
+  renderCachoGame(data.cachoState);
+});
+
+socket.on("cacho_round_result", (data) => {
+  currentGame = data.game;
+  renderCachoResult(data.result);
+});
+
 socket.on("last_card_intro", (data) => {
   currentGame = data.game;
   renderLastCardIntro(data.game);
@@ -1415,6 +1649,8 @@ function getSelectedGamesFromLobby() {
   if (gameHeads && gameHeads.checked) selectedGames.push("heads");
   if (gameWord && gameWord.checked) selectedGames.push("word");
   if (gameStop && gameStop.checked) selectedGames.push("stop");
+  if (gameImpostor && gameImpostor.checked) selectedGames.push("impostor");
+  if (gameCacho && gameCacho.checked) selectedGames.push("cacho");
   if (gameLastCard && gameLastCard.checked) selectedGames.push("lastcard");
   if (gamePoker && gamePoker.checked) selectedGames.push("poker");
 
@@ -1457,6 +1693,8 @@ function renderGameSelection(game) {
   if (gameHeads) gameHeads.checked = selectedGames.includes("heads");
   if (gameWord) gameWord.checked = selectedGames.includes("word");
   if (gameStop) gameStop.checked = selectedGames.includes("stop");
+  if (gameImpostor) gameImpostor.checked = selectedGames.includes("impostor");
+  if (gameCacho) gameCacho.checked = selectedGames.includes("cacho");
   if (gameLastCard) gameLastCard.checked = selectedGames.includes("lastcard");
   if (gamePoker) gamePoker.checked = selectedGames.includes("poker");
 
@@ -1465,6 +1703,8 @@ function renderGameSelection(game) {
   if (gameHeads) gameHeads.disabled = !isLeader;
   if (gameWord) gameWord.disabled = !isLeader;
   if (gameStop) gameStop.disabled = !isLeader;
+  if (gameImpostor) gameImpostor.disabled = !isLeader;
+  if (gameCacho) gameCacho.disabled = !isLeader;
   if (gameLastCard) gameLastCard.disabled = !isLeader;
   if (gamePoker) gamePoker.disabled = !isLeader;
 
@@ -2508,6 +2748,327 @@ const LAST_CARD_COLOR_NAMES = {
   blue: "Azul",
   wild: "Color libre"
 };
+
+function renderImpostorIntro(game) {
+  isLeader = game.leaderId === socket.id;
+  startImpostorBtn.classList.toggle("hidden", !isLeader);
+  impostorIntroWaitingText.classList.toggle("hidden", isLeader);
+  startImpostorBtn.disabled = false;
+  showScreen(impostorIntroScreen);
+}
+
+function renderImpostorRole(role) {
+  impostorRolePanel.classList.toggle("is-impostor", role.isImpostor);
+  impostorRolePanel.classList.toggle("is-hidden-role", role.ready);
+  impostorReadyBtn.classList.toggle("hidden", role.ready || !role.isActive);
+  impostorReadyBtn.disabled = false;
+
+  if (!role.isActive) {
+    impostorRoleLabel.textContent = "Estás observando";
+    impostorRoleValue.textContent = "Fuera de la ronda";
+    impostorRoleHint.textContent = "Espera a que comience la votación.";
+  } else if (role.isImpostor) {
+    impostorRoleLabel.textContent = "Tu rol es";
+    impostorRoleValue.textContent = "Eres el impostor";
+    impostorRoleHint.textContent = "Escucha al grupo y trata de pasar desapercibido.";
+  } else {
+    impostorRoleLabel.textContent = "Tu palabra es";
+    impostorRoleValue.textContent = role.word;
+    impostorRoleHint.textContent = "Recuerda la palabra y no la muestres a nadie.";
+  }
+
+  impostorRoleStatus.textContent = role.ready
+    ? `Listos: ${role.readyCount}/${role.totalPlayers}. Esperando a los demás...`
+    : "Cuando memorices tu rol, pulsa Listo para ocultarlo.";
+  showScreen(impostorRoleScreen);
+}
+
+function renderImpostorVoting(voting) {
+  isLeader = currentGame && currentGame.leaderId === socket.id;
+  finishImpostorRoundBtn.disabled = false;
+  impostorVotingLeaderControls.classList.toggle("hidden", !isLeader);
+  impostorVotingTitle.textContent = `Ronda ${voting.roundNumber}: ¿quién es el impostor?`;
+  impostorPlayersList.innerHTML = "";
+
+  voting.players.forEach((player) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "impostor-vote-option";
+    button.textContent = player.playerName;
+    button.dataset.playerId = player.playerId;
+    button.classList.toggle("is-selected", player.playerId === voting.selectedPlayerId);
+    button.disabled = !voting.canVote || player.isSelf;
+
+    if (player.isSelf) {
+      button.title = "No puedes votar por ti";
+    }
+
+    button.addEventListener("click", () => {
+      socket.emit("submit_impostor_vote", {
+        pin: currentGame.pin,
+        playerId: player.playerId
+      }, (response) => {
+        if (!response.ok) {
+          showToast(response.message || "No se pudo enviar el voto.");
+          return;
+        }
+
+        impostorPlayersList.querySelectorAll(".impostor-vote-option").forEach((option) => {
+          option.classList.toggle("is-selected", option.dataset.playerId === response.selectedPlayerId);
+        });
+        impostorVoteStatus.textContent = `Votaste por ${player.playerName}.`;
+      });
+    });
+
+    impostorPlayersList.appendChild(button);
+  });
+
+  if (voting.isEliminated) {
+    impostorVoteStatus.textContent = "Fuiste eliminado. Puedes observar la votación.";
+  } else if (voting.selectedPlayerId) {
+    const selected = voting.players.find(
+      (player) => player.playerId === voting.selectedPlayerId
+    );
+    impostorVoteStatus.textContent = selected ? `Votaste por ${selected.playerName}.` : "";
+  } else {
+    impostorVoteStatus.textContent = "Selecciona a un jugador.";
+  }
+
+  impostorVoteProgress.textContent =
+    `Votos enviados: ${voting.submittedCount}/${voting.totalVoters}`;
+  showScreen(impostorVotingScreen);
+}
+
+function renderImpostorResult(result) {
+  isLeader = currentGame && currentGame.leaderId === socket.id;
+  continueImpostorRoundBtn.disabled = false;
+  impostorResultLeaderControls.classList.toggle("hidden", !isLeader);
+  impostorRevealBox.classList.toggle("hidden", !result.isFinal);
+  impostorFinalRanking.classList.toggle("hidden", !result.isFinal);
+  impostorActivePlayersList.innerHTML = "";
+
+  if (result.groupWasRight) {
+    impostorResultTitle.textContent = "El grupo acertó";
+    impostorResultText.textContent =
+      `${result.eliminatedPlayerName} era el impostor. El grupo gana la partida.`;
+  } else if (result.isFinal) {
+    impostorResultTitle.textContent = "El impostor sobrevivió";
+    impostorResultText.textContent =
+      `${result.eliminatedPlayerName} no era el impostor. Solo quedan dos jugadores activos.`;
+  } else {
+    impostorResultTitle.textContent = `${result.eliminatedPlayerName} queda eliminado`;
+    impostorResultText.textContent =
+      `El grupo no acertó: ${result.eliminatedPlayerName} no era el impostor.`;
+  }
+
+  (result.activePlayers || []).forEach((player) => {
+    const li = document.createElement("li");
+    li.textContent = player.playerName;
+    impostorActivePlayersList.appendChild(li);
+  });
+
+  impostorActiveTitle.textContent = result.isFinal
+    ? "Jugadores que llegaron al final"
+    : "Jugadores que siguen activos";
+
+  if (result.isFinal) {
+    impostorRevealName.textContent = result.impostorPlayerName;
+    impostorRevealWord.textContent = `La palabra era: ${result.word}`;
+    renderRankingList(impostorRankingList, result.ranking || []);
+  }
+
+  showScreen(impostorResultScreen);
+}
+
+const CACHO_DIE_SYMBOLS = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+const CACHO_FACE_NAMES = ["", "unos", "doses", "treses", "cuatros", "cincos", "seises"];
+
+function createCachoDie(value, small = false) {
+  const die = document.createElement("span");
+  die.className = `cacho-die${small ? " is-small" : ""}`;
+  die.textContent = CACHO_DIE_SYMBOLS[value] || String(value);
+  die.setAttribute("aria-label", `Dado con ${value}`);
+  return die;
+}
+
+function renderCachoIntro(game) {
+  isLeader = game.leaderId === socket.id;
+  startCachoBtn.classList.toggle("hidden", !isLeader);
+  cachoIntroWaitingText.classList.toggle("hidden", isLeader);
+  startCachoBtn.disabled = false;
+  showScreen(cachoIntroScreen);
+}
+
+function getSuggestedCachoBid(state) {
+  if (!state.currentBid) return { quantity: 1, face: 2 };
+
+  if (state.currentBid.face === 1) {
+    return {
+      quantity: Math.min(state.totalDice, state.currentBid.quantity + 1),
+      face: 1
+    };
+  }
+
+  if (state.currentBid.face < 6) {
+    return {
+      quantity: state.currentBid.quantity,
+      face: state.currentBid.face + 1
+    };
+  }
+
+  return {
+    quantity: Math.ceil(state.currentBid.quantity / 2),
+    face: 1
+  };
+}
+
+function renderCachoGame(state) {
+  currentCachoState = state;
+  cachoActionPending = false;
+  cachoRoundText.textContent = `Ronda ${state.roundNumber}`;
+  cachoTurnText.textContent = state.isYourTurn
+    ? "Es tu turno"
+    : `Turno de ${state.currentPlayerName}`;
+  cachoStatusText.textContent = state.message || "";
+
+  cachoPlayersList.innerHTML = "";
+  state.players.forEach((player) => {
+    const li = document.createElement("li");
+    li.className = "cacho-player-row";
+    li.classList.toggle("is-current", player.isCurrent);
+    li.classList.toggle("is-eliminated", player.eliminated);
+
+    const name = document.createElement("span");
+    name.textContent = player.playerName;
+    const count = document.createElement("strong");
+    count.textContent = player.eliminated
+      ? "Eliminado"
+      : `${player.diceCount} dado${player.diceCount === 1 ? "" : "s"}`;
+
+    li.appendChild(name);
+    li.appendChild(count);
+    cachoPlayersList.appendChild(li);
+  });
+
+  if (state.currentBid) {
+    cachoCurrentBid.classList.remove("is-empty");
+    cachoCurrentBidText.textContent =
+      `${state.currentBid.quantity} ${CACHO_FACE_NAMES[state.currentBid.face]}`;
+    cachoCurrentBidder.textContent = `Apuesta de ${state.currentBid.bidderName}`;
+  } else {
+    cachoCurrentBid.classList.add("is-empty");
+    cachoCurrentBidText.textContent = "Sin apuesta";
+    cachoCurrentBidder.textContent = "";
+  }
+
+  cachoDice.innerHTML = "";
+  state.dice.forEach((value) => cachoDice.appendChild(createCachoDie(value)));
+
+  if (!state.dice.length) {
+    const empty = document.createElement("span");
+    empty.className = "cacho-no-dice";
+    empty.textContent = state.isEliminated ? "Estás observando la ronda." : "Preparando dados...";
+    cachoDice.appendChild(empty);
+  }
+
+  const suggestion = getSuggestedCachoBid(state);
+  selectedCachoFace = suggestion.face;
+  cachoQuantityInput.min = "1";
+  cachoQuantityInput.max = String(state.totalDice);
+  cachoQuantityInput.value = String(suggestion.quantity);
+  cachoControls.classList.toggle("hidden", !state.isYourTurn);
+
+  if (state.isEliminated) {
+    cachoStatusText.textContent = "Fuiste eliminado. Puedes observar la partida.";
+  } else if (state.isYourTurn) {
+    cachoStatusText.textContent = state.currentBid
+      ? "Supera la apuesta o declara Dudo."
+      : "Haz la primera apuesta de la ronda.";
+  }
+
+  startStopTimer(
+    state.endAt,
+    state.durationMs,
+    cachoTimerText,
+    cachoTimerFill,
+    () => {
+      cachoActionPending = true;
+      cachoStatusText.textContent = "Tiempo terminado. Resolviendo el turno...";
+      renderCachoControls();
+    }
+  );
+
+  renderCachoControls();
+  showScreen(cachoScreen);
+}
+
+function renderCachoControls() {
+  if (!currentCachoState) return;
+
+  const disabled = cachoActionPending || !currentCachoState.isYourTurn;
+  cachoQuantityInput.disabled = disabled;
+  submitCachoBidBtn.disabled = disabled;
+  callCachoDoubtBtn.disabled = disabled || !currentCachoState.canDoubt;
+
+  cachoFaceButtons.forEach((button) => {
+    const face = Number(button.dataset.face);
+    button.disabled = disabled;
+    button.classList.toggle("is-selected", face === selectedCachoFace);
+    button.setAttribute("aria-pressed", String(face === selectedCachoFace));
+  });
+}
+
+function renderCachoResult(result) {
+  clearInterval(timerInterval);
+  currentCachoState = null;
+  isLeader = currentGame && currentGame.leaderId === socket.id;
+  continueCachoResultBtn.disabled = false;
+  cachoResultLeaderControls.classList.toggle("hidden", !isLeader);
+  cachoFinalRanking.classList.toggle("hidden", !result.isFinal);
+
+  cachoResultTitle.textContent = result.isFinal
+    ? `${result.winnerName} gana Cacho`
+    : result.bidWasTrue
+      ? "La apuesta era cierta"
+      : "La apuesta era falsa";
+
+  const challengePrefix = result.timedOut
+    ? `${result.challengerName} agotó su tiempo y desafió`
+    : `${result.challengerName} dudó de`;
+  cachoResultSummary.textContent =
+    `${challengePrefix} la apuesta de ${result.bidderName || result.bid.bidderName}.`;
+  cachoCountResult.textContent =
+    `Se apostaron ${result.bid.quantity} ${CACHO_FACE_NAMES[result.bid.face]} y había ${result.actualCount}.`;
+
+  cachoRevealedDiceList.innerHTML = "";
+  result.revealedPlayers.forEach((player) => {
+    const li = document.createElement("li");
+    li.className = "cacho-revealed-row";
+    li.classList.toggle("lost-die", player.lostDie);
+
+    const name = document.createElement("strong");
+    name.textContent = player.playerName;
+    const dice = document.createElement("div");
+    dice.className = "cacho-revealed-dice";
+    player.dice.forEach((value) => dice.appendChild(createCachoDie(value, true)));
+
+    li.appendChild(name);
+    li.appendChild(dice);
+    cachoRevealedDiceList.appendChild(li);
+  });
+
+  cachoLoserText.textContent = result.loserEliminated
+    ? `${result.loserName} perdió su último dado y quedó eliminado.`
+    : `${result.loserName} perdió un dado y conserva ${result.loserDiceCount}.`;
+
+  if (result.isFinal) {
+    cachoResultSummary.textContent =
+      `${result.winnerName} es la última persona con dados y suma ${result.winnerPoints} puntos.`;
+    renderRankingList(cachoRankingList, result.ranking || []);
+  }
+
+  showScreen(cachoResultScreen);
+}
 
 function renderLastCardIntro(game) {
   isLeader = game.leaderId === socket.id;

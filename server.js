@@ -14,7 +14,17 @@ const PORT = process.env.PORT || 3000;
 
 const games = new Map();
 
-const GAME_ORDER = ["knowledge", "friend", "heads", "word", "stop", "lastcard", "poker"];
+const GAME_ORDER = [
+  "knowledge",
+  "friend",
+  "heads",
+  "word",
+  "stop",
+  "impostor",
+  "cacho",
+  "lastcard",
+  "poker"
+];
 
 const GAME_LABELS = {
   knowledge: "Trivia de conocimiento",
@@ -22,6 +32,8 @@ const GAME_LABELS = {
   heads: "Heads Up",
   word: "Word Connect",
   stop: "STOP",
+  impostor: "Impostor",
+  cacho: "Cacho",
   lastcard: "ÚLTIMA CARTA",
   poker: "Poker"
 };
@@ -410,6 +422,53 @@ function getPositiveDuration(value, fallback) {
   return Number.isFinite(duration) && duration > 0 ? duration : fallback;
 }
 
+function getCampaignImpostorSettings(game) {
+  const rawSettings = game.campaign?.impostor || {};
+  const rawGroupWinPoints = Number(rawSettings.groupWinPoints);
+  const rawImpostorWinPoints = Number(rawSettings.impostorWinPoints);
+  const words = Array.isArray(rawSettings.words)
+    ? rawSettings.words
+        .map((word) => String(word || "").trim())
+        .filter(Boolean)
+    : [];
+
+  return {
+    words: words.length ? [...new Set(words)] : [
+      "Aeropuerto",
+      "Biblioteca",
+      "Cine",
+      "Escuela",
+      "Fiesta",
+      "Hospital",
+      "Montaña",
+      "Museo",
+      "Parque",
+      "Playa",
+      "Restaurante",
+      "Supermercado"
+    ],
+    groupWinPoints: Number.isFinite(rawGroupWinPoints)
+      ? Math.max(0, rawGroupWinPoints)
+      : 100,
+    impostorWinPoints: Number.isFinite(rawImpostorWinPoints)
+      ? Math.max(0, rawImpostorWinPoints)
+      : 300
+  };
+}
+
+function getCampaignCachoSettings(game) {
+  const rawSettings = game.campaign?.cacho || {};
+  const rawWinnerPoints = Number(rawSettings.winnerPoints);
+
+  return {
+    initialDice: Math.max(1, Math.min(8, Number(rawSettings.initialDice) || 5)),
+    actionTimeoutMs: getPositiveDuration(rawSettings.actionTimeoutMs, 45000),
+    winnerPoints: Number.isFinite(rawWinnerPoints)
+      ? Math.max(0, rawWinnerPoints)
+      : 300
+  };
+}
+
 function getCampaignLastCardSettings(game) {
   const rawSettings = game.campaign?.lastCard || {};
 
@@ -668,6 +727,8 @@ function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
     heads: true,
     word: true,
     stop: true,
+    impostor: true,
+    cacho: true,
     lastcard: true,
     poker: true
   };
@@ -768,6 +829,16 @@ function startNextSelectedGame(pin) {
 
     if (nextGame === "stop") {
       startStopIntro(pin);
+      return;
+    }
+
+    if (nextGame === "impostor") {
+      startImpostorIntro(pin);
+      return;
+    }
+
+    if (nextGame === "cacho") {
+      startCachoIntro(pin);
       return;
     }
 
@@ -3338,6 +3409,563 @@ function finishStopGame(pin) {
   });
 }
 
+function getImpostorPlayer(game, clientId) {
+  return game?.players.find((player) => player.clientId === clientId) || null;
+}
+
+function getActiveImpostorPlayers(game) {
+  const activeClientIds = new Set(game?.impostor?.activeClientIds || []);
+  return game?.players.filter((player) => activeClientIds.has(player.clientId)) || [];
+}
+
+function getPublicImpostorRole(game, player) {
+  const isActive = Boolean(player && game.impostor.activeClientIds.includes(player.clientId));
+  const isImpostor = Boolean(player && player.clientId === game.impostor.impostorClientId);
+
+  return {
+    isActive,
+    isImpostor,
+    word: isActive && !isImpostor ? game.impostor.word : null,
+    ready: Boolean(player && game.impostor.readyClientIds.includes(player.clientId)),
+    readyCount: game.impostor.readyClientIds.length,
+    totalPlayers: game.impostor.activeClientIds.length
+  };
+}
+
+function getPublicImpostorVotingState(game, player) {
+  const activePlayers = getActiveImpostorPlayers(game);
+  const isActive = Boolean(player && game.impostor.activeClientIds.includes(player.clientId));
+  const selectedClientId = player ? game.impostor.votes[player.clientId] : null;
+  const selectedPlayer = getImpostorPlayer(game, selectedClientId);
+
+  return {
+    roundNumber: game.impostor.roundNumber,
+    canVote: isActive,
+    isEliminated: Boolean(player && !isActive),
+    selectedPlayerId: selectedPlayer?.id || null,
+    submittedCount: Object.keys(game.impostor.votes).length,
+    totalVoters: activePlayers.length,
+    players: activePlayers.map((activePlayer) => ({
+      playerId: activePlayer.id,
+      playerName: activePlayer.name,
+      isSelf: activePlayer.clientId === player?.clientId
+    }))
+  };
+}
+
+function emitImpostorRoles(pin, game) {
+  game.players.forEach((player) => {
+    io.to(player.id).emit("impostor_role", {
+      game: publicGame(game),
+      role: getPublicImpostorRole(game, player)
+    });
+  });
+}
+
+function emitImpostorVoting(pin, game) {
+  game.players.forEach((player) => {
+    io.to(player.id).emit("impostor_voting", {
+      game: publicGame(game),
+      voting: getPublicImpostorVotingState(game, player)
+    });
+  });
+}
+
+function startImpostorIntro(pin) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  game.status = "impostor_intro";
+  game.impostor = {
+    ...getCampaignImpostorSettings(game),
+    word: null,
+    impostorClientId: null,
+    activeClientIds: [],
+    readyClientIds: [],
+    votes: {},
+    roundNumber: 1,
+    awaitingContinue: false,
+    lastRoundResult: null,
+    finalResult: null
+  };
+
+  io.to(pin).emit("impostor_intro", {
+    game: publicGame(game)
+  });
+}
+
+function beginImpostor(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "impostor_intro" || !game.impostor) return;
+
+  const players = [...game.players];
+  const [word] = shuffleArray(game.impostor.words);
+  const [impostor] = shuffleArray(players);
+
+  if (players.length < 3 || !word || !impostor) {
+    showBetweenGamesScoreboard(pin, "impostor");
+    return;
+  }
+
+  game.status = "impostor_role";
+  game.impostor.word = word;
+  game.impostor.impostorClientId = impostor.clientId;
+  game.impostor.activeClientIds = players.map((player) => player.clientId);
+  game.impostor.readyClientIds = [];
+  game.impostor.votes = {};
+
+  emitImpostorRoles(pin, game);
+}
+
+function startImpostorVoting(pin) {
+  const game = games.get(pin);
+
+  if (!game?.impostor) return;
+
+  game.status = "impostor_voting";
+  game.impostor.votes = {};
+  game.impostor.awaitingContinue = false;
+  emitImpostorVoting(pin, game);
+}
+
+function emitImpostorVoteProgress(pin, game) {
+  io.to(pin).emit("impostor_vote_progress", {
+    submittedCount: Object.keys(game.impostor.votes).length,
+    totalVoters: game.impostor.activeClientIds.length
+  });
+}
+
+function finishImpostorRound(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "impostor_voting" || !game.impostor) {
+    return { ok: false, message: "La votación de Impostor no está activa." };
+  }
+
+  const counts = {};
+  Object.values(game.impostor.votes).forEach((suspectClientId) => {
+    if (game.impostor.activeClientIds.includes(suspectClientId)) {
+      counts[suspectClientId] = (counts[suspectClientId] || 0) + 1;
+    }
+  });
+
+  const rankedVotes = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  if (!rankedVotes.length) {
+    return { ok: false, message: "Debe haber al menos un voto para terminar la ronda." };
+  }
+
+  if (rankedVotes.length > 1 && rankedVotes[0][1] === rankedVotes[1][1]) {
+    return {
+      ok: false,
+      message: "Hay un empate. Cambien sus votos antes de terminar la ronda."
+    };
+  }
+
+  const eliminatedClientId = rankedVotes[0][0];
+  const eliminatedPlayer = getImpostorPlayer(game, eliminatedClientId);
+
+  if (!eliminatedPlayer) {
+    return { ok: false, message: "No se pudo identificar al jugador elegido." };
+  }
+
+  game.impostor.activeClientIds = game.impostor.activeClientIds.filter(
+    (clientId) => clientId !== eliminatedClientId
+  );
+
+  const groupWasRight = eliminatedClientId === game.impostor.impostorClientId;
+  const impostorSurvived = !groupWasRight && game.impostor.activeClientIds.length <= 2;
+  const isFinal = groupWasRight || impostorSurvived;
+  const impostorPlayer = getImpostorPlayer(game, game.impostor.impostorClientId);
+
+  if (groupWasRight) {
+    game.players.forEach((player) => {
+      if (player.clientId !== game.impostor.impostorClientId) {
+        player.score += game.impostor.groupWinPoints;
+      }
+    });
+  } else if (impostorSurvived && impostorPlayer) {
+    impostorPlayer.score += game.impostor.impostorWinPoints;
+  }
+
+  const result = {
+    roundNumber: game.impostor.roundNumber,
+    eliminatedPlayerId: eliminatedPlayer.id,
+    eliminatedPlayerName: eliminatedPlayer.name,
+    eliminatedVotes: rankedVotes[0][1],
+    groupWasRight,
+    isFinal,
+    winner: groupWasRight ? "group" : impostorSurvived ? "impostor" : null,
+    activePlayers: getActiveImpostorPlayers(game).map((player) => ({
+      playerId: player.id,
+      playerName: player.name
+    })),
+    impostorPlayerName: isFinal ? impostorPlayer?.name || "" : null,
+    word: isFinal ? game.impostor.word : null,
+    ranking: isFinal ? getRanking(game) : null
+  };
+
+  game.status = isFinal ? "impostor_result" : "impostor_round_result";
+  game.impostor.awaitingContinue = true;
+  game.impostor.lastRoundResult = result;
+
+  if (isFinal) {
+    game.impostor.finalResult = result;
+  }
+
+  io.to(pin).emit("impostor_round_result", {
+    game: publicGame(game),
+    result
+  });
+
+  return { ok: true };
+}
+
+function getCachoPlayer(game, clientId) {
+  return game?.cacho?.players.find((player) => player.clientId === clientId) || null;
+}
+
+function getCachoAppPlayer(game, clientId) {
+  return game?.players.find((player) => player.clientId === clientId) || null;
+}
+
+function getActiveCachoPlayers(game) {
+  return game?.cacho?.players.filter((player) => !player.eliminated && player.diceCount > 0) || [];
+}
+
+function getCurrentCachoPlayer(game) {
+  return game?.cacho?.players[game.cacho.currentPlayerIndex] || null;
+}
+
+function clearCachoTimer(game) {
+  if (!game?.cacho?.actionTimer) return;
+
+  clearTimeout(game.cacho.actionTimer);
+  game.cacho.actionTimer = null;
+}
+
+function rollCachoDice(amount) {
+  return Array.from({ length: amount }, () => Math.floor(Math.random() * 6) + 1);
+}
+
+function getNextCachoPlayerIndex(game, fromIndex) {
+  const players = game.cacho.players;
+
+  for (let offset = 1; offset <= players.length; offset++) {
+    const index = (fromIndex + offset) % players.length;
+    if (!players[index].eliminated && players[index].diceCount > 0) return index;
+  }
+
+  return fromIndex;
+}
+
+function isHigherCachoBid(currentBid, quantity, face) {
+  if (!currentBid) return true;
+
+  if (currentBid.face === 1) {
+    if (face === 1) return quantity > currentBid.quantity;
+    return quantity >= currentBid.quantity * 2 + 1;
+  }
+
+  if (face === 1) {
+    return quantity >= Math.ceil(currentBid.quantity / 2);
+  }
+
+  return quantity > currentBid.quantity ||
+    (quantity === currentBid.quantity && face > currentBid.face);
+}
+
+function getPublicCachoState(game, viewerSocketId) {
+  const viewer = game.players.find((player) => player.id === viewerSocketId);
+  const viewerState = viewer ? getCachoPlayer(game, viewer.clientId) : null;
+  const currentPlayer = getCurrentCachoPlayer(game);
+  const currentAppPlayer = currentPlayer
+    ? getCachoAppPlayer(game, currentPlayer.clientId)
+    : null;
+  const bidder = game.cacho.currentBid
+    ? getCachoAppPlayer(game, game.cacho.currentBid.bidderClientId)
+    : null;
+  const isYourTurn = Boolean(
+    viewerState &&
+    !viewerState.eliminated &&
+    currentPlayer?.clientId === viewerState.clientId
+  );
+
+  return {
+    roundNumber: game.cacho.roundNumber,
+    players: game.cacho.players.map((player) => {
+      const appPlayer = getCachoAppPlayer(game, player.clientId);
+
+      return {
+        playerId: appPlayer?.id || null,
+        playerName: appPlayer?.name || player.name,
+        diceCount: player.diceCount,
+        eliminated: player.eliminated,
+        isCurrent: currentPlayer?.clientId === player.clientId
+      };
+    }),
+    dice: [...(viewerState?.dice || [])],
+    isEliminated: Boolean(viewerState?.eliminated),
+    currentPlayerId: currentAppPlayer?.id || null,
+    currentPlayerName: currentAppPlayer?.name || currentPlayer?.name || "Jugador",
+    isYourTurn,
+    canBid: isYourTurn,
+    canDoubt: isYourTurn && Boolean(game.cacho.currentBid),
+    currentBid: game.cacho.currentBid
+      ? {
+          quantity: game.cacho.currentBid.quantity,
+          face: game.cacho.currentBid.face,
+          bidderName: bidder?.name || "Jugador"
+        }
+      : null,
+    totalDice: getActiveCachoPlayers(game)
+      .reduce((total, player) => total + player.diceCount, 0),
+    message: game.cacho.message,
+    durationMs: game.cacho.actionTimeoutMs,
+    endAt: game.cacho.endAt
+  };
+}
+
+function emitCachoState(pin, game) {
+  game.players.forEach((player) => {
+    io.to(player.id).emit("cacho_state", {
+      game: publicGame(game),
+      cachoState: getPublicCachoState(game, player.id)
+    });
+  });
+}
+
+function startCachoIntro(pin) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  game.status = "cacho_intro";
+  game.cacho = {
+    ...getCampaignCachoSettings(game),
+    players: [],
+    currentPlayerIndex: 0,
+    currentBid: null,
+    roundNumber: 0,
+    message: "",
+    endAt: null,
+    actionTimer: null,
+    awaitingContinue: false,
+    nextStarterClientId: null,
+    lastRoundResult: null
+  };
+
+  io.to(pin).emit("cacho_intro", {
+    game: publicGame(game)
+  });
+}
+
+function beginCacho(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "cacho_intro" || !game.cacho) return;
+
+  game.cacho.players = game.players.map((player) => ({
+    clientId: player.clientId,
+    name: player.name,
+    diceCount: game.cacho.initialDice,
+    dice: [],
+    eliminated: false
+  }));
+  const [starter] = shuffleArray(game.cacho.players);
+  beginCachoRound(pin, starter?.clientId || game.cacho.players[0]?.clientId);
+}
+
+function beginCachoRound(pin, starterClientId) {
+  const game = games.get(pin);
+
+  if (!game?.cacho) return;
+
+  const activePlayers = getActiveCachoPlayers(game);
+  if (activePlayers.length <= 1) return;
+
+  clearCachoTimer(game);
+  game.status = "cacho";
+  game.cacho.roundNumber++;
+  game.cacho.currentBid = null;
+  game.cacho.awaitingContinue = false;
+  game.cacho.lastRoundResult = null;
+  game.cacho.players.forEach((player) => {
+    player.dice = player.eliminated ? [] : rollCachoDice(player.diceCount);
+  });
+
+  let starterIndex = game.cacho.players.findIndex((player) => {
+    return player.clientId === starterClientId && !player.eliminated;
+  });
+  if (starterIndex < 0) {
+    starterIndex = game.cacho.players.findIndex((player) => !player.eliminated);
+  }
+
+  game.cacho.currentPlayerIndex = Math.max(0, starterIndex);
+  game.cacho.message = `${getCurrentCachoPlayer(game).name} comienza la ronda.`;
+  startCachoTurnTimer(pin, game);
+  emitCachoState(pin, game);
+}
+
+function startCachoTurnTimer(pin, game) {
+  clearCachoTimer(game);
+  game.cacho.endAt = Date.now() + game.cacho.actionTimeoutMs;
+  game.cacho.actionTimer = setTimeout(() => {
+    handleCachoTurnTimeout(pin);
+  }, game.cacho.actionTimeoutMs + 100);
+}
+
+function handleCachoTurnTimeout(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "cacho" || !game.cacho) return;
+
+  const currentPlayer = getCurrentCachoPlayer(game);
+  const appPlayer = currentPlayer
+    ? getCachoAppPlayer(game, currentPlayer.clientId)
+    : null;
+  if (!currentPlayer || !appPlayer) return;
+
+  if (game.cacho.currentBid) {
+    resolveCachoDoubt(pin, appPlayer, true);
+    return;
+  }
+
+  placeCachoBid(pin, appPlayer, 1, 2, true);
+}
+
+function placeCachoBid(pin, player, rawQuantity, rawFace, timedOut = false) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "cacho" || !game.cacho) {
+    return { ok: false, message: "Cacho no está activo." };
+  }
+
+  const currentPlayer = getCurrentCachoPlayer(game);
+  if (!currentPlayer || currentPlayer.clientId !== player.clientId) {
+    return { ok: false, message: "No es tu turno." };
+  }
+
+  const quantity = Number(rawQuantity);
+  const face = Number(rawFace);
+  const totalDice = getActiveCachoPlayers(game)
+    .reduce((total, item) => total + item.diceCount, 0);
+
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > totalDice) {
+    return { ok: false, message: `La cantidad debe estar entre 1 y ${totalDice}.` };
+  }
+
+  if (!Number.isInteger(face) || face < 1 || face > 6) {
+    return { ok: false, message: "Elige una cara válida del dado." };
+  }
+
+  if (!isHigherCachoBid(game.cacho.currentBid, quantity, face)) {
+    return { ok: false, message: "La nueva apuesta debe superar la apuesta actual." };
+  }
+
+  clearCachoTimer(game);
+  game.cacho.currentBid = {
+    quantity,
+    face,
+    bidderClientId: currentPlayer.clientId
+  };
+  game.cacho.message = timedOut
+    ? `${currentPlayer.name} agotó su tiempo y apostó ${quantity} dado${quantity === 1 ? "" : "s"}.`
+    : `${currentPlayer.name} subió la apuesta.`;
+  game.cacho.currentPlayerIndex = getNextCachoPlayerIndex(
+    game,
+    game.cacho.currentPlayerIndex
+  );
+  startCachoTurnTimer(pin, game);
+  emitCachoState(pin, game);
+
+  return { ok: true };
+}
+
+function resolveCachoDoubt(pin, challenger, timedOut = false) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "cacho" || !game.cacho?.currentBid) {
+    return { ok: false, message: "No hay una apuesta para desafiar." };
+  }
+
+  const currentPlayer = getCurrentCachoPlayer(game);
+  if (!currentPlayer || currentPlayer.clientId !== challenger.clientId) {
+    return { ok: false, message: "No es tu turno." };
+  }
+
+  clearCachoTimer(game);
+
+  const bid = game.cacho.currentBid;
+  const bidderState = getCachoPlayer(game, bid.bidderClientId);
+  const challengerState = getCachoPlayer(game, challenger.clientId);
+  const allDice = getActiveCachoPlayers(game).flatMap((player) => player.dice);
+  const actualCount = allDice.filter((die) => {
+    return bid.face === 1 ? die === 1 : die === bid.face || die === 1;
+  }).length;
+  const bidWasTrue = actualCount >= bid.quantity;
+  const loserState = bidWasTrue ? challengerState : bidderState;
+
+  if (!loserState) {
+    return { ok: false, message: "No se pudo resolver el desafío." };
+  }
+
+  const loserIndex = game.cacho.players.indexOf(loserState);
+  loserState.diceCount = Math.max(0, loserState.diceCount - 1);
+  loserState.eliminated = loserState.diceCount === 0;
+  const activePlayers = getActiveCachoPlayers(game);
+  const isFinal = activePlayers.length === 1;
+  const winnerState = isFinal ? activePlayers[0] : null;
+  const winner = winnerState ? getCachoAppPlayer(game, winnerState.clientId) : null;
+
+  if (winner) winner.score += game.cacho.winnerPoints;
+
+  const nextStarterIndex = loserState.eliminated
+    ? getNextCachoPlayerIndex(game, loserIndex)
+    : loserIndex;
+  game.cacho.nextStarterClientId = game.cacho.players[nextStarterIndex]?.clientId || null;
+
+  const result = {
+    roundNumber: game.cacho.roundNumber,
+    bid: {
+      quantity: bid.quantity,
+      face: bid.face,
+      bidderName: bidderState?.name || "Jugador"
+    },
+    challengerName: challengerState?.name || challenger.name,
+    timedOut,
+    actualCount,
+    bidWasTrue,
+    loserName: loserState.name,
+    loserDiceCount: loserState.diceCount,
+    loserEliminated: loserState.eliminated,
+    revealedPlayers: game.cacho.players
+      .filter((player) => player.dice.length)
+      .map((player) => ({
+        playerName: player.name,
+        dice: [...player.dice],
+        lostDie: player.clientId === loserState.clientId
+      })),
+    isFinal,
+    winnerName: winner?.name || winnerState?.name || null,
+    winnerPoints: isFinal ? game.cacho.winnerPoints : 0,
+    ranking: isFinal ? getRanking(game) : null
+  };
+
+  game.status = isFinal ? "cacho_result" : "cacho_round_result";
+  game.cacho.awaitingContinue = true;
+  game.cacho.lastRoundResult = result;
+
+  io.to(pin).emit("cacho_round_result", {
+    game: publicGame(game),
+    result
+  });
+
+  return { ok: true };
+}
+
 const LAST_CARD_COLORS = ["red", "yellow", "green", "blue"];
 
 function createLastCardDeck() {
@@ -4354,6 +4982,70 @@ function sendCurrentStateToSocket(pin, socket, game) {
     return;
   }
 
+  if (game.status === "impostor_intro") {
+    socket.emit("impostor_intro", {
+      game: publicGame(game)
+    });
+    return;
+  }
+
+  if (game.status === "impostor_role" && game.impostor) {
+    const player = game.players.find((item) => item.id === socket.id);
+
+    socket.emit("impostor_role", {
+      game: publicGame(game),
+      role: getPublicImpostorRole(game, player)
+    });
+    return;
+  }
+
+  if (game.status === "impostor_voting" && game.impostor) {
+    const player = game.players.find((item) => item.id === socket.id);
+
+    socket.emit("impostor_voting", {
+      game: publicGame(game),
+      voting: getPublicImpostorVotingState(game, player)
+    });
+    return;
+  }
+
+  if (
+    (game.status === "impostor_round_result" || game.status === "impostor_result") &&
+    game.impostor?.lastRoundResult
+  ) {
+    socket.emit("impostor_round_result", {
+      game: publicGame(game),
+      result: game.impostor.lastRoundResult
+    });
+    return;
+  }
+
+  if (game.status === "cacho_intro") {
+    socket.emit("cacho_intro", {
+      game: publicGame(game)
+    });
+    return;
+  }
+
+  if (game.status === "cacho" && game.cacho) {
+    socket.emit("cacho_state", {
+      game: publicGame(game),
+      cachoState: getPublicCachoState(game, socket.id)
+    });
+    return;
+  }
+
+  if (
+    (game.status === "cacho_round_result" || game.status === "cacho_result") &&
+    game.cacho?.lastRoundResult
+  ) {
+    socket.emit("cacho_round_result", {
+      game: publicGame(game),
+      result: game.cacho.lastRoundResult
+    });
+    return;
+  }
+
   if (game.status === "last_card_intro") {
     socket.emit("last_card_intro", {
       game: publicGame(game)
@@ -4430,6 +5122,8 @@ function finishFinalGame(pin) {
   game.heads = null;
   game.word = null;
   game.stop = null;
+  game.impostor = null;
+  game.cacho = null;
   game.lastCard = null;
   game.poker = null;
   game.betweenGames = null;
@@ -4445,6 +5139,7 @@ function clearAllGameTimers(game) {
   clearFriendTimers(game);
   clearHeadsUpTimers(game);
   clearStopTimers(game);
+  clearCachoTimer(game);
   clearLastCardTimer(game);
   clearLackPlayersTimer(game);
 
@@ -4656,6 +5351,8 @@ io.on("connection", (socket) => {
       heads: null,
       word: null,
       stop: null,
+      impostor: null,
+      cacho: null,
       lastCard: null,
       lackPlayersTimer: null,
       campaignSlug: campaign.slug,
@@ -4918,6 +5615,14 @@ io.on("connection", (socket) => {
       callback({
         ok: false,
         message: "Necesitas al menos 2 jugadores para iniciar."
+      });
+      return;
+    }
+
+    if (game.players.length < 3 && game.selectedGames.includes("impostor")) {
+      callback({
+        ok: false,
+        message: "Impostor necesita al menos 3 jugadores."
       });
       return;
     }
@@ -5687,6 +6392,214 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     showBetweenGamesScoreboard(cleanGamePin, "stop");
   });
 
+  socket.on("start_impostor_game", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "impostor_intro" || !game.impostor) {
+      callback({ ok: false, message: "Impostor todavía no está listo." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede empezar Impostor." });
+      return;
+    }
+
+    if (game.players.length < 3) {
+      callback({ ok: false, message: "Impostor necesita al menos 3 jugadores." });
+      return;
+    }
+
+    callback({ ok: true });
+    beginImpostor(cleanGamePin);
+  });
+
+  socket.on("impostor_ready", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+
+    if (!game || game.status !== "impostor_role" || !game.impostor || !player) {
+      callback({ ok: false, message: "La entrega de roles ya terminó." });
+      return;
+    }
+
+    if (!game.impostor.activeClientIds.includes(player.clientId)) {
+      callback({ ok: false, message: "No estás activo en esta partida." });
+      return;
+    }
+
+    if (!game.impostor.readyClientIds.includes(player.clientId)) {
+      game.impostor.readyClientIds.push(player.clientId);
+    }
+
+    callback({ ok: true });
+
+    io.to(cleanGamePin).emit("impostor_ready_progress", {
+      readyCount: game.impostor.readyClientIds.length,
+      totalPlayers: game.impostor.activeClientIds.length
+    });
+
+    if (game.impostor.readyClientIds.length === game.impostor.activeClientIds.length) {
+      startImpostorVoting(cleanGamePin);
+    }
+  });
+
+  socket.on("submit_impostor_vote", ({ pin, playerId }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const voter = game?.players.find((player) => player.id === socket.id);
+    const suspect = game?.players.find((player) => player.id === String(playerId || ""));
+
+    if (!game || game.status !== "impostor_voting" || !game.impostor || !voter) {
+      callback({ ok: false, message: "La votación de Impostor no está activa." });
+      return;
+    }
+
+    if (!game.impostor.activeClientIds.includes(voter.clientId)) {
+      callback({ ok: false, message: "Los jugadores eliminados no pueden votar." });
+      return;
+    }
+
+    if (!suspect || !game.impostor.activeClientIds.includes(suspect.clientId)) {
+      callback({ ok: false, message: "Ese jugador ya no está activo." });
+      return;
+    }
+
+    if (suspect.clientId === voter.clientId) {
+      callback({ ok: false, message: "No puedes votar por ti." });
+      return;
+    }
+
+    game.impostor.votes[voter.clientId] = suspect.clientId;
+    callback({ ok: true, selectedPlayerId: suspect.id });
+    emitImpostorVoteProgress(cleanGamePin, game);
+  });
+
+  socket.on("finish_impostor_round", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "impostor_voting" || !game.impostor) {
+      callback({ ok: false, message: "La votación de Impostor no está activa." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede terminar la ronda." });
+      return;
+    }
+
+    callback(finishImpostorRound(cleanGamePin));
+  });
+
+  socket.on("continue_impostor_round", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (
+      !game ||
+      !["impostor_round_result", "impostor_result"].includes(game.status) ||
+      !game.impostor?.awaitingContinue
+    ) {
+      callback({ ok: false, message: "Impostor todavía no está listo para continuar." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede continuar." });
+      return;
+    }
+
+    const isFinal = game.status === "impostor_result";
+    game.impostor.awaitingContinue = false;
+    callback({ ok: true });
+
+    if (isFinal) {
+      showBetweenGamesScoreboard(cleanGamePin, "impostor");
+      return;
+    }
+
+    game.impostor.roundNumber++;
+    startImpostorVoting(cleanGamePin);
+  });
+
+  socket.on("start_cacho_game", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "cacho_intro" || !game.cacho) {
+      callback({ ok: false, message: "Cacho todavía no está listo." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede empezar Cacho." });
+      return;
+    }
+
+    callback({ ok: true });
+    beginCacho(cleanGamePin);
+  });
+
+  socket.on("submit_cacho_bid", ({ pin, quantity, face }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+
+    if (!player) {
+      callback({ ok: false, message: "No estás dentro de la partida." });
+      return;
+    }
+
+    callback(placeCachoBid(cleanGamePin, player, quantity, face));
+  });
+
+  socket.on("call_cacho_doubt", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+
+    if (!player) {
+      callback({ ok: false, message: "No estás dentro de la partida." });
+      return;
+    }
+
+    callback(resolveCachoDoubt(cleanGamePin, player));
+  });
+
+  socket.on("continue_cacho_result", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (
+      !game ||
+      !["cacho_round_result", "cacho_result"].includes(game.status) ||
+      !game.cacho?.awaitingContinue
+    ) {
+      callback({ ok: false, message: "Cacho todavía no está listo para continuar." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede continuar." });
+      return;
+    }
+
+    const isFinal = game.status === "cacho_result";
+    const nextStarterClientId = game.cacho.nextStarterClientId;
+    game.cacho.awaitingContinue = false;
+    callback({ ok: true });
+
+    if (isFinal) {
+      showBetweenGamesScoreboard(cleanGamePin, "cacho");
+      return;
+    }
+
+    beginCachoRound(cleanGamePin, nextStarterClientId);
+  });
+
   socket.on("start_last_card_game", ({ pin }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -5952,6 +6865,8 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     game.friend = null;
     game.heads = null;
     game.stop = null;
+    game.impostor = null;
+    game.cacho = null;
     game.lastCard = null;
 
     if (game.word !== undefined) {

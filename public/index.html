@@ -132,6 +132,22 @@
         </label>
 
         <label class="game-option">
+          <input id="gameImpostor" class="game-checkbox-input" type="checkbox" value="impostor" />
+          <span>
+            <strong>Impostor</strong>
+            <small>Descubre quién no conoce la palabra.</small>
+          </span>
+        </label>
+
+        <label class="game-option">
+          <input id="gameCacho" class="game-checkbox-input" type="checkbox" value="cacho" />
+          <span>
+            <strong>Cacho</strong>
+            <small>Apuesta, engaña y desafía con dados ocultos.</small>
+          </span>
+        </label>
+
+        <label class="game-option">
           <input id="gameLastCard" class="game-checkbox-input" type="checkbox" value="lastcard" />
           <span>
             <strong>ÚLTIMA CARTA</strong>
@@ -615,6 +631,187 @@
 
       <h3>Tabla acumulada</h3>
       <ul id="stopFinalRankingList" class="ranking-list"></ul>
+    </section>
+
+    <!-- Instrucciones de Impostor -->
+    <section id="impostorIntroScreen" class="card hidden">
+      <p class="small-title">Impostor</p>
+      <h2>Instrucciones</h2>
+
+      <p class="subtitle">
+        Todos recibirán la misma palabra, excepto una persona, que será el impostor.
+        Miren su pantalla en privado y luego conversen para descubrir quién no conoce la palabra.
+      </p>
+
+      <p class="subtitle">
+        Cada jugador vota por un sospechoso. El líder termina la ronda y la persona más
+        votada queda eliminada. El grupo gana si descubre al impostor; el impostor gana
+        si sobrevive hasta que solo queden dos jugadores activos.
+      </p>
+
+      <button id="startImpostorBtn" class="primary-btn hidden">Continuar</button>
+      <p id="impostorIntroWaitingText" class="waiting-text">
+        Esperando a que el líder continúe...
+      </p>
+    </section>
+
+    <!-- Rol privado de Impostor -->
+    <section id="impostorRoleScreen" class="card hidden">
+      <p class="small-title">Impostor</p>
+      <h2>Mira tu rol en privado</h2>
+
+      <div id="impostorRolePanel" class="impostor-role-panel">
+        <p id="impostorRoleLabel">Tu palabra es</p>
+        <strong id="impostorRoleValue"></strong>
+        <p id="impostorRoleHint" class="subtitle"></p>
+      </div>
+
+      <button id="impostorReadyBtn" class="primary-btn">Listo</button>
+      <p id="impostorRoleStatus" class="waiting-text"></p>
+    </section>
+
+    <!-- Votación de Impostor -->
+    <section id="impostorVotingScreen" class="card hidden">
+      <div id="impostorVotingLeaderControls" class="between-games-top-actions hidden">
+        <button id="finishImpostorRoundBtn" class="primary-btn">Terminar ronda</button>
+      </div>
+
+      <p class="small-title">Impostor</p>
+      <h2 id="impostorVotingTitle">¿Quién es el impostor?</h2>
+      <p class="subtitle">Puedes cambiar tu voto hasta que el líder termine la ronda.</p>
+
+      <div id="impostorPlayersList" class="impostor-vote-list"></div>
+      <p id="impostorVoteStatus" class="answer-status"></p>
+      <p id="impostorVoteProgress" class="waiting-text"></p>
+    </section>
+
+    <!-- Resultado de una ronda de Impostor -->
+    <section id="impostorResultScreen" class="card hidden">
+      <div id="impostorResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueImpostorRoundBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p class="small-title">Resultado de Impostor</p>
+      <h2 id="impostorResultTitle"></h2>
+      <p id="impostorResultText" class="subtitle"></p>
+
+      <div id="impostorRevealBox" class="impostor-reveal hidden">
+        <span>El impostor era</span>
+        <strong id="impostorRevealName"></strong>
+        <small id="impostorRevealWord"></small>
+      </div>
+
+      <h3 id="impostorActiveTitle">Jugadores que siguen activos</h3>
+      <ul id="impostorActivePlayersList" class="answers-list"></ul>
+
+      <div id="impostorFinalRanking" class="hidden">
+        <h3>Tabla acumulada</h3>
+        <ul id="impostorRankingList" class="ranking-list"></ul>
+      </div>
+    </section>
+
+    <!-- Instrucciones de Cacho -->
+    <section id="cachoIntroScreen" class="card hidden">
+      <p class="small-title">Cacho</p>
+      <h2>Instrucciones</h2>
+
+      <p class="subtitle">
+        Cada jugador recibe cinco dados ocultos. En tu turno apuesta cuántos dados de
+        una cara crees que hay entre todos, o declara <strong>Dudo</strong> para desafiar
+        la apuesta anterior.
+      </p>
+
+      <p class="subtitle">
+        Los unos son comodines, excepto cuando la apuesta es de unos. Cada apuesta debe
+        superar la anterior. Al pasar de una cara normal a unos puedes reducir la cantidad
+        a la mitad, redondeando hacia arriba; para volver debes apostar al menos el doble más uno.
+      </p>
+
+      <p class="subtitle">
+        Si la apuesta era cierta, pierde un dado quien dudó. Si era falsa, lo pierde quien
+        apostó. Gana la última persona que conserve dados.
+      </p>
+
+      <button id="startCachoBtn" class="primary-btn hidden">Continuar</button>
+      <p id="cachoIntroWaitingText" class="waiting-text">
+        Esperando a que el líder continúe...
+      </p>
+    </section>
+
+    <!-- Mesa de Cacho -->
+    <section id="cachoScreen" class="card hidden">
+      <p class="small-title">Cacho</p>
+
+      <div class="question-header">
+        <span id="cachoRoundText">Ronda 1</span>
+        <span id="cachoTimerText"></span>
+      </div>
+
+      <div class="timer-track">
+        <div id="cachoTimerFill" class="timer-fill"></div>
+      </div>
+
+      <ul id="cachoPlayersList" class="cacho-players-list"></ul>
+
+      <div id="cachoCurrentBid" class="cacho-current-bid">
+        <span>Apuesta actual</span>
+        <strong id="cachoCurrentBidText">Sin apuesta</strong>
+        <small id="cachoCurrentBidder"></small>
+      </div>
+
+      <p id="cachoTurnText" class="poker-turn-text"></p>
+      <div id="cachoDice" class="cacho-dice" aria-label="Tus dados"></div>
+
+      <div id="cachoControls" class="cacho-controls hidden">
+        <label class="cacho-quantity-control" for="cachoQuantityInput">
+          <span>Cantidad</span>
+          <input
+            id="cachoQuantityInput"
+            type="number"
+            min="1"
+            step="1"
+            inputmode="numeric"
+            pattern="[0-9]*"
+          />
+        </label>
+
+        <div id="cachoFaceSelector" class="cacho-face-selector" aria-label="Cara del dado">
+          <button type="button" class="cacho-face-btn" data-face="1" aria-label="Unos">⚀</button>
+          <button type="button" class="cacho-face-btn" data-face="2" aria-label="Doses">⚁</button>
+          <button type="button" class="cacho-face-btn" data-face="3" aria-label="Treses">⚂</button>
+          <button type="button" class="cacho-face-btn" data-face="4" aria-label="Cuatros">⚃</button>
+          <button type="button" class="cacho-face-btn" data-face="5" aria-label="Cincos">⚄</button>
+          <button type="button" class="cacho-face-btn" data-face="6" aria-label="Seises">⚅</button>
+        </div>
+
+        <div class="cacho-action-buttons">
+          <button id="submitCachoBidBtn" class="primary-btn">Apostar</button>
+          <button id="callCachoDoubtBtn" class="cacho-doubt-btn">Dudo</button>
+        </div>
+      </div>
+
+      <p id="cachoStatusText" class="answer-status"></p>
+    </section>
+
+    <!-- Resultado de Cacho -->
+    <section id="cachoResultScreen" class="card hidden">
+      <div id="cachoResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueCachoResultBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p class="small-title">Resultado de Cacho</p>
+      <h2 id="cachoResultTitle"></h2>
+      <p id="cachoResultSummary" class="subtitle"></p>
+
+      <div id="cachoCountResult" class="cacho-count-result"></div>
+      <ul id="cachoRevealedDiceList" class="cacho-revealed-list"></ul>
+
+      <p id="cachoLoserText" class="cacho-loser-text"></p>
+
+      <div id="cachoFinalRanking" class="hidden">
+        <h3>Tabla acumulada</h3>
+        <ul id="cachoRankingList" class="ranking-list"></ul>
+      </div>
     </section>
 
     <!-- Instrucciones de ÚLTIMA CARTA -->

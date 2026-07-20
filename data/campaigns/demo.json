@@ -28,6 +28,8 @@
             "heads": true,
             "word": true,
             "stop": true,
+            "impostor": true,
+            "cacho": true,
             "lastcard": true,
             "poker": true
         }
@@ -1017,6 +1019,23 @@
                 ]
             }
         ]
+    },
+    "impostor": {
+        "groupWinPoints": 100,
+        "impostorWinPoints": 300,
+        "words": [
+            "Aeropuerto", "Biblioteca", "Café", "Cine", "Desierto",
+            "Escuela", "Estadio", "Familia", "Fiesta", "Hospital",
+            "Hotel", "Internet", "Jardín", "Montaña", "Museo",
+            "Oficina", "Parque", "Playa", "Restaurante", "Río",
+            "Supermercado", "Teatro", "Teléfono", "Tren", "Universidad",
+            "Vacaciones", "Videojuego", "Zoológico", "Pizza", "Tormenta"
+        ]
+    },
+    "cacho": {
+        "initialDice": 5,
+        "actionTimeoutMs": 45000,
+        "winnerPoints": 300
     },
     "lastCard": {
         "initialHandSize": 7,
