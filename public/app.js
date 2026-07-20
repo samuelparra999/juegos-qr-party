@@ -16,6 +16,10 @@ let activeScreen = null;
 let stopLetterInterval = null;
 let stopAnswerPending = false;
 let stopVotePending = false;
+let currentLastCardState = null;
+let lastCardActionPending = false;
+let selectedWildCardId = null;
+let lastCardCalled = false;
 
 const CLIENT_ID_STORAGE_KEY = "juegosQrPartyClientId";
 
@@ -49,6 +53,9 @@ const stopAnswerScreen = document.getElementById("stopAnswerScreen");
 const stopAnswersWaitingScreen = document.getElementById("stopAnswersWaitingScreen");
 const stopVotingScreen = document.getElementById("stopVotingScreen");
 const stopResultScreen = document.getElementById("stopResultScreen");
+const lastCardIntroScreen = document.getElementById("lastCardIntroScreen");
+const lastCardScreen = document.getElementById("lastCardScreen");
+const lastCardResultScreen = document.getElementById("lastCardResultScreen");
 const betweenGamesScreen = document.getElementById("betweenGamesScreen");
 const pokerIntroScreen = document.getElementById("pokerIntroScreen");
 const pokerRankingsScreen = document.getElementById("pokerRankingsScreen");
@@ -83,6 +90,7 @@ const gameFriend = document.getElementById("gameFriend");
 const gameHeads = document.getElementById("gameHeads");
 const gameWord = document.getElementById("gameWord");
 const gameStop = document.getElementById("gameStop");
+const gameLastCard = document.getElementById("gameLastCard");
 const friendGameHelp = document.getElementById("friendGameHelp");
 const gamePoker = document.getElementById("gamePoker");
 
@@ -92,6 +100,7 @@ const gameCheckboxes = [
   gameHeads,
   gameWord,
   gameStop,
+  gameLastCard,
   gamePoker
 ].filter(Boolean);
 // QR
@@ -209,6 +218,32 @@ const stopResultTitle = document.getElementById("stopResultTitle");
 const stopPlayerResultsList = document.getElementById("stopPlayerResultsList");
 const stopVoteResultsList = document.getElementById("stopVoteResultsList");
 const stopFinalRankingList = document.getElementById("stopFinalRankingList");
+
+// ÚLTIMA CARTA
+const startLastCardBtn = document.getElementById("startLastCardBtn");
+const lastCardIntroWaitingText = document.getElementById("lastCardIntroWaitingText");
+const lastCardTurnText = document.getElementById("lastCardTurnText");
+const lastCardTimerText = document.getElementById("lastCardTimerText");
+const lastCardTimerFill = document.getElementById("lastCardTimerFill");
+const lastCardDirectionText = document.getElementById("lastCardDirectionText");
+const lastCardActiveColor = document.getElementById("lastCardActiveColor");
+const lastCardPlayersList = document.getElementById("lastCardPlayersList");
+const drawLastCardBtn = document.getElementById("drawLastCardBtn");
+const lastCardDrawCount = document.getElementById("lastCardDrawCount");
+const lastCardTopCard = document.getElementById("lastCardTopCard");
+const lastCardStatusText = document.getElementById("lastCardStatusText");
+const lastCardColorPicker = document.getElementById("lastCardColorPicker");
+const lastCardColorOptions = document.querySelectorAll(".last-card-color-option");
+const cancelLastCardColorBtn = document.getElementById("cancelLastCardColorBtn");
+const lastCardHand = document.getElementById("lastCardHand");
+const callLastCardBtn = document.getElementById("callLastCardBtn");
+const passLastCardBtn = document.getElementById("passLastCardBtn");
+const lastCardResultLeaderControls = document.getElementById("lastCardResultLeaderControls");
+const continueLastCardResultBtn = document.getElementById("continueLastCardResultBtn");
+const lastCardWinnerText = document.getElementById("lastCardWinnerText");
+const lastCardRoundPointsText = document.getElementById("lastCardRoundPointsText");
+const lastCardResultsList = document.getElementById("lastCardResultsList");
+const lastCardFinalRankingList = document.getElementById("lastCardFinalRankingList");
 
 // Marcador entre juegos
 const betweenGamesLeaderControls = document.getElementById("betweenGamesLeaderControls");
@@ -376,6 +411,9 @@ function showScreen(screen) {
   stopAnswersWaitingScreen.classList.add("hidden");
   stopVotingScreen.classList.add("hidden");
   stopResultScreen.classList.add("hidden");
+  lastCardIntroScreen.classList.add("hidden");
+  lastCardScreen.classList.add("hidden");
+  lastCardResultScreen.classList.add("hidden");
   betweenGamesScreen.classList.add("hidden");
   pokerIntroScreen.classList.add("hidden");
   pokerRankingsScreen.classList.add("hidden");
@@ -588,6 +626,10 @@ function applyCampaignGameAvailability(campaign) {
 
   if (gameStop && gameStop.closest(".game-option")) {
     gameStop.closest(".game-option").classList.toggle("hidden", !available.stop);
+  }
+
+  if (gameLastCard && gameLastCard.closest(".game-option")) {
+    gameLastCard.closest(".game-option").classList.toggle("hidden", !available.lastcard);
   }
 
   if (gamePoker && gamePoker.closest(".game-option")) {
@@ -999,6 +1041,76 @@ continueStopResultBtn.addEventListener("click", () => {
   });
 });
 
+startLastCardBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("start_last_card_game", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo empezar ÚLTIMA CARTA.");
+    }
+  });
+});
+
+drawLastCardBtn.addEventListener("click", () => {
+  if (!currentGame || lastCardActionPending) return;
+
+  lastCardActionPending = true;
+  renderLastCardControls();
+
+  socket.emit("draw_last_card", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    lastCardActionPending = false;
+    lastCardStatusText.textContent = response.message || "No se pudo robar una carta.";
+    renderLastCardControls();
+  });
+});
+
+passLastCardBtn.addEventListener("click", () => {
+  if (!currentGame || lastCardActionPending) return;
+
+  lastCardActionPending = true;
+  renderLastCardControls();
+
+  socket.emit("pass_last_card_turn", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    lastCardActionPending = false;
+    lastCardStatusText.textContent = response.message || "No se pudo pasar.";
+    renderLastCardControls();
+  });
+});
+
+callLastCardBtn.addEventListener("click", () => {
+  if (callLastCardBtn.disabled) return;
+
+  lastCardCalled = !lastCardCalled;
+  callLastCardBtn.classList.toggle("is-called", lastCardCalled);
+  callLastCardBtn.setAttribute("aria-pressed", String(lastCardCalled));
+});
+
+lastCardColorOptions.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (!selectedWildCardId) return;
+    playLastCardCard(selectedWildCardId, button.dataset.color);
+  });
+});
+
+cancelLastCardColorBtn.addEventListener("click", () => {
+  selectedWildCardId = null;
+  lastCardColorPicker.classList.add("hidden");
+});
+
+continueLastCardResultBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  socket.emit("continue_last_card_result", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo continuar.");
+    }
+  });
+});
+
 socket.on("game_updated", (game) => {
   currentGame = game;
   isLeader = game.leaderId === socket.id;
@@ -1182,6 +1294,21 @@ socket.on("stop_finished", (data) => {
   renderStopResult(data);
 });
 
+socket.on("last_card_intro", (data) => {
+  currentGame = data.game;
+  renderLastCardIntro(data.game);
+});
+
+socket.on("last_card_state", (data) => {
+  currentGame = data.game;
+  renderLastCardGame(data.lastCardState);
+});
+
+socket.on("last_card_finished", (data) => {
+  currentGame = data.game;
+  renderLastCardResult(data);
+});
+
 socket.on("poker_intro", (data) => {
   currentGame = data.game;
   renderPokerIntro(data.game, data.settings);
@@ -1288,6 +1415,7 @@ function getSelectedGamesFromLobby() {
   if (gameHeads && gameHeads.checked) selectedGames.push("heads");
   if (gameWord && gameWord.checked) selectedGames.push("word");
   if (gameStop && gameStop.checked) selectedGames.push("stop");
+  if (gameLastCard && gameLastCard.checked) selectedGames.push("lastcard");
   if (gamePoker && gamePoker.checked) selectedGames.push("poker");
 
   return selectedGames;
@@ -1329,6 +1457,7 @@ function renderGameSelection(game) {
   if (gameHeads) gameHeads.checked = selectedGames.includes("heads");
   if (gameWord) gameWord.checked = selectedGames.includes("word");
   if (gameStop) gameStop.checked = selectedGames.includes("stop");
+  if (gameLastCard) gameLastCard.checked = selectedGames.includes("lastcard");
   if (gamePoker) gamePoker.checked = selectedGames.includes("poker");
 
   if (gameKnowledge) gameKnowledge.disabled = !isLeader;
@@ -1336,6 +1465,7 @@ function renderGameSelection(game) {
   if (gameHeads) gameHeads.disabled = !isLeader;
   if (gameWord) gameWord.disabled = !isLeader;
   if (gameStop) gameStop.disabled = !isLeader;
+  if (gameLastCard) gameLastCard.disabled = !isLeader;
   if (gamePoker) gamePoker.disabled = !isLeader;
 
   friendGameHelp.textContent = "Disponible.";
@@ -2365,6 +2495,202 @@ function renderStopResult(data) {
 
   renderRankingList(stopFinalRankingList, data.ranking || []);
   showScreen(stopResultScreen);
+}
+
+// --------------------------------------------------
+// ÚLTIMA CARTA
+// --------------------------------------------------
+
+const LAST_CARD_COLOR_NAMES = {
+  red: "Rojo",
+  yellow: "Amarillo",
+  green: "Verde",
+  blue: "Azul",
+  wild: "Color libre"
+};
+
+function renderLastCardIntro(game) {
+  isLeader = game.leaderId === socket.id;
+
+  startLastCardBtn.classList.toggle("hidden", !isLeader);
+  lastCardIntroWaitingText.classList.toggle("hidden", isLeader);
+  showScreen(lastCardIntroScreen);
+}
+
+function createLastCardElement(card, interactive = false) {
+  const element = document.createElement(interactive ? "button" : "div");
+  const colorClass = card.color === "wild" ? "is-wild" : `is-${card.color}`;
+
+  element.className = `last-card-card ${colorClass}`;
+  element.classList.toggle("is-action", card.type !== "number");
+  element.classList.toggle("is-playable", Boolean(card.playable));
+  element.classList.toggle("is-drawn", card.id === currentLastCardState?.drawnCardId);
+
+  const symbol = document.createElement("span");
+  symbol.textContent = card.symbol;
+  element.appendChild(symbol);
+
+  if (interactive) {
+    element.type = "button";
+    element.disabled = lastCardActionPending || !card.playable;
+    element.title = card.playable
+      ? `Jugar ${card.symbol}`
+      : `${card.symbol} no se puede jugar ahora`;
+    element.setAttribute(
+      "aria-label",
+      `${card.symbol}, ${LAST_CARD_COLOR_NAMES[card.color] || card.color}`
+    );
+
+    element.addEventListener("click", () => {
+      if (!card.playable || lastCardActionPending) return;
+
+      if (card.color === "wild") {
+        selectedWildCardId = card.id;
+        lastCardColorPicker.classList.remove("hidden");
+        return;
+      }
+
+      playLastCardCard(card.id, null);
+    });
+  }
+
+  return element;
+}
+
+function renderLastCardGame(state) {
+  currentLastCardState = state;
+  lastCardActionPending = false;
+  selectedWildCardId = null;
+  lastCardColorPicker.classList.add("hidden");
+
+  if (!state.canCallLastCard) {
+    lastCardCalled = false;
+  }
+
+  callLastCardBtn.classList.toggle("is-called", lastCardCalled);
+  callLastCardBtn.setAttribute("aria-pressed", String(lastCardCalled));
+  lastCardTurnText.textContent = state.isYourTurn
+    ? "Es tu turno"
+    : `Turno de ${state.currentPlayerName}`;
+  lastCardDirectionText.textContent = state.direction === 1
+    ? "Sentido: horario"
+    : "Sentido: antihorario";
+  lastCardActiveColor.className = `last-card-color-swatch is-${state.currentColor}`;
+  lastCardActiveColor.title = LAST_CARD_COLOR_NAMES[state.currentColor] || state.currentColor;
+  lastCardDrawCount.textContent = `${state.drawPileCount} cartas`;
+  lastCardStatusText.textContent = state.message || "";
+
+  lastCardPlayersList.innerHTML = "";
+  state.players.forEach((player) => {
+    const li = document.createElement("li");
+    li.className = "last-card-player";
+    li.classList.toggle("is-current", player.isCurrent);
+
+    const name = document.createElement("span");
+    name.className = "last-card-player-name";
+    name.textContent = player.playerName;
+
+    const count = document.createElement("strong");
+    count.className = "last-card-player-count";
+    count.textContent = String(player.cardCount);
+    count.title = `${player.cardCount} cartas`;
+
+    li.appendChild(name);
+    li.appendChild(count);
+    lastCardPlayersList.appendChild(li);
+  });
+
+  lastCardTopCard.innerHTML = "";
+  if (state.topCard) {
+    lastCardTopCard.appendChild(createLastCardElement(state.topCard));
+  }
+
+  lastCardHand.innerHTML = "";
+  state.hand.forEach((card) => {
+    lastCardHand.appendChild(createLastCardElement(card, true));
+  });
+
+  startStopTimer(
+    state.endAt,
+    state.durationMs,
+    lastCardTimerText,
+    lastCardTimerFill,
+    () => {
+      lastCardActionPending = true;
+      lastCardStatusText.textContent = "Tiempo terminado. Resolviendo el turno...";
+      renderLastCardControls();
+    }
+  );
+
+  renderLastCardControls();
+  showScreen(lastCardScreen);
+}
+
+function renderLastCardControls() {
+  if (!currentLastCardState) return;
+
+  drawLastCardBtn.disabled = lastCardActionPending || !currentLastCardState.canDraw;
+  passLastCardBtn.classList.toggle("hidden", !currentLastCardState.canPass);
+  passLastCardBtn.disabled = lastCardActionPending || !currentLastCardState.canPass;
+  callLastCardBtn.disabled =
+    lastCardActionPending || !currentLastCardState.canCallLastCard;
+
+  lastCardHand.querySelectorAll(".last-card-card").forEach((cardButton) => {
+    cardButton.disabled = lastCardActionPending || !cardButton.classList.contains("is-playable");
+  });
+}
+
+function playLastCardCard(cardId, chosenColor) {
+  if (!currentGame || lastCardActionPending) return;
+
+  lastCardActionPending = true;
+  selectedWildCardId = null;
+  lastCardColorPicker.classList.add("hidden");
+  renderLastCardControls();
+
+  socket.emit("play_last_card", {
+    pin: currentGame.pin,
+    cardId,
+    chosenColor,
+    calledLastCard: lastCardCalled
+  }, (response) => {
+    if (response.ok) return;
+
+    lastCardActionPending = false;
+    lastCardStatusText.textContent = response.message || "No se pudo jugar esa carta.";
+    renderLastCardControls();
+  });
+}
+
+function renderLastCardResult(data) {
+  clearInterval(timerInterval);
+  isLeader = data.game && data.game.leaderId === socket.id;
+
+  lastCardResultLeaderControls.classList.toggle("hidden", !isLeader);
+  lastCardWinnerText.textContent = `${data.winnerName} ganó la ronda`;
+  lastCardRoundPointsText.textContent = `Sumó ${data.roundPoints} puntos.`;
+  lastCardResultsList.innerHTML = "";
+
+  data.playerResults.forEach((result) => {
+    const li = document.createElement("li");
+    li.className = "last-card-result-row";
+    li.classList.toggle("is-winner", result.isWinner);
+
+    const name = document.createElement("strong");
+    name.textContent = result.playerName;
+
+    const detail = document.createElement("span");
+    detail.textContent = result.isWinner
+      ? "Sin cartas"
+      : `${result.remainingCards} cartas · ${result.remainingPoints} pts`;
+
+    li.appendChild(name);
+    li.appendChild(detail);
+    lastCardResultsList.appendChild(li);
+  });
+
+  renderRankingList(lastCardFinalRankingList, data.ranking || []);
+  showScreen(lastCardResultScreen);
 }
 
 function renderBetweenGamesScoreboard(data) {

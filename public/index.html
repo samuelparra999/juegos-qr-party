@@ -132,6 +132,14 @@
         </label>
 
         <label class="game-option">
+          <input id="gameLastCard" class="game-checkbox-input" type="checkbox" value="lastcard" />
+          <span>
+            <strong>ÚLTIMA CARTA</strong>
+            <small>Combina colores y símbolos hasta quedarte sin cartas.</small>
+          </span>
+        </label>
+
+        <label class="game-option">
           <input id="gamePoker" class="game-checkbox-input" type="checkbox" value="poker" />
           <span>
             <strong>Poker Texas Hold’em</strong>
@@ -607,6 +615,109 @@
 
       <h3>Tabla acumulada</h3>
       <ul id="stopFinalRankingList" class="ranking-list"></ul>
+    </section>
+
+    <!-- Instrucciones de ÚLTIMA CARTA -->
+    <section id="lastCardIntroScreen" class="card hidden">
+      <p class="small-title">ÚLTIMA CARTA</p>
+      <h2>Instrucciones</h2>
+
+      <p class="subtitle">
+        Juega una carta que coincida con el color o el símbolo de la carta superior.
+        Si no quieres jugar, roba una carta del mazo.
+      </p>
+
+      <p class="subtitle">
+        Las cartas SALTA, REVERSA, +2, COLOR y +4 cambian el turno. Al jugar una carta
+        de color libre, deberás escoger el color que continúa.
+      </p>
+
+      <p class="subtitle">
+        Cuando vayas a quedarte con una sola carta, pulsa <strong>¡ÚLTIMA CARTA!</strong>
+        antes de jugar. Si lo olvidas, robarás dos cartas.
+      </p>
+
+      <p class="subtitle">
+        Gana quien se quede sin cartas. Recibirá 100 puntos más el valor de las cartas
+        que todavía tengan los demás jugadores.
+      </p>
+
+      <button id="startLastCardBtn" class="primary-btn hidden">Continuar</button>
+      <p id="lastCardIntroWaitingText" class="waiting-text">
+        Esperando a que el líder continúe...
+      </p>
+    </section>
+
+    <!-- Mesa de ÚLTIMA CARTA -->
+    <section id="lastCardScreen" class="card hidden">
+      <p class="small-title">ÚLTIMA CARTA</p>
+
+      <div class="question-header">
+        <span id="lastCardTurnText"></span>
+        <span id="lastCardTimerText"></span>
+      </div>
+
+      <div class="timer-track">
+        <div id="lastCardTimerFill" class="timer-fill"></div>
+      </div>
+
+      <div class="last-card-game-meta">
+        <span id="lastCardDirectionText"></span>
+        <span class="last-card-active-color-label">
+          Color activo
+          <span id="lastCardActiveColor" class="last-card-color-swatch"></span>
+        </span>
+      </div>
+
+      <ul id="lastCardPlayersList" class="last-card-players-list"></ul>
+
+      <div class="last-card-table">
+        <button id="drawLastCardBtn" class="last-card-card last-card-back" title="Robar carta">
+          <span>ROBAR</span>
+          <small id="lastCardDrawCount"></small>
+        </button>
+        <div id="lastCardTopCard" class="last-card-top-slot" aria-label="Carta superior"></div>
+      </div>
+
+      <p id="lastCardStatusText" class="answer-status"></p>
+
+      <div id="lastCardColorPicker" class="last-card-color-picker hidden">
+        <p>Elige el color que continúa</p>
+        <div class="last-card-color-options" role="group" aria-label="Elegir color">
+          <button class="last-card-color-option is-red" data-color="red" aria-label="Rojo" title="Rojo"></button>
+          <button class="last-card-color-option is-yellow" data-color="yellow" aria-label="Amarillo" title="Amarillo"></button>
+          <button class="last-card-color-option is-green" data-color="green" aria-label="Verde" title="Verde"></button>
+          <button class="last-card-color-option is-blue" data-color="blue" aria-label="Azul" title="Azul"></button>
+        </div>
+        <button id="cancelLastCardColorBtn" class="secondary-btn">Cancelar</button>
+      </div>
+
+      <h3>Tu mano</h3>
+      <div id="lastCardHand" class="last-card-hand" aria-live="polite"></div>
+
+      <div class="last-card-actions">
+        <button id="callLastCardBtn" class="last-card-call-btn" disabled>
+          ¡ÚLTIMA CARTA!
+        </button>
+        <button id="passLastCardBtn" class="secondary-btn hidden">Pasar</button>
+      </div>
+    </section>
+
+    <!-- Resultado de ÚLTIMA CARTA -->
+    <section id="lastCardResultScreen" class="card hidden">
+      <div id="lastCardResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueLastCardResultBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p class="small-title">Resultado de ÚLTIMA CARTA</p>
+      <h2 id="lastCardWinnerText"></h2>
+      <p id="lastCardRoundPointsText" class="subtitle"></p>
+
+      <h3>Cartas restantes</h3>
+      <ul id="lastCardResultsList" class="answers-list"></ul>
+
+      <h3>Tabla acumulada</h3>
+      <ul id="lastCardFinalRankingList" class="ranking-list"></ul>
     </section>
 
     <!-- Marcador entre juegos -->

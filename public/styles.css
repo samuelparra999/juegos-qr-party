@@ -619,6 +619,255 @@ button:disabled {
   color: #9b1c1c;
 }
 
+.last-card-game-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: var(--muted-text-color);
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.last-card-active-color-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.last-card-color-swatch {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #ffffff;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.last-card-players-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  padding: 0;
+  margin: 0 0 18px;
+  list-style: none;
+}
+
+.last-card-player {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.last-card-player.is-current {
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.last-card-player-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.last-card-player-count {
+  flex: 0 0 auto;
+  min-width: 30px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #141827;
+  text-align: center;
+}
+
+.last-card-table {
+  min-height: 152px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  margin: 10px 0 18px;
+  padding: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.last-card-card {
+  width: 74px;
+  height: 106px;
+  min-width: 74px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 5px;
+  border: 3px solid #ffffff;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 900;
+  text-align: center;
+  overflow: hidden;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.22);
+}
+
+.last-card-card span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.last-card-card.is-action {
+  font-size: 12px;
+}
+
+.last-card-card.is-red,
+.last-card-color-swatch.is-red,
+.last-card-color-option.is-red {
+  background: #d92d20;
+}
+
+.last-card-card.is-yellow,
+.last-card-color-swatch.is-yellow,
+.last-card-color-option.is-yellow {
+  background: #f7c948;
+  color: #141827;
+}
+
+.last-card-card.is-green,
+.last-card-color-swatch.is-green,
+.last-card-color-option.is-green {
+  background: #16844a;
+}
+
+.last-card-card.is-blue,
+.last-card-color-swatch.is-blue,
+.last-card-color-option.is-blue {
+  background: #2563b9;
+}
+
+.last-card-card.is-wild {
+  background: conic-gradient(#d92d20 0 25%, #f7c948 25% 50%, #16844a 50% 75%, #2563b9 75%);
+  color: #ffffff;
+  text-shadow: 0 1px 3px #000000;
+}
+
+.last-card-back {
+  background: #20242d;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.last-card-back small {
+  font-size: 11px;
+  color: #ffffff;
+}
+
+.last-card-top-slot {
+  width: 74px;
+  min-height: 106px;
+}
+
+.last-card-hand {
+  min-height: 120px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 2px 12px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.last-card-hand .last-card-card {
+  flex: 0 0 74px;
+}
+
+.last-card-hand .last-card-card:not(.is-playable) {
+  opacity: 0.58;
+}
+
+.last-card-hand .last-card-card.is-playable {
+  box-shadow: 0 7px 0 var(--color-primary);
+  transform: translateY(-4px);
+}
+
+.last-card-hand .last-card-card.is-drawn {
+  outline: 3px solid var(--color-tertiary);
+  outline-offset: 2px;
+}
+
+.last-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.last-card-actions button {
+  margin-top: 0;
+}
+
+.last-card-call-btn {
+  background: var(--color-tertiary);
+  color: #141827;
+}
+
+.last-card-call-btn.is-called {
+  background: #74ff7a;
+  color: #07200a;
+}
+
+.last-card-color-picker {
+  margin: 16px 0;
+  padding: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+}
+
+.last-card-color-picker.hidden {
+  display: none !important;
+}
+
+.last-card-color-picker p {
+  margin: 0 0 12px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.last-card-color-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.last-card-color-option {
+  width: 100%;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 3px solid #ffffff;
+  border-radius: 8px;
+}
+
+.last-card-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.last-card-result-row.is-winner {
+  border-color: var(--color-primary);
+}
+
 .game-selection-box {
   display: grid;
   gap: 10px;

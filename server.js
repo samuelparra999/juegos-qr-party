@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 
 const games = new Map();
 
-const GAME_ORDER = ["knowledge", "friend", "heads", "word", "stop", "poker"];
+const GAME_ORDER = ["knowledge", "friend", "heads", "word", "stop", "lastcard", "poker"];
 
 const GAME_LABELS = {
   knowledge: "Trivia de conocimiento",
@@ -22,6 +22,7 @@ const GAME_LABELS = {
   heads: "Heads Up",
   word: "Word Connect",
   stop: "STOP",
+  lastcard: "ÚLTIMA CARTA",
   poker: "Poker"
 };
 
@@ -409,6 +410,17 @@ function getPositiveDuration(value, fallback) {
   return Number.isFinite(duration) && duration > 0 ? duration : fallback;
 }
 
+function getCampaignLastCardSettings(game) {
+  const rawSettings = game.campaign?.lastCard || {};
+
+  return {
+    initialHandSize: Math.max(3, Math.min(12, Number(rawSettings.initialHandSize) || 7)),
+    actionTimeoutMs: getPositiveDuration(rawSettings.actionTimeoutMs, 30000),
+    winnerBasePoints: Math.max(0, Number(rawSettings.winnerBasePoints) || 100),
+    missedCallPenalty: Math.max(1, Number(rawSettings.missedCallPenalty) || 2)
+  };
+}
+
 function getCampaignPokerSettings(game) {
   const campaignPoker = game.campaign?.poker || {};
 
@@ -656,6 +668,7 @@ function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
     heads: true,
     word: true,
     stop: true,
+    lastcard: true,
     poker: true
   };
 
@@ -755,6 +768,11 @@ function startNextSelectedGame(pin) {
 
     if (nextGame === "stop") {
       startStopIntro(pin);
+      return;
+    }
+
+    if (nextGame === "lastcard") {
+      startLastCardIntro(pin);
       return;
     }
 
@@ -3320,6 +3338,458 @@ function finishStopGame(pin) {
   });
 }
 
+const LAST_CARD_COLORS = ["red", "yellow", "green", "blue"];
+
+function createLastCardDeck() {
+  const deck = [];
+  let cardId = 0;
+
+  LAST_CARD_COLORS.forEach((color) => {
+    deck.push({ id: `last-card-${cardId++}`, color, type: "number", value: "0" });
+
+    for (let value = 1; value <= 9; value++) {
+      for (let copy = 0; copy < 2; copy++) {
+        deck.push({
+          id: `last-card-${cardId++}`,
+          color,
+          type: "number",
+          value: String(value)
+        });
+      }
+    }
+
+    ["skip", "reverse", "draw2"].forEach((type) => {
+      for (let copy = 0; copy < 2; copy++) {
+        deck.push({ id: `last-card-${cardId++}`, color, type, value: type });
+      }
+    });
+  });
+
+  for (let copy = 0; copy < 4; copy++) {
+    deck.push({ id: `last-card-${cardId++}`, color: "wild", type: "wild", value: "wild" });
+    deck.push({ id: `last-card-${cardId++}`, color: "wild", type: "wild4", value: "wild4" });
+  }
+
+  return shuffleArray(deck);
+}
+
+function getLastCardSymbol(card) {
+  if (!card) return "";
+  if (card.type === "skip") return "SALTA";
+  if (card.type === "reverse") return "REVERSA";
+  if (card.type === "draw2") return "+2";
+  if (card.type === "wild") return "COLOR";
+  if (card.type === "wild4") return "+4";
+  return card.value;
+}
+
+function getPublicLastCard(card, playable = false) {
+  if (!card) return null;
+
+  return {
+    id: card.id,
+    color: card.color,
+    type: card.type,
+    value: card.value,
+    symbol: getLastCardSymbol(card),
+    playable
+  };
+}
+
+function getLastCardPlayer(game, clientId) {
+  return game.lastCard?.players.find((player) => player.clientId === clientId) || null;
+}
+
+function getCurrentLastCardPlayer(game) {
+  return game.lastCard?.players[game.lastCard.currentPlayerIndex] || null;
+}
+
+function getLastCardAppPlayer(game, clientId) {
+  return game.players.find((player) => player.clientId === clientId) || null;
+}
+
+function clearLastCardTimer(game) {
+  if (!game?.lastCard?.actionTimer) return;
+
+  clearTimeout(game.lastCard.actionTimer);
+  game.lastCard.actionTimer = null;
+}
+
+function refillLastCardDrawPile(game) {
+  if (game.lastCard.drawPile.length || game.lastCard.discardPile.length <= 1) return;
+
+  const topCard = game.lastCard.discardPile.pop();
+  game.lastCard.drawPile = shuffleArray(game.lastCard.discardPile);
+  game.lastCard.discardPile = [topCard];
+}
+
+function drawLastCards(game, player, amount) {
+  const drawnCards = [];
+
+  for (let count = 0; count < amount; count++) {
+    refillLastCardDrawPile(game);
+
+    const card = game.lastCard.drawPile.pop();
+    if (!card) break;
+
+    player.hand.push(card);
+    drawnCards.push(card);
+  }
+
+  return drawnCards;
+}
+
+function hasLastCardColorMatch(game, player, excludedCardId = null) {
+  return player.hand.some((card) => {
+    return card.id !== excludedCardId && card.color === game.lastCard.currentColor;
+  });
+}
+
+function isLastCardPlayable(game, player, card) {
+  if (!game?.lastCard || !player || !card) return false;
+
+  if (game.lastCard.drawnCardId && card.id !== game.lastCard.drawnCardId) return false;
+
+  if (card.type === "wild4") {
+    return !hasLastCardColorMatch(game, player, card.id);
+  }
+
+  if (card.color === "wild") return true;
+  if (card.color === game.lastCard.currentColor) return true;
+
+  const topCard = game.lastCard.discardPile[game.lastCard.discardPile.length - 1];
+  return Boolean(topCard && card.value === topCard.value);
+}
+
+function getPublicLastCardState(game, viewerSocketId) {
+  const viewer = game.players.find((player) => player.id === viewerSocketId);
+  const viewerState = viewer ? getLastCardPlayer(game, viewer.clientId) : null;
+  const currentPlayer = getCurrentLastCardPlayer(game);
+  const currentAppPlayer = currentPlayer
+    ? getLastCardAppPlayer(game, currentPlayer.clientId)
+    : null;
+  const isViewerTurn = Boolean(viewerState && currentPlayer?.clientId === viewerState.clientId);
+  const topCard = game.lastCard.discardPile[game.lastCard.discardPile.length - 1];
+
+  return {
+    players: game.lastCard.players.map((player) => {
+      const appPlayer = getLastCardAppPlayer(game, player.clientId);
+
+      return {
+        playerId: appPlayer?.id || null,
+        playerName: appPlayer?.name || player.name,
+        cardCount: player.hand.length,
+        isCurrent: player.clientId === currentPlayer?.clientId
+      };
+    }),
+    hand: (viewerState?.hand || []).map((card) => {
+      return getPublicLastCard(card, isViewerTurn && isLastCardPlayable(game, viewerState, card));
+    }),
+    topCard: getPublicLastCard(topCard),
+    currentColor: game.lastCard.currentColor,
+    drawPileCount: game.lastCard.drawPile.length,
+    currentPlayerId: currentAppPlayer?.id || null,
+    currentPlayerName: currentAppPlayer?.name || currentPlayer?.name || "Jugador",
+    isYourTurn: isViewerTurn,
+    canDraw: isViewerTurn && !game.lastCard.drawnCardId,
+    canPass: isViewerTurn && Boolean(game.lastCard.drawnCardId),
+    canCallLastCard: isViewerTurn && (viewerState?.hand.length || 0) === 2,
+    drawnCardId: isViewerTurn ? game.lastCard.drawnCardId : null,
+    direction: game.lastCard.direction,
+    message: game.lastCard.message,
+    durationMs: game.lastCard.actionTimeoutMs,
+    endAt: game.lastCard.endAt
+  };
+}
+
+function emitLastCardState(pin, game) {
+  game.players.forEach((player) => {
+    io.to(player.id).emit("last_card_state", {
+      game: publicGame(game),
+      lastCardState: getPublicLastCardState(game, player.id)
+    });
+  });
+}
+
+function startLastCardIntro(pin) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  game.status = "last_card_intro";
+  game.lastCard = {
+    ...getCampaignLastCardSettings(game),
+    players: [],
+    drawPile: [],
+    discardPile: [],
+    currentColor: null,
+    currentPlayerIndex: 0,
+    direction: 1,
+    drawnCardId: null,
+    message: "",
+    endAt: null,
+    actionTimer: null,
+    awaitingContinue: false,
+    lastResult: null
+  };
+
+  io.to(pin).emit("last_card_intro", {
+    game: publicGame(game)
+  });
+}
+
+function beginLastCard(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "last_card_intro" || !game.lastCard) return;
+
+  game.status = "last_card";
+  game.lastCard.drawPile = createLastCardDeck();
+  game.lastCard.players = game.players.map((player) => ({
+    clientId: player.clientId,
+    name: player.name,
+    hand: []
+  }));
+
+  for (let cardIndex = 0; cardIndex < game.lastCard.initialHandSize; cardIndex++) {
+    game.lastCard.players.forEach((player) => {
+      drawLastCards(game, player, 1);
+    });
+  }
+
+  let startingCardIndex = game.lastCard.drawPile.findIndex((card) => card.type === "number");
+  if (startingCardIndex < 0) startingCardIndex = 0;
+
+  const [startingCard] = game.lastCard.drawPile.splice(startingCardIndex, 1);
+  game.lastCard.discardPile = [startingCard];
+  game.lastCard.currentColor = startingCard.color;
+  game.lastCard.currentPlayerIndex = 0;
+  game.lastCard.direction = 1;
+  game.lastCard.drawnCardId = null;
+  game.lastCard.message = `${game.lastCard.players[0].name} comienza.`;
+
+  startLastCardTurnTimer(pin, game);
+  emitLastCardState(pin, game);
+}
+
+function moveLastCardIndex(game, fromIndex, steps = 1) {
+  const totalPlayers = game.lastCard.players.length;
+  let index = fromIndex;
+
+  for (let step = 0; step < steps; step++) {
+    index = (index + game.lastCard.direction + totalPlayers) % totalPlayers;
+  }
+
+  return index;
+}
+
+function startLastCardTurnTimer(pin, game) {
+  clearLastCardTimer(game);
+  game.lastCard.endAt = Date.now() + game.lastCard.actionTimeoutMs;
+  game.lastCard.actionTimer = setTimeout(() => {
+    handleLastCardTurnTimeout(pin);
+  }, game.lastCard.actionTimeoutMs + 100);
+}
+
+function handleLastCardTurnTimeout(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "last_card" || !game.lastCard) return;
+
+  const player = getCurrentLastCardPlayer(game);
+  if (!player) return;
+
+  if (!game.lastCard.drawnCardId) {
+    drawLastCards(game, player, 1);
+  }
+
+  game.lastCard.message = `${player.name} agotó su tiempo y perdió el turno.`;
+  advanceLastCardTurn(pin, game, null);
+}
+
+function advanceLastCardTurn(pin, game, playedCard) {
+  clearLastCardTimer(game);
+
+  let steps = 1;
+
+  if (playedCard?.type === "reverse") {
+    game.lastCard.direction *= -1;
+    steps = game.lastCard.players.length === 2 ? 2 : 1;
+  } else if (playedCard?.type === "skip") {
+    steps = 2;
+  } else if (playedCard?.type === "draw2" || playedCard?.type === "wild4") {
+    const penalty = playedCard.type === "draw2" ? 2 : 4;
+    const penalizedIndex = moveLastCardIndex(game, game.lastCard.currentPlayerIndex, 1);
+    const penalizedPlayer = game.lastCard.players[penalizedIndex];
+
+    drawLastCards(game, penalizedPlayer, penalty);
+    game.lastCard.message += ` ${penalizedPlayer.name} roba ${penalty} y pierde el turno.`;
+    steps = 2;
+  }
+
+  game.lastCard.currentPlayerIndex = moveLastCardIndex(
+    game,
+    game.lastCard.currentPlayerIndex,
+    steps
+  );
+  game.lastCard.drawnCardId = null;
+
+  startLastCardTurnTimer(pin, game);
+  emitLastCardState(pin, game);
+}
+
+function playLastCard(pin, player, cardId, chosenColor, calledLastCard) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "last_card" || !game.lastCard) {
+    return { ok: false, message: "ÚLTIMA CARTA no está activo." };
+  }
+
+  const currentPlayer = getCurrentLastCardPlayer(game);
+  if (!currentPlayer || currentPlayer.clientId !== player.clientId) {
+    return { ok: false, message: "No es tu turno." };
+  }
+
+  const cardIndex = currentPlayer.hand.findIndex((card) => card.id === cardId);
+  const card = currentPlayer.hand[cardIndex];
+
+  if (!card || !isLastCardPlayable(game, currentPlayer, card)) {
+    return { ok: false, message: "No puedes jugar esa carta." };
+  }
+
+  const needsColor = card.color === "wild";
+  if (needsColor && !LAST_CARD_COLORS.includes(chosenColor)) {
+    return { ok: false, message: "Elige el color que continuará." };
+  }
+
+  currentPlayer.hand.splice(cardIndex, 1);
+  game.lastCard.discardPile.push(card);
+  game.lastCard.currentColor = needsColor ? chosenColor : card.color;
+  game.lastCard.drawnCardId = null;
+  game.lastCard.message = `${currentPlayer.name} jugó ${getLastCardSymbol(card)}.`;
+
+  if (currentPlayer.hand.length === 1 && !calledLastCard) {
+    drawLastCards(game, currentPlayer, game.lastCard.missedCallPenalty);
+    game.lastCard.message +=
+      ` No anunció ÚLTIMA CARTA y roba ${game.lastCard.missedCallPenalty}.`;
+  } else if (currentPlayer.hand.length === 1 && calledLastCard) {
+    game.lastCard.message += " ¡ÚLTIMA CARTA!";
+  }
+
+  if (!currentPlayer.hand.length) {
+    finishLastCardGame(pin, currentPlayer);
+    return { ok: true };
+  }
+
+  advanceLastCardTurn(pin, game, card);
+  return { ok: true };
+}
+
+function drawLastCardForTurn(pin, player) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "last_card" || !game.lastCard) {
+    return { ok: false, message: "ÚLTIMA CARTA no está activo." };
+  }
+
+  const currentPlayer = getCurrentLastCardPlayer(game);
+  if (!currentPlayer || currentPlayer.clientId !== player.clientId) {
+    return { ok: false, message: "No es tu turno." };
+  }
+
+  if (game.lastCard.drawnCardId) {
+    return { ok: false, message: "Ya robaste una carta este turno." };
+  }
+
+  const [drawnCard] = drawLastCards(game, currentPlayer, 1);
+  if (!drawnCard) return { ok: false, message: "No quedan cartas para robar." };
+
+  if (isLastCardPlayable(game, currentPlayer, drawnCard)) {
+    game.lastCard.drawnCardId = drawnCard.id;
+    game.lastCard.message = `${currentPlayer.name} robó una carta y puede jugarla o pasar.`;
+    startLastCardTurnTimer(pin, game);
+    emitLastCardState(pin, game);
+
+    return { ok: true, canPlayDrawnCard: true };
+  }
+
+  game.lastCard.message = `${currentPlayer.name} robó una carta y perdió el turno.`;
+  advanceLastCardTurn(pin, game, null);
+  return { ok: true, canPlayDrawnCard: false };
+}
+
+function passLastCardTurn(pin, player) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "last_card" || !game.lastCard) {
+    return { ok: false, message: "ÚLTIMA CARTA no está activo." };
+  }
+
+  const currentPlayer = getCurrentLastCardPlayer(game);
+  if (!currentPlayer || currentPlayer.clientId !== player.clientId) {
+    return { ok: false, message: "No es tu turno." };
+  }
+
+  if (!game.lastCard.drawnCardId) {
+    return { ok: false, message: "Solo puedes pasar después de robar." };
+  }
+
+  game.lastCard.message = `${currentPlayer.name} pasó.`;
+  advanceLastCardTurn(pin, game, null);
+  return { ok: true };
+}
+
+function getLastCardScore(card) {
+  if (card.type === "number") return Number(card.value) || 0;
+  if (card.type === "wild" || card.type === "wild4") return 50;
+  return 20;
+}
+
+function finishLastCardGame(pin, winnerState) {
+  const game = games.get(pin);
+
+  if (!game || !game.lastCard) return;
+
+  clearLastCardTimer(game);
+  game.status = "last_card_result";
+  game.lastCard.awaitingContinue = true;
+
+  const cardsScore = game.lastCard.players.reduce((total, player) => {
+    if (player.clientId === winnerState.clientId) return total;
+    return total + player.hand.reduce((subtotal, card) => subtotal + getLastCardScore(card), 0);
+  }, 0);
+  const roundPoints = game.lastCard.winnerBasePoints + cardsScore;
+  const winner = getLastCardAppPlayer(game, winnerState.clientId);
+
+  if (winner) winner.score += roundPoints;
+
+  const result = {
+    winnerId: winner?.id || null,
+    winnerName: winner?.name || winnerState.name,
+    roundPoints,
+    playerResults: game.lastCard.players.map((player) => {
+      const appPlayer = getLastCardAppPlayer(game, player.clientId);
+      const remainingPoints = player.hand.reduce((total, card) => total + getLastCardScore(card), 0);
+
+      return {
+        playerId: appPlayer?.id || null,
+        playerName: appPlayer?.name || player.name,
+        remainingCards: player.hand.length,
+        remainingPoints,
+        isWinner: player.clientId === winnerState.clientId
+      };
+    }),
+    ranking: getRanking(game)
+  };
+
+  game.lastCard.lastResult = result;
+
+  io.to(pin).emit("last_card_finished", {
+    game: publicGame(game),
+    ...result
+  });
+}
+
 function startPokerIntro(pin) {
   const game = games.get(pin);
 
@@ -3884,6 +4354,29 @@ function sendCurrentStateToSocket(pin, socket, game) {
     return;
   }
 
+  if (game.status === "last_card_intro") {
+    socket.emit("last_card_intro", {
+      game: publicGame(game)
+    });
+    return;
+  }
+
+  if (game.status === "last_card" && game.lastCard) {
+    socket.emit("last_card_state", {
+      game: publicGame(game),
+      lastCardState: getPublicLastCardState(game, socket.id)
+    });
+    return;
+  }
+
+  if (game.status === "last_card_result" && game.lastCard?.lastResult) {
+    socket.emit("last_card_finished", {
+      game: publicGame(game),
+      ...game.lastCard.lastResult
+    });
+    return;
+  }
+
   if (game.status === "poker_intro") {
     socket.emit("poker_intro", {
       game: publicGame(game),
@@ -3937,6 +4430,7 @@ function finishFinalGame(pin) {
   game.heads = null;
   game.word = null;
   game.stop = null;
+  game.lastCard = null;
   game.poker = null;
   game.betweenGames = null;
 
@@ -3951,6 +4445,7 @@ function clearAllGameTimers(game) {
   clearFriendTimers(game);
   clearHeadsUpTimers(game);
   clearStopTimers(game);
+  clearLastCardTimer(game);
   clearLackPlayersTimer(game);
 
   if (typeof clearWordConnectTimers === "function") {
@@ -4161,6 +4656,7 @@ io.on("connection", (socket) => {
       heads: null,
       word: null,
       stop: null,
+      lastCard: null,
       lackPlayersTimer: null,
       campaignSlug: campaign.slug,
       campaign
@@ -4422,6 +4918,14 @@ io.on("connection", (socket) => {
       callback({
         ok: false,
         message: "Necesitas al menos 2 jugadores para iniciar."
+      });
+      return;
+    }
+
+    if (game.players.length > 10 && game.selectedGames.includes("lastcard")) {
+      callback({
+        ok: false,
+        message: "ÚLTIMA CARTA admite un máximo de 10 jugadores."
       });
       return;
     }
@@ -5183,6 +5687,100 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     showBetweenGamesScoreboard(cleanGamePin, "stop");
   });
 
+  socket.on("start_last_card_game", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "last_card_intro" || !game.lastCard) {
+      callback({
+        ok: false,
+        message: "ÚLTIMA CARTA todavía no está listo."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede empezar ÚLTIMA CARTA."
+      });
+      return;
+    }
+
+    callback({ ok: true });
+    beginLastCard(cleanGamePin);
+  });
+
+  socket.on("play_last_card", ({ pin, cardId, chosenColor, calledLastCard }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+
+    if (!player) {
+      callback({ ok: false, message: "No estás dentro de la partida." });
+      return;
+    }
+
+    callback(playLastCard(
+      cleanGamePin,
+      player,
+      String(cardId || ""),
+      String(chosenColor || "").toLowerCase(),
+      Boolean(calledLastCard)
+    ));
+  });
+
+  socket.on("draw_last_card", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+
+    if (!player) {
+      callback({ ok: false, message: "No estás dentro de la partida." });
+      return;
+    }
+
+    callback(drawLastCardForTurn(cleanGamePin, player));
+  });
+
+  socket.on("pass_last_card_turn", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+
+    if (!player) {
+      callback({ ok: false, message: "No estás dentro de la partida." });
+      return;
+    }
+
+    callback(passLastCardTurn(cleanGamePin, player));
+  });
+
+  socket.on("continue_last_card_result", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "last_card_result" || !game.lastCard?.awaitingContinue) {
+      callback({
+        ok: false,
+        message: "ÚLTIMA CARTA todavía no está listo para continuar."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede continuar."
+      });
+      return;
+    }
+
+    game.lastCard.awaitingContinue = false;
+    callback({ ok: true });
+    showBetweenGamesScoreboard(cleanGamePin, "lastcard");
+  });
+
   socket.on("update_poker_settings", ({ pin, settings }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -5344,6 +5942,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     clearFriendTimers(game);
     clearHeadsUpTimers(game);
     clearStopTimers(game);
+    clearLastCardTimer(game);
 
     if (typeof clearWordConnectTimers === "function") {
       clearWordConnectTimers(game);
@@ -5353,6 +5952,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     game.friend = null;
     game.heads = null;
     game.stop = null;
+    game.lastCard = null;
 
     if (game.word !== undefined) {
       game.word = null;

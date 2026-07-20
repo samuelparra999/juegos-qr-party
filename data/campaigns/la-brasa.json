@@ -28,6 +28,7 @@
             "heads": true,
             "word": false,
             "stop": true,
+            "lastcard": true,
             "poker": true
         }
     },
@@ -191,6 +192,12 @@
                 ]
             }
         ]
+    },
+    "lastCard": {
+        "initialHandSize": 7,
+        "actionTimeoutMs": 30000,
+        "winnerBasePoints": 100,
+        "missedCallPenalty": 2
     },
     "poker": {
         "initialChips": 5000,
