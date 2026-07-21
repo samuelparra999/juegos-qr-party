@@ -17,11 +17,7 @@
         "backgroundGradient": "radial-gradient(circle at top, #7a1f0d, #2a0904 60%, #100302)"
     },
     "games": {
-        "defaultSelected": [
-            "knowledge",
-            "friend",
-            "heads"
-        ],
+        "defaultSelected": [],
         "available": {
             "knowledge": true,
             "friend": true,
@@ -156,8 +152,8 @@
     },
     "stop": {
         "letterRevealMs": 5000,
-        "answerDurationMs": 10000,
-        "voteDurationMs": 15000,
+        "answerDurationMs": 20000,
+        "voteDurationMs": 25000,
         "letters": [
             "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
             "L", "M", "N", "O", "P", "R", "S", "T", "U", "V"

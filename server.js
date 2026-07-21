@@ -38,7 +38,8 @@ const GAME_LABELS = {
   poker: "Poker"
 };
 
-const DEFAULT_SELECTED_GAMES = ["knowledge", "heads", "word"];
+const DEFAULT_SELECTED_GAMES = [];
+const VOTAZO_QUESTIONS_PER_GAME = 5;
 const MIN_CONNECTED_PLAYERS = 2;
 const LACK_PLAYERS_GRACE_MS = Math.max(
   0,
@@ -411,8 +412,8 @@ function getCampaignStopSettings(game) {
     lists: lists.length ? lists : DEFAULT_STOP_LISTS,
     letters: letters.length ? [...new Set(letters)] : DEFAULT_STOP_LETTERS,
     letterRevealMs: getPositiveDuration(rawStop.letterRevealMs, 5000),
-    answerDurationMs: getPositiveDuration(rawStop.answerDurationMs, 10000),
-    voteDurationMs: getPositiveDuration(rawStop.voteDurationMs, 15000)
+    answerDurationMs: getPositiveDuration(rawStop.answerDurationMs, 20000),
+    voteDurationMs: getPositiveDuration(rawStop.voteDurationMs, 25000)
   };
 }
 
@@ -1137,7 +1138,8 @@ function startFriendTrivia(pin) {
 
   if (!game) return;
 
-  const questions = shuffleArray(getCampaignFriendQuestions(game));
+  const questions = shuffleArray(getCampaignFriendQuestions(game))
+    .slice(0, VOTAZO_QUESTIONS_PER_GAME);
 
   if (!questions.length) {
     showBetweenGamesScoreboard(pin, "friend");
@@ -5338,11 +5340,7 @@ io.on("connection", (socket) => {
       leaderId: socket.id,
       status: "lobby",
       selectedTheme: null,
-      selectedGames: sanitizeSelectedGames(
-        campaign.games?.defaultSelected || DEFAULT_SELECTED_GAMES,
-        1,
-        campaign
-      ),
+      selectedGames: sanitizeSelectedGames([], 1, campaign),
       currentGameIndex: -1,
       players: [player],
       themeVotes: {},

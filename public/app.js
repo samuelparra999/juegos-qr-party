@@ -274,6 +274,8 @@ const cachoTurnText = document.getElementById("cachoTurnText");
 const cachoDice = document.getElementById("cachoDice");
 const cachoControls = document.getElementById("cachoControls");
 const cachoQuantityInput = document.getElementById("cachoQuantityInput");
+const cachoDecreaseQuantityBtn = document.getElementById("cachoDecreaseQuantityBtn");
+const cachoIncreaseQuantityBtn = document.getElementById("cachoIncreaseQuantityBtn");
 const cachoFaceSelector = document.getElementById("cachoFaceSelector");
 const cachoFaceButtons = document.querySelectorAll(".cacho-face-btn");
 const submitCachoBidBtn = document.getElementById("submitCachoBidBtn");
@@ -459,37 +461,9 @@ function showScreen(screen) {
     return;
   }
 
-  homeScreen.classList.add("hidden");
-  directJoinScreen.classList.add("hidden");
-  lobbyScreen.classList.add("hidden");
-  themeScreen.classList.add("hidden");
-  triviaScreen.classList.add("hidden");
-  resultScreen.classList.add("hidden");
-  friendScreen.classList.add("hidden");
-  friendResultScreen.classList.add("hidden");
-  friendIntroScreen.classList.add("hidden");
-  friendCancelledScreen.classList.add("hidden");
-  headsIntroScreen.classList.add("hidden");
-  headsScreen.classList.add("hidden");
-  headsResultScreen.classList.add("hidden");
-  wordIntroScreen.classList.add("hidden");
-  wordScreen.classList.add("hidden");
-  wordResultScreen.classList.add("hidden");
-  stopIntroScreen.classList.add("hidden");
-  stopLetterScreen.classList.add("hidden");
-  stopAnswerScreen.classList.add("hidden");
-  stopAnswersWaitingScreen.classList.add("hidden");
-  stopVotingScreen.classList.add("hidden");
-  stopResultScreen.classList.add("hidden");
-  lastCardIntroScreen.classList.add("hidden");
-  lastCardScreen.classList.add("hidden");
-  lastCardResultScreen.classList.add("hidden");
-  betweenGamesScreen.classList.add("hidden");
-  pokerIntroScreen.classList.add("hidden");
-  pokerRankingsScreen.classList.add("hidden");
-  pokerScreen.classList.add("hidden");
-  cancelScreen.classList.add("hidden");
-  finalScreen.classList.add("hidden");
+  document.querySelectorAll(".card").forEach((card) => {
+    card.classList.add("hidden");
+  });
 
   screen.classList.remove("hidden");
   activeScreen = screen;
@@ -1179,6 +1153,26 @@ startCachoBtn.addEventListener("click", () => {
   });
 });
 
+function changeCachoQuantity(delta) {
+  const min = Number(cachoQuantityInput.min) || 1;
+  const max = Number(cachoQuantityInput.max) || min;
+  const current = Number(cachoQuantityInput.value) || min;
+  cachoQuantityInput.value = String(Math.max(min, Math.min(max, current + delta)));
+  renderCachoControls();
+}
+
+cachoDecreaseQuantityBtn.addEventListener("click", () => {
+  changeCachoQuantity(-1);
+});
+
+cachoIncreaseQuantityBtn.addEventListener("click", () => {
+  changeCachoQuantity(1);
+});
+
+cachoQuantityInput.addEventListener("input", () => {
+  renderCachoControls();
+});
+
 cachoFaceButtons.forEach((button) => {
   button.addEventListener("click", () => {
     selectedCachoFace = Number(button.dataset.face);
@@ -1686,7 +1680,7 @@ function removePlayerFromLobby(playerId) {
 }
 
 function renderGameSelection(game) {
-  const selectedGames = game.selectedGames || ["knowledge", "heads", "word"];
+  const selectedGames = game.selectedGames || [];
 
   if (gameKnowledge) gameKnowledge.checked = selectedGames.includes("knowledge");
   if (gameFriend) gameFriend.checked = selectedGames.includes("friend");
@@ -3006,7 +3000,12 @@ function renderCachoControls() {
   if (!currentCachoState) return;
 
   const disabled = cachoActionPending || !currentCachoState.isYourTurn;
+  const quantity = Number(cachoQuantityInput.value) || 1;
+  const minQuantity = Number(cachoQuantityInput.min) || 1;
+  const maxQuantity = Number(cachoQuantityInput.max) || minQuantity;
   cachoQuantityInput.disabled = disabled;
+  cachoDecreaseQuantityBtn.disabled = disabled || quantity <= minQuantity;
+  cachoIncreaseQuantityBtn.disabled = disabled || quantity >= maxQuantity;
   submitCachoBidBtn.disabled = disabled;
   callCachoDoubtBtn.disabled = disabled || !currentCachoState.canDoubt;
 

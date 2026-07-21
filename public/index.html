@@ -763,17 +763,31 @@
       <div id="cachoDice" class="cacho-dice" aria-label="Tus dados"></div>
 
       <div id="cachoControls" class="cacho-controls hidden">
-        <label class="cacho-quantity-control" for="cachoQuantityInput">
-          <span>Cantidad</span>
-          <input
-            id="cachoQuantityInput"
-            type="number"
-            min="1"
-            step="1"
-            inputmode="numeric"
-            pattern="[0-9]*"
-          />
-        </label>
+        <div class="cacho-quantity-control">
+          <label for="cachoQuantityInput">Cantidad</label>
+          <div class="cacho-quantity-stepper">
+            <button
+              id="cachoDecreaseQuantityBtn"
+              type="button"
+              class="cacho-stepper-btn"
+              aria-label="Disminuir cantidad"
+            >−</button>
+            <input
+              id="cachoQuantityInput"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              pattern="[0-9]*"
+            />
+            <button
+              id="cachoIncreaseQuantityBtn"
+              type="button"
+              class="cacho-stepper-btn"
+              aria-label="Aumentar cantidad"
+            >+</button>
+          </div>
+        </div>
 
         <div id="cachoFaceSelector" class="cacho-face-selector" aria-label="Cara del dado">
           <button type="button" class="cacho-face-btn" data-face="1" aria-label="Unos">⚀</button>

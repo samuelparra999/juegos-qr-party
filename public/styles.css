@@ -1545,6 +1545,11 @@ button:disabled {
   background: rgba(131, 20, 35, 0.34);
 }
 
+.impostor-role-panel.is-impostor.is-hidden-role {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .impostor-role-panel > p {
   margin: 0;
 }
@@ -1758,6 +1763,31 @@ button:disabled {
   text-align: center;
   font-size: 18px;
   font-weight: 900;
+}
+
+.cacho-quantity-stepper {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  gap: 7px;
+}
+
+.cacho-stepper-btn {
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #202437;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.cacho-stepper-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .cacho-face-selector {
