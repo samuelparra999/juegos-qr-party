@@ -954,8 +954,7 @@
     "lastCard": {
         "initialHandSize": 7,
         "actionTimeoutMs": 30000,
-        "winnerBasePoints": 100,
-        "missedCallPenalty": 2
+        "winnerBasePoints": 100
     },
     "poker": {
         "initialChips": 5000,

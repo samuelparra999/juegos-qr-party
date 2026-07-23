@@ -4,7 +4,8 @@
   "description": "Lobby multijugador con QR y PIN",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node tests/last-card-call.test.js && node tests/last-card-call.socket.test.js"
   },
   "dependencies": {
     "express": "^4.18.3",

@@ -18,7 +18,7 @@ let cachoActionPending = false;
 let currentLastCardState = null;
 let lastCardActionPending = false;
 let selectedWildCardId = null;
-let lastCardCalled = false;
+let lastCardCallPending = false;
 
 const CLIENT_ID_STORAGE_KEY = "juegosQrPartyClientId";
 
@@ -287,6 +287,7 @@ const lastCardColorPicker = document.getElementById("lastCardColorPicker");
 const lastCardColorOptions = document.querySelectorAll(".last-card-color-option");
 const cancelLastCardColorBtn = document.getElementById("cancelLastCardColorBtn");
 const lastCardHand = document.getElementById("lastCardHand");
+const lastCardCallStatus = document.getElementById("lastCardCallStatus");
 const callLastCardBtn = document.getElementById("callLastCardBtn");
 const passLastCardBtn = document.getElementById("passLastCardBtn");
 const lastCardResultLeaderControls = document.getElementById("lastCardResultLeaderControls");
@@ -654,10 +655,6 @@ function applyCampaignGameAvailability(campaign) {
 
   if (gameHeads && gameHeads.closest(".game-option")) {
     gameHeads.closest(".game-option").classList.toggle("hidden", !available.heads);
-  }
-
-  if (gameWord && gameWord.closest(".game-option")) {
-    gameWord.closest(".game-option").classList.toggle("hidden", !available.word);
   }
 
   if (gameStop && gameStop.closest(".game-option")) {
@@ -1284,11 +1281,19 @@ passLastCardBtn.addEventListener("click", () => {
 });
 
 callLastCardBtn.addEventListener("click", () => {
-  if (callLastCardBtn.disabled) return;
+  if (!currentGame || callLastCardBtn.disabled || lastCardCallPending) return;
 
-  lastCardCalled = !lastCardCalled;
-  callLastCardBtn.classList.toggle("is-called", lastCardCalled);
-  callLastCardBtn.setAttribute("aria-pressed", String(lastCardCalled));
+  lastCardCallPending = true;
+  renderLastCardControls();
+
+  socket.emit("call_last_card", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    lastCardCallPending = false;
+    lastCardCallStatus.textContent =
+      response.message || "No se pudo usar ¡ÚLTIMA CARTA!";
+    renderLastCardControls();
+  });
 });
 
 lastCardColorOptions.forEach((button) => {
@@ -2916,15 +2921,10 @@ function createLastCardElement(card, interactive = false) {
 function renderLastCardGame(state) {
   currentLastCardState = state;
   lastCardActionPending = false;
+  lastCardCallPending = false;
   selectedWildCardId = null;
   lastCardColorPicker.classList.add("hidden");
 
-  if (!state.canCallLastCard) {
-    lastCardCalled = false;
-  }
-
-  callLastCardBtn.classList.toggle("is-called", lastCardCalled);
-  callLastCardBtn.setAttribute("aria-pressed", String(lastCardCalled));
   lastCardTurnText.textContent = state.isYourTurn
     ? "Es tu turno"
     : `Turno de ${state.currentPlayerName}`;
@@ -2935,6 +2935,7 @@ function renderLastCardGame(state) {
   lastCardActiveColor.title = LAST_CARD_COLOR_NAMES[state.currentColor] || state.currentColor;
   lastCardDrawCount.textContent = `${state.drawPileCount} cartas`;
   lastCardStatusText.textContent = state.message || "";
+  lastCardCallStatus.textContent = state.callMessage || "";
 
   lastCardPlayersList.innerHTML = "";
   state.players.forEach((player) => {
@@ -2993,8 +2994,9 @@ function renderLastCardControls() {
   );
   passLastCardBtn.classList.toggle("hidden", !currentLastCardState.canPass);
   passLastCardBtn.disabled = lastCardActionPending || !currentLastCardState.canPass;
-  callLastCardBtn.disabled =
-    lastCardActionPending || !currentLastCardState.canCallLastCard;
+  const canPressLastCard = Boolean(currentLastCardState.lastCardCall?.canPress);
+  callLastCardBtn.disabled = lastCardCallPending || !canPressLastCard;
+  callLastCardBtn.classList.toggle("is-enabled", canPressLastCard);
 
   lastCardHand.querySelectorAll(".last-card-card").forEach((cardButton) => {
     cardButton.disabled = lastCardActionPending || !cardButton.classList.contains("is-playable");
@@ -3012,8 +3014,7 @@ function playLastCardCard(cardId, chosenColor) {
   socket.emit("play_last_card", {
     pin: currentGame.pin,
     cardId,
-    chosenColor,
-    calledLastCard: lastCardCalled
+    chosenColor
   }, (response) => {
     if (response.ok) return;
 

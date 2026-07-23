@@ -445,8 +445,7 @@ function getCampaignLastCardSettings(game) {
   return {
     initialHandSize: Math.max(3, Math.min(12, Number(rawSettings.initialHandSize) || 7)),
     actionTimeoutMs: getPositiveDuration(rawSettings.actionTimeoutMs, 30000),
-    winnerBasePoints: Math.max(0, Number(rawSettings.winnerBasePoints) || 100),
-    missedCallPenalty: Math.max(1, Number(rawSettings.missedCallPenalty) || 2)
+    winnerBasePoints: Math.max(0, Number(rawSettings.winnerBasePoints) || 100)
   };
 }
 
@@ -3771,6 +3770,7 @@ function resolveCachoDoubt(pin, challenger, timedOut = false) {
 }
 
 const LAST_CARD_COLORS = ["red", "yellow", "green", "blue"];
+const LAST_CARD_OPPONENT_DELAY_MS = 2000;
 
 function createLastCardDeck() {
   const deck = [];
@@ -3845,6 +3845,180 @@ function clearLastCardTimer(game) {
 
   clearTimeout(game.lastCard.actionTimer);
   game.lastCard.actionTimer = null;
+}
+
+function clearLastCardCallTimer(game) {
+  if (!game?.lastCard?.callEnableTimer) return;
+
+  clearTimeout(game.lastCard.callEnableTimer);
+  game.lastCard.callEnableTimer = null;
+}
+
+function createInactiveLastCardCall() {
+  return {
+    active: false,
+    targetPlayerId: null,
+    nextPlayerId: null,
+    openedAt: null,
+    opponentsEnabledAt: null,
+    resolved: false,
+    resolvedByPlayerId: null,
+    result: null
+  };
+}
+
+function getPublicLastCardCall(game, viewerClientId) {
+  const call = game.lastCard?.lastCardCall || createInactiveLastCardCall();
+  const now = Date.now();
+  const targetPlayer = getLastCardAppPlayer(game, call.targetPlayerId);
+  const nextPlayer = getLastCardAppPlayer(game, call.nextPlayerId);
+  const resolvedByPlayer = getLastCardAppPlayer(game, call.resolvedByPlayerId);
+  const isTarget = viewerClientId === call.targetPlayerId;
+  const opponentsEnabled = Boolean(
+    call.active &&
+    !call.resolved &&
+    call.opponentsEnabledAt &&
+    now >= call.opponentsEnabledAt
+  );
+
+  return {
+    active: Boolean(call.active),
+    targetPlayerId: targetPlayer?.id || null,
+    nextPlayerId: nextPlayer?.id || null,
+    openedAt: call.openedAt,
+    opponentsEnabledAt: call.opponentsEnabledAt,
+    resolved: Boolean(call.resolved),
+    resolvedByPlayerId: resolvedByPlayer?.id || null,
+    result: call.result,
+    serverNow: now,
+    opponentsEnableInMs: call.active && !isTarget
+      ? Math.max(0, call.opponentsEnabledAt - now)
+      : 0,
+    isTarget,
+    canPress: Boolean(call.active && !call.resolved && (isTarget || opponentsEnabled))
+  };
+}
+
+function resolveLastCardCall(game, result, resolvedByPlayerId, message) {
+  const call = game.lastCard?.lastCardCall;
+
+  if (!call?.active || call.resolved) return false;
+
+  call.resolved = true;
+  call.active = false;
+  call.resolvedByPlayerId = resolvedByPlayerId || null;
+  call.result = result;
+  game.lastCard.callMessage = message;
+  clearLastCardCallTimer(game);
+  return true;
+}
+
+function expireLastCardCallForAction(game, actingPlayerId) {
+  const call = game.lastCard?.lastCardCall;
+
+  if (!call?.active || call.resolved || call.nextPlayerId !== actingPlayerId) {
+    return false;
+  }
+
+  const target = getLastCardPlayer(game, call.targetPlayerId);
+  return resolveLastCardCall(
+    game,
+    "expired",
+    actingPlayerId,
+    `La oportunidad de señalar a ${target?.name || "ese jugador"} terminó.`
+  );
+}
+
+function openLastCardCall(pin, game, targetPlayerId, nextPlayerId) {
+  clearLastCardCallTimer(game);
+
+  const openedAt = Date.now();
+  const target = getLastCardPlayer(game, targetPlayerId);
+
+  game.lastCard.lastCardCall = {
+    active: true,
+    targetPlayerId,
+    nextPlayerId,
+    openedAt,
+    opponentsEnabledAt: openedAt + LAST_CARD_OPPONENT_DELAY_MS,
+    resolved: false,
+    resolvedByPlayerId: null,
+    result: null
+  };
+  game.lastCard.callMessage = `${target?.name || "Un jugador"} quedó con una carta.`;
+
+  game.lastCard.callEnableTimer = setTimeout(() => {
+    const latestGame = games.get(pin);
+    const latestCall = latestGame?.lastCard?.lastCardCall;
+
+    if (
+      latestGame?.status !== "last_card" ||
+      !latestCall?.active ||
+      latestCall.resolved ||
+      latestCall.openedAt !== openedAt
+    ) {
+      return;
+    }
+
+    latestGame.lastCard.callEnableTimer = null;
+    emitLastCardState(pin, latestGame);
+  }, LAST_CARD_OPPONENT_DELAY_MS);
+}
+
+function handleLastCardCall(pin, player) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "last_card" || !game.lastCard) {
+    return { ok: false, message: "ÚLTIMA CARTA no está activo." };
+  }
+
+  const call = game.lastCard.lastCardCall;
+
+  if (!call?.active || call.resolved) {
+    return { ok: false, message: "No hay una ventana de ¡ÚLTIMA CARTA! activa." };
+  }
+
+  const now = Date.now();
+  const isTarget = player.clientId === call.targetPlayerId;
+
+  if (!isTarget && now < call.opponentsEnabledAt) {
+    return {
+      ok: false,
+      message: "Todavía no puedes señalar al jugador."
+    };
+  }
+
+  const target = getLastCardPlayer(game, call.targetPlayerId);
+
+  if (isTarget) {
+    resolveLastCardCall(
+      game,
+      "declared",
+      player.clientId,
+      `${target?.name || player.name} declaró ¡ÚLTIMA CARTA! a tiempo.`
+    );
+  } else {
+    const caller = getLastCardPlayer(game, player.clientId);
+
+    resolveLastCardCall(
+      game,
+      "caught",
+      player.clientId,
+      `${caller?.name || player.name} señaló a ${target?.name || "ese jugador"}. ` +
+        `${target?.name || "El jugador"} roba 2 cartas.`
+    );
+
+    if (target) {
+      drawLastCards(game, target, 2);
+    }
+  }
+
+  emitLastCardState(pin, game);
+
+  return {
+    ok: true,
+    result: game.lastCard.lastCardCall.result
+  };
 }
 
 function refillLastCardDrawPile(game) {
@@ -3925,10 +4099,11 @@ function getPublicLastCardState(game, viewerSocketId) {
     isYourTurn: isViewerTurn,
     canDraw: isViewerTurn && !game.lastCard.drawnCardId,
     canPass: isViewerTurn && Boolean(game.lastCard.drawnCardId),
-    canCallLastCard: (viewerState?.hand.length || 0) === 2,
+    lastCardCall: getPublicLastCardCall(game, viewer?.clientId || null),
     drawnCardId: isViewerTurn ? game.lastCard.drawnCardId : null,
     direction: game.lastCard.direction,
     message: game.lastCard.message,
+    callMessage: game.lastCard.callMessage || "",
     durationMs: game.lastCard.actionTimeoutMs,
     endAt: game.lastCard.endAt
   };
@@ -3961,6 +4136,9 @@ function startLastCardIntro(pin) {
     message: "",
     endAt: null,
     actionTimer: null,
+    callEnableTimer: null,
+    lastCardCall: createInactiveLastCardCall(),
+    callMessage: "",
     awaitingContinue: false,
     lastResult: null
   };
@@ -3999,6 +4177,8 @@ function beginLastCard(pin) {
   game.lastCard.direction = 1;
   game.lastCard.drawnCardId = null;
   game.lastCard.message = `${game.lastCard.players[0].name} comienza.`;
+  game.lastCard.lastCardCall = createInactiveLastCardCall();
+  game.lastCard.callMessage = "";
 
   startLastCardTurnTimer(pin, game);
   emitLastCardState(pin, game);
@@ -4042,6 +4222,8 @@ function handleLastCardTurnTimeout(pin) {
   const player = getCurrentLastCardPlayer(game);
   if (!player) return;
 
+  expireLastCardCallForAction(game, player.clientId);
+
   if (!game.lastCard.drawnCardId) {
     drawLastCards(game, player, 1);
   }
@@ -4050,7 +4232,7 @@ function handleLastCardTurnTimeout(pin) {
   advanceLastCardTurn(pin, game, null);
 }
 
-function advanceLastCardTurn(pin, game, playedCard) {
+function advanceLastCardTurn(pin, game, playedCard, callTargetPlayerId = null) {
   clearLastCardTimer(game);
 
   let steps = 1;
@@ -4078,10 +4260,16 @@ function advanceLastCardTurn(pin, game, playedCard) {
   game.lastCard.drawnCardId = null;
 
   startLastCardTurnTimer(pin, game);
+
+  if (callTargetPlayerId) {
+    const nextPlayer = getCurrentLastCardPlayer(game);
+    openLastCardCall(pin, game, callTargetPlayerId, nextPlayer?.clientId || null);
+  }
+
   emitLastCardState(pin, game);
 }
 
-function playLastCard(pin, player, cardId, chosenColor, calledLastCard) {
+function playLastCard(pin, player, cardId, chosenColor) {
   const game = games.get(pin);
 
   if (!game || game.status !== "last_card" || !game.lastCard) {
@@ -4105,26 +4293,29 @@ function playLastCard(pin, player, cardId, chosenColor, calledLastCard) {
     return { ok: false, message: "Elige el color que continuará." };
   }
 
+  expireLastCardCallForAction(game, currentPlayer.clientId);
+
+  const handCountBeforePlay = currentPlayer.hand.length;
   currentPlayer.hand.splice(cardIndex, 1);
   game.lastCard.discardPile.push(card);
   game.lastCard.currentColor = needsColor ? chosenColor : card.color;
   game.lastCard.drawnCardId = null;
   game.lastCard.message = `${currentPlayer.name} jugó ${getLastCardSymbol(card)}.`;
 
-  if (currentPlayer.hand.length === 1 && !calledLastCard) {
-    drawLastCards(game, currentPlayer, game.lastCard.missedCallPenalty);
-    game.lastCard.message +=
-      ` No anunció ÚLTIMA CARTA y roba ${game.lastCard.missedCallPenalty}.`;
-  } else if (currentPlayer.hand.length === 1 && calledLastCard) {
-    game.lastCard.message += " ¡ÚLTIMA CARTA!";
-  }
-
   if (!currentPlayer.hand.length) {
     finishLastCardGame(pin, currentPlayer);
     return { ok: true };
   }
 
-  advanceLastCardTurn(pin, game, card);
+  const opensLastCardCall =
+    handCountBeforePlay === 2 && currentPlayer.hand.length === 1;
+
+  advanceLastCardTurn(
+    pin,
+    game,
+    card,
+    opensLastCardCall ? currentPlayer.clientId : null
+  );
   return { ok: true };
 }
 
@@ -4146,6 +4337,8 @@ function drawLastCardForTurn(pin, player) {
 
   const [drawnCard] = drawLastCards(game, currentPlayer, 1);
   if (!drawnCard) return { ok: false, message: "No quedan cartas para robar." };
+
+  expireLastCardCallForAction(game, currentPlayer.clientId);
 
   if (isLastCardPlayable(game, currentPlayer, drawnCard)) {
     game.lastCard.drawnCardId = drawnCard.id;
@@ -4177,6 +4370,7 @@ function passLastCardTurn(pin, player) {
     return { ok: false, message: "Solo puedes pasar después de robar." };
   }
 
+  expireLastCardCallForAction(game, currentPlayer.clientId);
   game.lastCard.message = `${currentPlayer.name} pasó.`;
   advanceLastCardTurn(pin, game, null);
   return { ok: true };
@@ -4194,6 +4388,12 @@ function finishLastCardGame(pin, winnerState) {
   if (!game || !game.lastCard) return;
 
   clearLastCardTimer(game);
+  clearLastCardCallTimer(game);
+  if (game.lastCard.lastCardCall?.active) {
+    game.lastCard.lastCardCall.active = false;
+    game.lastCard.lastCardCall.resolved = true;
+    game.lastCard.lastCardCall.result = "expired";
+  }
   game.status = "last_card_result";
   game.lastCard.awaitingContinue = true;
 
@@ -4937,6 +5137,7 @@ function clearAllGameTimers(game) {
   clearStopTimers(game);
   clearCachoTimer(game);
   clearLastCardTimer(game);
+  clearLastCardCallTimer(game);
   clearLackPlayersTimer(game);
 
   if (typeof clearPokerActionTimer === "function") {
@@ -6285,7 +6486,7 @@ io.on("connection", (socket) => {
     beginLastCard(cleanGamePin);
   });
 
-  socket.on("play_last_card", ({ pin, cardId, chosenColor, calledLastCard }, callback) => {
+  socket.on("play_last_card", ({ pin, cardId, chosenColor }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
     const player = game?.players.find((item) => item.id === socket.id);
@@ -6299,9 +6500,21 @@ io.on("connection", (socket) => {
       cleanGamePin,
       player,
       String(cardId || ""),
-      String(chosenColor || "").toLowerCase(),
-      Boolean(calledLastCard)
+      String(chosenColor || "").toLowerCase()
     ));
+  });
+
+  socket.on("call_last_card", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+
+    if (!player) {
+      callback({ ok: false, message: "No estás dentro de la partida." });
+      return;
+    }
+
+    callback(handleLastCardCall(cleanGamePin, player));
   });
 
   socket.on("draw_last_card", ({ pin }, callback) => {
@@ -6800,20 +7013,39 @@ if (game.status === "poker" && game.poker) {
   });
 });
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log("");
-  console.log("Servidor iniciado.");
-  console.log("");
-  console.log("En este computador abre:");
-  console.log(`http://localhost:${PORT}/juegos`);
-  console.log("");
-  console.log("Para celulares en la misma red Wi-Fi, prueba con:");
+if (require.main === module) {
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log("");
+    console.log("Servidor iniciado.");
+    console.log("");
+    console.log("En este computador abre:");
+    console.log(`http://localhost:${PORT}/juegos`);
+    console.log("");
+    console.log("Para celulares en la misma red Wi-Fi, prueba con:");
 
-  const ips = getLocalIPs();
+    const ips = getLocalIPs();
 
-  ips.forEach((ip) => {
-    console.log(`http://${ip}:${PORT}/juegos`);
+    ips.forEach((ip) => {
+      console.log(`http://${ip}:${PORT}/juegos`);
+    });
+
+    console.log("");
   });
+}
 
-  console.log("");
-});
+module.exports = {
+  __test: {
+    server,
+    io,
+    games,
+    createInactiveLastCardCall,
+    getPublicLastCardState,
+    emitLastCardState,
+    playLastCard,
+    drawLastCardForTurn,
+    handleLastCardCall,
+    reassignPlayerSocket,
+    clearLastCardTimer,
+    clearLastCardCallTimer
+  }
+};
