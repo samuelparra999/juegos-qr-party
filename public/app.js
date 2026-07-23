@@ -8,10 +8,6 @@ let directJoinPin = null;
 let currentCampaign = null;
 let currentCampaignSlug = "demo";
 let pokerActionTimerInterval = null;
-let wordConnectLetters = [];
-let selectedWordLetterIndexes = [];
-let wordConnectOpen = false;
-let wordSubmissionPending = false;
 let activeScreen = null;
 let stopLetterInterval = null;
 let stopAnswerPending = false;
@@ -47,9 +43,6 @@ const friendResultScreen = document.getElementById("friendResultScreen");
 const headsIntroScreen = document.getElementById("headsIntroScreen");
 const headsScreen = document.getElementById("headsScreen");
 const headsResultScreen = document.getElementById("headsResultScreen");
-const wordIntroScreen = document.getElementById("wordIntroScreen");
-const wordScreen = document.getElementById("wordScreen");
-const wordResultScreen = document.getElementById("wordResultScreen");
 const stopIntroScreen = document.getElementById("stopIntroScreen");
 const stopLetterScreen = document.getElementById("stopLetterScreen");
 const stopAnswerScreen = document.getElementById("stopAnswerScreen");
@@ -64,12 +57,14 @@ const cachoIntroScreen = document.getElementById("cachoIntroScreen");
 const cachoScreen = document.getElementById("cachoScreen");
 const cachoResultScreen = document.getElementById("cachoResultScreen");
 const lastCardIntroScreen = document.getElementById("lastCardIntroScreen");
+const lastCardGuideScreen = document.getElementById("lastCardGuideScreen");
 const lastCardScreen = document.getElementById("lastCardScreen");
 const lastCardResultScreen = document.getElementById("lastCardResultScreen");
 const betweenGamesScreen = document.getElementById("betweenGamesScreen");
 const pokerIntroScreen = document.getElementById("pokerIntroScreen");
 const pokerRankingsScreen = document.getElementById("pokerRankingsScreen");
 const pokerScreen = document.getElementById("pokerScreen");
+const pokerResultScreen = document.getElementById("pokerResultScreen");
 const cancelScreen = document.getElementById("cancelScreen");
 const finalScreen = document.getElementById("finalScreen");
 
@@ -86,6 +81,8 @@ const joinGameBtn = document.getElementById("joinGameBtn");
 const playerNameError = document.getElementById("playerNameError");
 const startGameBtn = document.getElementById("startGameBtn");
 const copyLinkBtn = document.getElementById("copyLinkBtn");
+const gameLobbyBtn = document.getElementById("gameLobbyBtn");
+const lobbyExitBtn = document.getElementById("lobbyExitBtn");
 const returnHomeBtn = document.getElementById("returnHomeBtn");
 const cancelHomeBtn = document.getElementById("cancelHomeBtn");
 
@@ -98,7 +95,6 @@ const gameKnowledge = document.getElementById("gameKnowledge");
 const gameSelectionBox = document.getElementById("gameSelectionBox");
 const gameFriend = document.getElementById("gameFriend");
 const gameHeads = document.getElementById("gameHeads");
-const gameWord = document.getElementById("gameWord");
 const gameStop = document.getElementById("gameStop");
 const gameImpostor = document.getElementById("gameImpostor");
 const gameCacho = document.getElementById("gameCacho");
@@ -110,7 +106,6 @@ const gameCheckboxes = [
   gameKnowledge,
   gameFriend,
   gameHeads,
-  gameWord,
   gameStop,
   gameImpostor,
   gameCacho,
@@ -182,25 +177,6 @@ const headsTurnScore = document.getElementById("headsTurnScore");
 const headsRankingList = document.getElementById("headsRankingList");
 const headsResultLeaderControls = document.getElementById("headsResultLeaderControls");
 const continueHeadsTurnBtn = document.getElementById("continueHeadsTurnBtn");
-
-// Word Connect
-const startWordConnectBtn = document.getElementById("startWordConnectBtn");
-const wordIntroWaitingText = document.getElementById("wordIntroWaitingText");
-
-const wordTimerText = document.getElementById("wordTimerText");
-const wordTimerFill = document.getElementById("wordTimerFill");
-const wordLettersBox = document.getElementById("wordLettersBox");
-const wordComposer = document.getElementById("wordComposer");
-const submitWordBtn = document.getElementById("submitWordBtn");
-const wordStatusText = document.getElementById("wordStatusText");
-const foundWordsList = document.getElementById("foundWordsList");
-const wordRankingList = document.getElementById("wordRankingList");
-
-const validWordsText = document.getElementById("validWordsText");
-const wordResultsList = document.getElementById("wordResultsList");
-const wordFinalRankingList = document.getElementById("wordFinalRankingList");
-const wordResultLeaderControls = document.getElementById("wordResultLeaderControls");
-const continueWordResultBtn = document.getElementById("continueWordResultBtn");
 
 // STOP
 const startStopBtn = document.getElementById("startStopBtn");
@@ -294,6 +270,9 @@ const cachoRankingList = document.getElementById("cachoRankingList");
 // ÚLTIMA CARTA
 const startLastCardBtn = document.getElementById("startLastCardBtn");
 const lastCardIntroWaitingText = document.getElementById("lastCardIntroWaitingText");
+const lastCardGuideLeaderControls = document.getElementById("lastCardGuideLeaderControls");
+const continueLastCardGuideBtn = document.getElementById("continueLastCardGuideBtn");
+const lastCardGuideWaitingText = document.getElementById("lastCardGuideWaitingText");
 const lastCardTurnText = document.getElementById("lastCardTurnText");
 const lastCardTimerText = document.getElementById("lastCardTimerText");
 const lastCardTimerFill = document.getElementById("lastCardTimerFill");
@@ -369,6 +348,11 @@ const pokerBetAmountInput = document.getElementById("pokerBetAmountInput");
 const pokerBetBtn = document.getElementById("pokerBetBtn");
 const pokerRaiseBtn = document.getElementById("pokerRaiseBtn");
 const pokerActionHelp = document.getElementById("pokerActionHelp");
+const pokerResultLeaderControls = document.getElementById("pokerResultLeaderControls");
+const continuePokerResultBtn = document.getElementById("continuePokerResultBtn");
+const pokerResultMessage = document.getElementById("pokerResultMessage");
+const pokerFinalChipsList = document.getElementById("pokerFinalChipsList");
+const pokerResultWaiting = document.getElementById("pokerResultWaiting");
 
 // Resultado final
 const finalRankingList = document.getElementById("finalRankingList");
@@ -445,6 +429,14 @@ function loadLobbyQR(pin) {
 
 function showScreen(screen) {
   const isNewScreen = activeScreen !== screen;
+  const showLobbyControl = Boolean(
+    isLeader &&
+    currentGame &&
+    currentGame.status !== "lobby" &&
+    ![homeScreen, directJoinScreen, cancelScreen, finalScreen].includes(screen)
+  );
+
+  gameLobbyBtn.classList.toggle("hidden", !showLobbyControl);
 
   if (screen !== stopLetterScreen && stopLetterInterval) {
     clearInterval(stopLetterInterval);
@@ -871,6 +863,33 @@ copyLinkBtn.addEventListener("click", async () => {
   window.prompt("No se pudo copiar automáticamente. Copia este enlace:", link);
 });
 
+gameLobbyBtn.addEventListener("click", () => {
+  if (!currentGame || !isLeader) return;
+  if (!window.confirm("¿Cancelar el juego actual y llevar a todos al lobby?")) return;
+
+  socket.emit("cancel_game_to_lobby", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo volver al lobby.");
+    }
+  });
+});
+
+lobbyExitBtn.addEventListener("click", () => {
+  if (!currentGame) {
+    returnToCampaignHome();
+    return;
+  }
+
+  socket.emit("leave_lobby", { pin: currentGame.pin }, (response) => {
+    if (!response.ok) {
+      showToast(response.message || "No se pudo salir de la partida.");
+      return;
+    }
+
+    returnToCampaignHome();
+  });
+});
+
 returnHomeBtn.addEventListener("click", () => {
   returnToCampaignHome();
 });
@@ -915,16 +934,6 @@ continueHeadsTurnBtn.addEventListener("click", () => {
   socket.emit("continue_heads_up_turn", { pin: currentGame.pin }, (response) => {
     if (!response.ok) {
       showToast(response.message || "No se pudo continuar.");
-    }
-  });
-});
-
-startWordConnectBtn.addEventListener("click", () => {
-  if (!currentGame) return;
-
-  socket.emit("start_word_connect_game", { pin: currentGame.pin }, (response) => {
-    if (!response.ok) {
-      showToast(response.message || "No se pudo empezar Word Connect.");
     }
   });
 });
@@ -1014,10 +1023,6 @@ pokerRaiseBtn.addEventListener("click", () => {
   submitPokerAction("raise", Number(pokerBetAmountInput.value));
 });
 
-submitWordBtn.addEventListener("click", () => {
-  submitWordConnectWord();
-});
-
 // --------------------------------------------------
 // Eventos del servidor
 // --------------------------------------------------
@@ -1033,6 +1038,18 @@ socket.on("connect", () => {
 
     currentGame = response.game;
     isLeader = response.game.leaderId === socket.id;
+  });
+});
+
+continuePokerResultBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  continuePokerResultBtn.disabled = true;
+  socket.emit("continue_poker_result", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    continuePokerResultBtn.disabled = false;
+    showToast(response.message || "No se pudo continuar.");
   });
 });
 
@@ -1071,16 +1088,6 @@ rejectStopVoteBtn.addEventListener("click", () => {
 
 acceptStopVoteBtn.addEventListener("click", () => {
   submitStopVote(true);
-});
-
-continueWordResultBtn.addEventListener("click", () => {
-  if (!currentGame) return;
-
-  socket.emit("continue_word_connect_result", { pin: currentGame.pin }, (response) => {
-    if (!response.ok) {
-      showToast(response.message || "No se pudo continuar.");
-    }
-  });
 });
 
 continueStopResultBtn.addEventListener("click", () => {
@@ -1234,6 +1241,18 @@ startLastCardBtn.addEventListener("click", () => {
   });
 });
 
+continueLastCardGuideBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  continueLastCardGuideBtn.disabled = true;
+  socket.emit("continue_last_card_guide", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    continueLastCardGuideBtn.disabled = false;
+    showToast(response.message || "No se pudo empezar ÚLTIMA CARTA.");
+  });
+});
+
 drawLastCardBtn.addEventListener("click", () => {
   if (!currentGame || lastCardActionPending) return;
 
@@ -1301,6 +1320,13 @@ socket.on("game_updated", (game) => {
   if (game.status === "lobby") {
     renderLobby(game);
   }
+});
+
+socket.on("game_cancelled_by_leader", (data) => {
+  currentGame = data.game;
+  isLeader = data.game.leaderId === socket.id;
+  renderLobby(data.game);
+  showToast(data.message || "El líder canceló la partida.");
 });
 
 socket.on("theme_vote_started", (data) => {
@@ -1395,25 +1421,6 @@ socket.on("heads_up_word_result", (data) => {
 socket.on("heads_up_turn_result", (data) => {
   currentGame = data.game;
   renderHeadsUpTurnResult(data);
-});
-
-socket.on("word_connect_intro", (data) => {
-  currentGame = data.game;
-  renderWordConnectIntro(data.game);
-});
-
-socket.on("word_connect_started", (data) => {
-  currentGame = data.game;
-  renderWordConnectGame(data.wordState);
-});
-
-socket.on("word_connect_ranking_updated", (data) => {
-  renderRankingList(wordRankingList, data.ranking);
-});
-
-socket.on("word_connect_finished", (data) => {
-  currentGame = data.game;
-  renderWordConnectResult(data);
 });
 
 socket.on("stop_intro", (data) => {
@@ -1527,6 +1534,11 @@ socket.on("last_card_intro", (data) => {
   renderLastCardIntro(data.game);
 });
 
+socket.on("last_card_guide", (data) => {
+  currentGame = data.game;
+  renderLastCardGuide(data.game);
+});
+
 socket.on("last_card_state", (data) => {
   currentGame = data.game;
   renderLastCardGame(data.lastCardState);
@@ -1597,6 +1609,7 @@ socket.on("poker_state", (data) => {
 
 socket.on("poker_finished", (data) => {
   currentGame = data.game;
+  renderPokerResult(data);
 });
 
 socket.on("between_games_scoreboard", (data) => {
@@ -1636,19 +1649,8 @@ socket.on("game_finished", (data) => {
 // --------------------------------------------------
 
 function getSelectedGamesFromLobby() {
-  const selectedGames = [];
-
-  if (gameKnowledge && gameKnowledge.checked) selectedGames.push("knowledge");
-  if (gameFriend && gameFriend.checked) selectedGames.push("friend");
-  if (gameHeads && gameHeads.checked) selectedGames.push("heads");
-  if (gameWord && gameWord.checked) selectedGames.push("word");
-  if (gameStop && gameStop.checked) selectedGames.push("stop");
-  if (gameImpostor && gameImpostor.checked) selectedGames.push("impostor");
-  if (gameCacho && gameCacho.checked) selectedGames.push("cacho");
-  if (gameLastCard && gameLastCard.checked) selectedGames.push("lastcard");
-  if (gamePoker && gamePoker.checked) selectedGames.push("poker");
-
-  return selectedGames;
+  const selectedGame = gameCheckboxes.find((input) => input.checked);
+  return selectedGame ? [selectedGame.value] : [];
 }
 
 function updateSelectedGamesFromLobby() {
@@ -1685,7 +1687,6 @@ function renderGameSelection(game) {
   if (gameKnowledge) gameKnowledge.checked = selectedGames.includes("knowledge");
   if (gameFriend) gameFriend.checked = selectedGames.includes("friend");
   if (gameHeads) gameHeads.checked = selectedGames.includes("heads");
-  if (gameWord) gameWord.checked = selectedGames.includes("word");
   if (gameStop) gameStop.checked = selectedGames.includes("stop");
   if (gameImpostor) gameImpostor.checked = selectedGames.includes("impostor");
   if (gameCacho) gameCacho.checked = selectedGames.includes("cacho");
@@ -1695,7 +1696,6 @@ function renderGameSelection(game) {
   if (gameKnowledge) gameKnowledge.disabled = !isLeader;
   if (gameFriend) gameFriend.disabled = !isLeader;
   if (gameHeads) gameHeads.disabled = !isLeader;
-  if (gameWord) gameWord.disabled = !isLeader;
   if (gameStop) gameStop.disabled = !isLeader;
   if (gameImpostor) gameImpostor.disabled = !isLeader;
   if (gameCacho) gameCacho.disabled = !isLeader;
@@ -2262,220 +2262,6 @@ function renderHeadsUpTurnResult(data) {
   showScreen(headsResultScreen);
 }
 
-function renderWordConnectIntro(game) {
-  currentGame = game;
-  isLeader = game.leaderId === socket.id;
-
-  if (isLeader) {
-    startWordConnectBtn.classList.remove("hidden");
-    wordIntroWaitingText.classList.add("hidden");
-  } else {
-    startWordConnectBtn.classList.add("hidden");
-    wordIntroWaitingText.classList.remove("hidden");
-  }
-
-  showScreen(wordIntroScreen);
-}
-
-function renderWordConnectGame(wordState) {
-  clearInterval(timerInterval);
-
-  foundWordsList.innerHTML = "";
-  wordStatusText.textContent = "";
-  wordConnectLetters = [...wordState.letters];
-  selectedWordLetterIndexes = [];
-  wordConnectOpen = true;
-  wordSubmissionPending = false;
-  renderWordConnectControls();
-
-  renderFoundWords(wordState.foundWords || []);
-  renderRankingList(wordRankingList, wordState.ranking || []);
-
-  startWordTimer(wordState.endAt, wordState.durationMs);
-
-  showScreen(wordScreen);
-}
-
-function renderWordConnectControls() {
-  wordLettersBox.innerHTML = "";
-  wordComposer.innerHTML = "";
-
-  const selectedIndexes = new Set(selectedWordLetterIndexes);
-
-  wordConnectLetters.forEach((letter, index) => {
-    const button = document.createElement("button");
-    const isSelected = selectedIndexes.has(index);
-
-    button.type = "button";
-    button.className = "word-letter";
-    button.textContent = letter;
-    button.setAttribute("aria-label", `Agregar letra ${letter}`);
-    button.setAttribute("aria-pressed", String(isSelected));
-    button.classList.toggle("is-selected", isSelected);
-    button.disabled = isSelected || !wordConnectOpen || wordSubmissionPending;
-
-    button.addEventListener("click", () => {
-      if (!wordConnectOpen || wordSubmissionPending || selectedIndexes.has(index)) return;
-
-      selectedWordLetterIndexes.push(index);
-      wordStatusText.textContent = "";
-      renderWordConnectControls();
-    });
-
-    wordLettersBox.appendChild(button);
-  });
-
-  selectedWordLetterIndexes.forEach((letterIndex, selectedPosition) => {
-    const letter = wordConnectLetters[letterIndex];
-    const button = document.createElement("button");
-
-    button.type = "button";
-    button.className = "word-composer-letter";
-    button.textContent = letter;
-    button.setAttribute("aria-label", `Quitar letra ${letter}`);
-    button.disabled = !wordConnectOpen || wordSubmissionPending;
-
-    button.addEventListener("click", () => {
-      if (!wordConnectOpen || wordSubmissionPending) return;
-
-      selectedWordLetterIndexes.splice(selectedPosition, 1);
-      wordStatusText.textContent = "";
-      renderWordConnectControls();
-    });
-
-    wordComposer.appendChild(button);
-  });
-
-  submitWordBtn.disabled =
-    !wordConnectOpen || wordSubmissionPending || selectedWordLetterIndexes.length === 0;
-}
-
-function clearWordComposer() {
-  selectedWordLetterIndexes = [];
-  renderWordConnectControls();
-}
-
-function startWordTimer(endAt, durationMs) {
-  function updateTimer() {
-    const remaining = Math.max(0, endAt - Date.now());
-    const seconds = Math.ceil(remaining / 1000);
-    const percent = Math.max(0, Math.min(100, (remaining / durationMs) * 100));
-
-    wordTimerText.textContent = `${seconds}s`;
-    wordTimerFill.style.width = `${percent}%`;
-
-    if (remaining <= 0) {
-      clearInterval(timerInterval);
-      wordConnectOpen = false;
-      wordSubmissionPending = false;
-      renderWordConnectControls();
-      wordStatusText.textContent = "Tiempo terminado.";
-    }
-  }
-
-  updateTimer();
-  timerInterval = setInterval(updateTimer, 100);
-}
-
-function submitWordConnectWord() {
-  if (!currentGame) return;
-
-  const word = selectedWordLetterIndexes
-    .map((index) => wordConnectLetters[index])
-    .join("");
-
-  if (!word) {
-    showToast("Selecciona las letras de la palabra.");
-    return;
-  }
-
-  wordSubmissionPending = true;
-  renderWordConnectControls();
-
-  socket.emit("submit_word_connect_word", { pin: currentGame.pin, word }, (response) => {
-    wordSubmissionPending = false;
-
-    if (!response.ok) {
-      wordStatusText.textContent = response.message || "Palabra inválida.";
-      clearWordComposer();
-      return;
-    }
-
-    wordStatusText.textContent = `+${response.word.points} pts por ${response.word.word}`;
-    clearWordComposer();
-
-    renderFoundWords(response.foundWords || []);
-    renderRankingList(wordRankingList, response.ranking || []);
-  });
-}
-
-function renderFoundWords(words) {
-  foundWordsList.innerHTML = "";
-
-  if (!words.length) {
-    const li = document.createElement("li");
-    li.textContent = "Todavía no has encontrado palabras.";
-    foundWordsList.appendChild(li);
-    return;
-  }
-
-  words.forEach((item) => {
-    const li = document.createElement("li");
-    li.className = "word-chip";
-
-    const wordSpan = document.createElement("span");
-    wordSpan.textContent = item.word;
-
-    const pointsSpan = document.createElement("strong");
-    pointsSpan.textContent = `${item.points} pts`;
-
-    li.appendChild(wordSpan);
-    li.appendChild(pointsSpan);
-
-    foundWordsList.appendChild(li);
-  });
-}
-
-function renderWordConnectResult(data) {
-  clearInterval(timerInterval);
-
-  validWordsText.textContent = data.validWords.join(", ");
-
-  wordResultsList.innerHTML = "";
-
-  data.playerResults.forEach((result) => {
-    const li = document.createElement("li");
-
-    const wordsText = result.words.length
-      ? result.words.map((item) => item.word).join(", ")
-      : "Ninguna";
-
-    li.innerHTML = `
-      <strong>${result.playerName}</strong><br>
-      Palabras encontradas: ${result.wordCount}<br>
-      Puntos en Word Connect: ${result.points}<br>
-      Palabras: ${wordsText}
-    `;
-
-    wordResultsList.appendChild(li);
-  });
-
-  renderRankingList(wordFinalRankingList, data.ranking);
-  isLeader = data.game && data.game.leaderId === socket.id;
-
-  if (isLeader) {
-    wordResultLeaderControls.classList.remove("hidden");
-  } else {
-    wordResultLeaderControls.classList.add("hidden");
-  }
-
-  showScreen(wordResultScreen);
-}
-
-// --------------------------------------------------
-// STOP
-// --------------------------------------------------
-
 function renderStopIntro(game) {
   isLeader = game.leaderId === socket.id;
 
@@ -2673,7 +2459,7 @@ function renderStopVoteResult(result) {
   stopVotePlayer.textContent = `Respuesta de ${result.playerName}`;
   stopVoteWord.textContent = result.word;
   stopVoteStatus.textContent = result.accepted
-    ? `Aceptada · ${result.acceptVotes} a favor`
+    ? `${result.repeated ? "Aceptada y repetida" : "Aceptada"} · +${result.points} puntos`
     : `Rechazada · ${result.rejectVotes} en contra`;
   showScreen(stopVotingScreen);
 }
@@ -2695,7 +2481,7 @@ function renderStopResult(data) {
 
     const count = document.createElement("strong");
     count.className = "stop-result-count";
-    count.textContent = `${result.acceptedCount} aceptadas`;
+    count.textContent = `${result.acceptedCount} aceptadas · ${result.points} pts`;
 
     li.appendChild(text);
     li.appendChild(count);
@@ -2720,7 +2506,9 @@ function renderStopResult(data) {
     const decision = document.createElement("strong");
     decision.className =
       `stop-vote-decision ${result.accepted ? "is-accepted" : "is-rejected"}`;
-    decision.textContent = result.accepted ? "Aceptada" : "Rechazada";
+    decision.textContent = result.accepted
+      ? `${result.repeated ? "Repetida" : "Aceptada"} · ${result.points} pts`
+      : "Rechazada";
 
     li.appendChild(text);
     li.appendChild(decision);
@@ -3077,6 +2865,14 @@ function renderLastCardIntro(game) {
   showScreen(lastCardIntroScreen);
 }
 
+function renderLastCardGuide(game) {
+  isLeader = game.leaderId === socket.id;
+  continueLastCardGuideBtn.disabled = false;
+  lastCardGuideLeaderControls.classList.toggle("hidden", !isLeader);
+  lastCardGuideWaitingText.classList.toggle("hidden", isLeader);
+  showScreen(lastCardGuideScreen);
+}
+
 function createLastCardElement(card, interactive = false) {
   const element = document.createElement(interactive ? "button" : "div");
   const colorClass = card.color === "wild" ? "is-wild" : `is-${card.color}`;
@@ -3189,7 +2985,12 @@ function renderLastCardGame(state) {
 function renderLastCardControls() {
   if (!currentLastCardState) return;
 
+  const hasPlayableCard = currentLastCardState.hand.some((card) => card.playable);
   drawLastCardBtn.disabled = lastCardActionPending || !currentLastCardState.canDraw;
+  drawLastCardBtn.classList.toggle(
+    "is-only-option",
+    currentLastCardState.canDraw && !hasPlayableCard
+  );
   passLastCardBtn.classList.toggle("hidden", !currentLastCardState.canPass);
   passLastCardBtn.disabled = lastCardActionPending || !currentLastCardState.canPass;
   callLastCardBtn.disabled =
@@ -3261,14 +3062,12 @@ function renderBetweenGamesScoreboard(data) {
 
   if (isLeader) {
     betweenGamesLeaderControls.classList.remove("hidden");
-    betweenGamesSubtitle.textContent = data.hasNextGame
-      ? `${finishedGameName} terminó. Toca Continuar para pasar al siguiente juego.`
-      : `${finishedGameName} terminó. Toca Continuar para cerrar la partida.`;
+    betweenGamesSubtitle.textContent =
+      `${finishedGameName} terminó. Toca Continuar para volver al lobby.`;
   } else {
     betweenGamesLeaderControls.classList.add("hidden");
-    betweenGamesSubtitle.textContent = data.hasNextGame
-      ? `${finishedGameName} terminó. Esperando a que el líder continúe...`
-      : `${finishedGameName} terminó. Esperando a que el líder cierre la partida...`;
+    betweenGamesSubtitle.textContent =
+      `${finishedGameName} terminó. Esperando a que el líder vuelva al lobby...`;
   }
 
   renderRankingList(betweenGamesRankingList, data.ranking || []);
@@ -3502,6 +3301,44 @@ function renderPokerTable(pokerState) {
   finishPokerGameBtn.classList.toggle("hidden", !pokerState.canFinishPoker);
 
   showScreen(pokerScreen);
+}
+
+function renderPokerResult(data) {
+  clearInterval(timerInterval);
+  isLeader = data.game?.leaderId === socket.id;
+  continuePokerResultBtn.disabled = false;
+  pokerResultLeaderControls.classList.toggle("hidden", !isLeader);
+  pokerResultWaiting.classList.toggle("hidden", isLeader);
+  pokerResultMessage.textContent = data.message || "Poker terminado.";
+  pokerFinalChipsList.innerHTML = "";
+
+  (data.ranking || []).forEach((player) => {
+    const row = document.createElement("li");
+    row.className = "poker-final-chips-row";
+
+    const position = document.createElement("strong");
+    position.className = "poker-final-position";
+    position.textContent = `${player.position}.`;
+
+    const name = document.createElement("span");
+    name.className = "poker-final-player-name";
+    name.textContent = player.name;
+
+    const chips = document.createElement("span");
+    chips.className = "poker-final-chip-total";
+    chips.innerHTML = '<span class="poker-chip-icon" aria-hidden="true"></span>';
+
+    const amount = document.createElement("strong");
+    amount.textContent = `${player.chips} fichas`;
+    chips.appendChild(amount);
+
+    row.appendChild(position);
+    row.appendChild(name);
+    row.appendChild(chips);
+    pokerFinalChipsList.appendChild(row);
+  });
+
+  showScreen(pokerResultScreen);
 }
 
 function renderPokerActionTimer(pokerState) {

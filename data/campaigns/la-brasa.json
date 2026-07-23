@@ -22,7 +22,6 @@
             "knowledge": true,
             "friend": true,
             "heads": true,
-            "word": false,
             "stop": true,
             "impostor": true,
             "cacho": true,
@@ -124,29 +123,6 @@
             {
                 "category": "Bebidas",
                 "word": "Malteada"
-            }
-        ]
-    },
-    "wordConnect": {
-        "durationMs": 60000,
-        "puzzles": [
-            {
-                "letters": [
-                    "B",
-                    "R",
-                    "A",
-                    "S",
-                    "A",
-                    "S"
-                ],
-                "validWords": [
-                    "ASA",
-                    "ASAR",
-                    "BRASA",
-                    "RAS",
-                    "SARA",
-                    "BASA"
-                ]
             }
         ]
     },

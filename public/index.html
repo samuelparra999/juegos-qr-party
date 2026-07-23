@@ -12,6 +12,13 @@
 
 <body>
   <main class="app">
+    <button
+      id="gameLobbyBtn"
+      type="button"
+      class="icon-nav-btn game-lobby-btn hidden"
+      aria-label="Cancelar el juego y volver al lobby"
+      title="Volver al lobby"
+    >⌂</button>
 
     <!-- Pantalla inicial -->
     <section id="homeScreen" class="card">
@@ -70,6 +77,16 @@
 
     <!-- Lobby -->
     <section id="lobbyScreen" class="card hidden">
+      <div class="screen-icon-actions">
+        <button
+          id="lobbyExitBtn"
+          type="button"
+          class="icon-nav-btn"
+          aria-label="Salir de la partida"
+          title="Salir al inicio"
+        >⇥</button>
+      </div>
+
       <p class="small-title">Sala de espera</p>
 
       <h2>PIN: <span id="pinDisplay"></span></h2>
@@ -89,10 +106,10 @@
       <ul id="playersList" class="players-list"></ul>
 
       <div id="gameSelectionBox" class="game-selection-box">
-        <h3>Juegos de la partida</h3>
+        <h3>Juego de la partida</h3>
 
         <label class="game-option">
-          <input id="gameKnowledge" class="game-checkbox-input" type="checkbox" value="knowledge" />
+          <input id="gameKnowledge" class="game-checkbox-input" type="radio" name="selectedGame" value="knowledge" />
           <span>
             <strong>Trivia de conocimiento</strong>
             <small>Preguntas por tema.</small>
@@ -100,7 +117,7 @@
         </label>
 
         <label id="gameFriendRow" class="game-option">
-          <input id="gameFriend" class="game-checkbox-input" type="checkbox" value="friend" />
+          <input id="gameFriend" class="game-checkbox-input" type="radio" name="selectedGame" value="friend" />
           <span>
             <strong>Votazo</strong>
             <small id="friendGameHelp">Voten decisiones de grupo.</small>
@@ -108,7 +125,7 @@
         </label>
 
         <label class="game-option">
-          <input id="gameHeads" class="game-checkbox-input" type="checkbox" value="heads" />
+          <input id="gameHeads" class="game-checkbox-input" type="radio" name="selectedGame" value="heads" />
           <span>
             <strong>Heads Up</strong>
             <small>Adivina palabras con pistas.</small>
@@ -116,15 +133,7 @@
         </label>
 
         <label class="game-option">
-          <input id="gameWord" class="game-checkbox-input" type="checkbox" value="word" />
-          <span>
-            <strong>Word Connect</strong>
-            <small>Forma palabras con letras.</small>
-          </span>
-        </label>
-
-        <label class="game-option">
-          <input id="gameStop" class="game-checkbox-input" type="checkbox" value="stop" />
+          <input id="gameStop" class="game-checkbox-input" type="radio" name="selectedGame" value="stop" />
           <span>
             <strong>STOP</strong>
             <small>Responde categorías con una letra y valida las palabras del grupo.</small>
@@ -132,7 +141,7 @@
         </label>
 
         <label class="game-option">
-          <input id="gameImpostor" class="game-checkbox-input" type="checkbox" value="impostor" />
+          <input id="gameImpostor" class="game-checkbox-input" type="radio" name="selectedGame" value="impostor" />
           <span>
             <strong>Impostor</strong>
             <small>Descubre quién no conoce la palabra.</small>
@@ -140,7 +149,7 @@
         </label>
 
         <label class="game-option">
-          <input id="gameCacho" class="game-checkbox-input" type="checkbox" value="cacho" />
+          <input id="gameCacho" class="game-checkbox-input" type="radio" name="selectedGame" value="cacho" />
           <span>
             <strong>Cacho</strong>
             <small>Apuesta, engaña y desafía con dados ocultos.</small>
@@ -148,7 +157,7 @@
         </label>
 
         <label class="game-option">
-          <input id="gameLastCard" class="game-checkbox-input" type="checkbox" value="lastcard" />
+          <input id="gameLastCard" class="game-checkbox-input" type="radio" name="selectedGame" value="lastcard" />
           <span>
             <strong>ÚLTIMA CARTA</strong>
             <small>Combina colores y símbolos hasta quedarte sin cartas.</small>
@@ -156,7 +165,7 @@
         </label>
 
         <label class="game-option">
-          <input id="gamePoker" class="game-checkbox-input" type="checkbox" value="poker" />
+          <input id="gamePoker" class="game-checkbox-input" type="radio" name="selectedGame" value="poker" />
           <span>
             <strong>Poker Texas Hold’em</strong>
             <small>Fichas ficticias, ciegas configurables y mesa visual.</small>
@@ -417,93 +426,6 @@
       <ul id="headsRankingList" class="ranking-list"></ul>
     </section>
 
-    <!-- Instrucciones de Word Connect -->
-    <section id="wordIntroScreen" class="card hidden">
-      <p class="small-title">Word Connect</p>
-
-      <h2>Instrucciones</h2>
-
-      <p class="subtitle">
-        En esta ronda aparecerán varias letras. Cada jugador debe formar palabras
-        usando solo esas letras.
-      </p>
-
-      <p class="subtitle">
-        Las palabras válidas suman puntos. Mientras más larga sea la palabra,
-        más puntos gana.
-      </p>
-
-      <p class="subtitle">
-        No puedes repetir palabras. La ronda termina cuando se acaba el tiempo.
-      </p>
-
-      <button id="startWordConnectBtn" class="primary-btn hidden">
-        Empezar Word Connect
-      </button>
-
-      <p id="wordIntroWaitingText" class="waiting-text">
-        Esperando a que el líder empiece Word Connect...
-      </p>
-    </section>
-
-    <!-- Word Connect -->
-    <section id="wordScreen" class="card hidden">
-      <p class="small-title">Word Connect</p>
-
-      <div class="question-header">
-        <span>Forma palabras</span>
-        <span id="wordTimerText"></span>
-      </div>
-
-      <div class="timer-track">
-        <div id="wordTimerFill" class="timer-fill"></div>
-      </div>
-
-      <div id="wordLettersBox" class="word-letters-box"></div>
-
-      <div
-        id="wordComposer"
-        class="word-composer"
-        role="group"
-        aria-label="Palabra formada"
-        aria-live="polite"
-      ></div>
-
-      <button id="submitWordBtn" class="primary-btn">
-        Enviar palabra
-      </button>
-
-      <p id="wordStatusText" class="answer-status"></p>
-
-      <h3>Tus palabras</h3>
-      <ul id="foundWordsList" class="answers-list"></ul>
-
-      <h3>Ranking</h3>
-      <ul id="wordRankingList" class="ranking-list"></ul>
-    </section>
-
-    <!-- Resultado de Word Connect -->
-    <section id="wordResultScreen" class="card hidden">
-      <div id="wordResultLeaderControls" class="between-games-top-actions hidden">
-        <button id="continueWordResultBtn" class="primary-btn">
-          Continuar
-        </button>
-      </div>
-
-      <p class="small-title">Resultado de Word Connect</p>
-
-      <h2>Ronda terminada</h2>
-
-      <h3>Palabras válidas posibles</h3>
-      <p id="validWordsText" class="subtitle"></p>
-
-      <h3>Resultados por jugador</h3>
-      <ul id="wordResultsList" class="answers-list"></ul>
-
-      <h3>Tabla final acumulada</h3>
-      <ul id="wordFinalRankingList" class="ranking-list"></ul>
-    </section>
-
     <!-- Instrucciones de STOP -->
     <section id="stopIntroScreen" class="card hidden">
       <p class="small-title">STOP</p>
@@ -511,7 +433,7 @@
       <h2>Instrucciones</h2>
 
       <p class="subtitle">
-        Se seleccionará una letra y una lista de categorías al azar. Tendrás 10 segundos
+        Se seleccionará una letra y una lista de categorías al azar. Tendrás 20 segundos
         para escribir una palabra de cada categoría que comience por esa letra.
       </p>
 
@@ -521,7 +443,8 @@
       </p>
 
       <p class="subtitle">
-        Cada palabra aceptada vale 100 puntos. No podrás votar por tus propias respuestas.
+        Cada palabra aceptada vale 100 puntos. Si dos o más jugadores escriben la misma
+        palabra, cada uno recibe 50 puntos. No podrás votar por tus propias respuestas.
       </p>
 
       <button id="startStopBtn" class="primary-btn hidden">
@@ -859,6 +782,47 @@
       </p>
     </section>
 
+    <!-- Inventario de ÚLTIMA CARTA -->
+    <section id="lastCardGuideScreen" class="card hidden">
+      <div id="lastCardGuideLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueLastCardGuideBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p class="small-title">ÚLTIMA CARTA</p>
+      <h2>Inventario de cartas</h2>
+
+      <div class="last-card-guide-list">
+        <div class="last-card-guide-row">
+          <div class="last-card-card is-red"><span>7</span></div>
+          <p><strong>Número</strong><br>Se juega sobre el mismo color o número.</p>
+        </div>
+        <div class="last-card-guide-row">
+          <div class="last-card-card is-yellow is-action"><span>SALTA</span></div>
+          <p><strong>Salta</strong><br>El siguiente jugador pierde el turno.</p>
+        </div>
+        <div class="last-card-guide-row">
+          <div class="last-card-card is-green is-action"><span>REVERSA</span></div>
+          <p><strong>Reversa</strong><br>Cambia el sentido de los turnos.</p>
+        </div>
+        <div class="last-card-guide-row">
+          <div class="last-card-card is-blue"><span>+2</span></div>
+          <p><strong>Roba 2</strong><br>El siguiente jugador roba dos y pierde el turno.</p>
+        </div>
+        <div class="last-card-guide-row">
+          <div class="last-card-card is-wild is-action"><span>COLOR</span></div>
+          <p><strong>Color</strong><br>Permite elegir el color que continúa.</p>
+        </div>
+        <div class="last-card-guide-row">
+          <div class="last-card-card is-wild"><span>+4</span></div>
+          <p><strong>Roba 4</strong><br>Elige color; el siguiente roba cuatro y pierde el turno.</p>
+        </div>
+      </div>
+
+      <p id="lastCardGuideWaitingText" class="waiting-text">
+        Esperando a que el líder continúe...
+      </p>
+    </section>
+
     <!-- Mesa de ÚLTIMA CARTA -->
     <section id="lastCardScreen" class="card hidden">
       <p class="small-title">ÚLTIMA CARTA</p>
@@ -1107,6 +1071,21 @@
           Terminar Poker
         </button>
       </div>
+    </section>
+
+    <!-- Resultado final de Poker -->
+    <section id="pokerResultScreen" class="card hidden">
+      <div id="pokerResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continuePokerResultBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p class="small-title">Poker Texas Hold’em</p>
+      <h2>Fichas finales</h2>
+      <p id="pokerResultMessage" class="subtitle"></p>
+      <ul id="pokerFinalChipsList" class="poker-final-chips-list"></ul>
+      <p id="pokerResultWaiting" class="waiting-text hidden">
+        Esperando a que el líder continúe...
+      </p>
     </section>
 
 <!-- Partida cancelada -->

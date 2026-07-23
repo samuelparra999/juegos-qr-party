@@ -22,7 +22,6 @@
             "knowledge": true,
             "friend": true,
             "heads": true,
-            "word": true,
             "stop": true,
             "impostor": true,
             "cacho": true,
@@ -864,117 +863,6 @@
             }
         ]
     },
-    "wordConnect": {
-        "durationMs": 60000,
-        "puzzles": [
-            {
-                "letters": [
-                    "M",
-                    "A",
-                    "P",
-                    "A",
-                    "S",
-                    "T"
-                ],
-                "validWords": [
-                    "MAS",
-                    "MAPA",
-                    "PASA",
-                    "TAPA",
-                    "PATA",
-                    "PASTA",
-                    "MATA",
-                    "TASA",
-                    "AMA"
-                ]
-            },
-            {
-                "letters": ["C", "A", "M", "I", "N", "O"],
-                "validWords": [
-                    "CAMINO",
-                    "CAMION",
-                    "ANIMO",
-                    "MANO",
-                    "MINA",
-                    "CIMA",
-                    "MICA",
-                    "COMA",
-                    "MONA",
-                    "AMO"
-                ]
-            },
-            {
-                "letters": ["P", "E", "R", "L", "A", "S"],
-                "validWords": [
-                    "PERLA",
-                    "PERLAS",
-                    "PRESA",
-                    "REAL",
-                    "PESA",
-                    "PASE",
-                    "SALE",
-                    "PELA",
-                    "SAL",
-                    "SER",
-                    "ERA",
-                    "PAR",
-                    "RES"
-                ]
-            },
-            {
-                "letters": ["S", "O", "L", "A", "R", "E"],
-                "validWords": [
-                    "SOLAR",
-                    "REAL",
-                    "SALE",
-                    "ROSA",
-                    "LOSA",
-                    "ORAL",
-                    "ASEO",
-                    "SOL",
-                    "SAL",
-                    "OLA",
-                    "OLE",
-                    "LEA",
-                    "SEA",
-                    "SER"
-                ]
-            },
-            {
-                "letters": ["C", "A", "S", "T", "O", "R"],
-                "validWords": [
-                    "CASTOR",
-                    "COSTA",
-                    "CORTA",
-                    "TOCA",
-                    "ROTA",
-                    "RATO",
-                    "SACO",
-                    "CASO",
-                    "CARO",
-                    "ARCO",
-                    "ACTO",
-                    "OTRA"
-                ]
-            },
-            {
-                "letters": ["P", "L", "A", "N", "E", "T", "A"],
-                "validWords": [
-                    "PLANETA",
-                    "PLANTA",
-                    "ALETA",
-                    "LENTA",
-                    "PLENA",
-                    "PLAN",
-                    "PENA",
-                    "TELA",
-                    "LATA",
-                    "NATA",
-                    "PATA"
-                ]
-            }
-        ]
-    },
     "stop": {
         "letterRevealMs": 5000,
         "answerDurationMs": 20000,
@@ -988,30 +876,60 @@
                 "name": "Lista 1",
                 "categories": [
                     "Animales",
-                    "Apodos/Sobrenombres",
-                    "Ciudades",
-                    "Vegetales",
+                    "Títulos de libros",
+                    "Bailes",
+                    "Nombres de hombre",
+                    "Partes del cuerpo",
+                    "Programas de TV",
+                    "Asignaturas de estudio",
                     "Verbos",
-                    "Personajes de películas",
-                    "Medios de transporte",
-                    "Sabores de helado",
-                    "Profesiones",
-                    "Empresas conocidas"
+                    "Deportes Olímpicos",
+                    "Autores literarios"
                 ]
             },
             {
                 "name": "Lista 2",
                 "categories": [
-                    "Partes del cuerpo",
-                    "Asignaturas de estudio",
+                    "Apodos/Sobrenombres",
+                    "Súper héroes",
+                    "Nombres bíblicos",
                     "Herramientas",
-                    "Países",
-                    "Objetos en este cuarto",
+                    "Vegetales",
                     "Electrodomésticos",
-                    "Bebidas",
-                    "Ingredientes de cocina",
-                    "Colores",
-                    "Cosas calientes"
+                    "Medios de transporte",
+                    "Canciones de navidad",
+                    "Restaurantes",
+                    "Equipamiento deportivo"
+                ]
+            },
+            {
+                "name": "Lista 3",
+                "categories": [
+                    "Ciudades",
+                    "Títulos de películas",
+                    "Marcas de automóviles",
+                    "Nombres de mujer",
+                    "Aves",
+                    "Países de Europa",
+                    "Personajes de películas",
+                    "Videojuegos",
+                    "Objetos en este cuarto",
+                    "Ríos o mares"
+                ]
+            },
+            {
+                "name": "Lista 4",
+                "categories": [
+                    "Capitales",
+                    "Cosas redondas",
+                    "Medicinas",
+                    "Animales de granja",
+                    "Flores",
+                    "Géneros de música",
+                    "Palabras de 4 letras",
+                    "Comidas de mar",
+                    "Premios y celebraciones",
+                    "Sabores de helados"
                 ]
             }
         ]

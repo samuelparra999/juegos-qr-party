@@ -18,7 +18,6 @@ const GAME_ORDER = [
   "knowledge",
   "friend",
   "heads",
-  "word",
   "stop",
   "impostor",
   "cacho",
@@ -30,7 +29,6 @@ const GAME_LABELS = {
   knowledge: "Trivia de conocimiento",
   friend: "Votazo",
   heads: "Heads Up",
-  word: "Word Connect",
   stop: "STOP",
   impostor: "Impostor",
   cacho: "Cacho",
@@ -224,21 +222,6 @@ const headsUpWords = [
   { category: "Acciones", word: "Cocinar" }
 ];
 
-const wordConnectPuzzles = [
-  {
-    letters: ["M", "A", "P", "A", "S", "T"],
-    validWords: ["MAS", "MAPA", "PASA", "TAPA", "TAPAS", "PASTA", "ASPAS", "MATA", "PATA"]
-  },
-  {
-    letters: ["C", "A", "S", "A", "R", "T"],
-    validWords: ["CASA", "CARTA", "RATA", "SACA", "TASA", "CARA", "ARTA", "RASTA"]
-  },
-  {
-    letters: ["L", "U", "N", "A", "R", "E"],
-    validWords: ["LUNA", "LUNAR", "RUNA", "REAL", "LERA", "ARLE", "UNA", "ERA"]
-  }
-];
-
 const DEFAULT_CAMPAIGN_SLUG = "demo";
 const campaignsCache = new Map();
 
@@ -366,20 +349,6 @@ function getCampaignHeadsUpWords(game) {
 
 function getCampaignHeadsUpDuration(game) {
   return game.campaign?.headsUp?.durationMs || 90000;
-}
-
-function getCampaignWordConnectPuzzles(game) {
-  const puzzles = game.campaign?.wordConnect?.puzzles;
-
-  if (Array.isArray(puzzles) && puzzles.length) {
-    return puzzles;
-  }
-
-  return wordConnectPuzzles;
-}
-
-function getCampaignWordConnectDuration(game) {
-  return game.campaign?.wordConnect?.durationMs || 60000;
 }
 
 function getCampaignStopSettings(game) {
@@ -726,7 +695,6 @@ function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
     knowledge: true,
     friend: true,
     heads: true,
-    word: true,
     stop: true,
     impostor: true,
     cacho: true,
@@ -734,59 +702,39 @@ function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
     poker: true
   };
 
-  const allowedGames = receivedGames.filter((gameId) => {
-    if (!GAME_ORDER.includes(gameId)) return false;
-    if (!available[gameId]) return false;
-
-    return true;
+  const selectedGame = receivedGames.find((gameId) => {
+    return GAME_ORDER.includes(gameId) && available[gameId];
   });
 
-  return GAME_ORDER.filter((gameId) => allowedGames.includes(gameId));
+  return selectedGame ? [selectedGame] : [];
 }
 
-function getCurrentSelectedGameId(game) {
+function getSelectedGameId(game) {
   if (!game || !Array.isArray(game.selectedGames)) return null;
-  return game.selectedGames[game.currentGameIndex] || null;
+  return game.selectedGames[0] || null;
 }
 
-function hasNextSelectedGame(game) {
-  if (!game || !Array.isArray(game.selectedGames)) return false;
-
-  for (let index = game.currentGameIndex + 1; index < game.selectedGames.length; index++) {
-    const gameId = game.selectedGames[index];
-
-    if (GAME_ORDER.includes(gameId)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function showBetweenGamesScoreboard(pin, finishedGameId = null) {
+function showGameScoreboard(pin, finishedGameId = null) {
   const game = games.get(pin);
 
   if (!game) return;
 
-  const resolvedGameId = finishedGameId || getCurrentSelectedGameId(game);
-  const nextGameAvailable = hasNextSelectedGame(game);
+  const resolvedGameId = finishedGameId || getSelectedGameId(game);
 
   game.status = "between_games";
   game.betweenGames = {
-    finishedGameId: resolvedGameId,
-    hasNextGame: nextGameAvailable
+    finishedGameId: resolvedGameId
   };
 
   io.to(pin).emit("between_games_scoreboard", {
     game: publicGame(game),
     finishedGameId: resolvedGameId,
     finishedGameName: GAME_LABELS[resolvedGameId] || "Juego",
-    hasNextGame: nextGameAvailable,
     ranking: getRanking(game)
   });
 }
 
-function startNextSelectedGame(pin) {
+function startSelectedGame(pin) {
   const game = games.get(pin);
 
   if (!game) return;
@@ -799,62 +747,47 @@ function startNextSelectedGame(pin) {
     return;
   }
 
-  if (typeof game.currentGameIndex !== "number") {
-    game.currentGameIndex = -1;
-  }
+  const selectedGame = getSelectedGameId(game);
 
-  game.currentGameIndex++;
-
-  while (game.currentGameIndex < game.selectedGames.length) {
-    const nextGame = game.selectedGames[game.currentGameIndex];
-
-    if (nextGame === "knowledge") {
+    if (selectedGame === "knowledge") {
       startKnowledgeThemeVote(pin);
       return;
     }
 
-    if (nextGame === "friend") {
+    if (selectedGame === "friend") {
       startFriendTriviaIntro(pin);
       return;
     }
 
-    if (nextGame === "heads") {
+    if (selectedGame === "heads") {
       startHeadsUpIntro(pin);
       return;
     }
 
-    if (nextGame === "word") {
-      startWordConnectIntro(pin);
-      return;
-    }
-
-    if (nextGame === "stop") {
+    if (selectedGame === "stop") {
       startStopIntro(pin);
       return;
     }
 
-    if (nextGame === "impostor") {
+    if (selectedGame === "impostor") {
       startImpostorIntro(pin);
       return;
     }
 
-    if (nextGame === "cacho") {
+    if (selectedGame === "cacho") {
       startCachoIntro(pin);
       return;
     }
 
-    if (nextGame === "lastcard") {
+    if (selectedGame === "lastcard") {
       startLastCardIntro(pin);
       return;
     }
 
-    if (nextGame === "poker") {
+    if (selectedGame === "poker") {
       startPokerIntro(pin);
       return;
     }
-
-    game.currentGameIndex++;
-  }
 
   finishFinalGame(pin);
 }
@@ -883,7 +816,6 @@ function publicGame(game) {
     status: game.status,
     selectedTheme: game.selectedTheme,
     selectedGames: game.selectedGames || DEFAULT_SELECTED_GAMES,
-    currentGameIndex: game.currentGameIndex,
     campaignSlug: game.campaignSlug,
     campaign: getPublicCampaign(game.campaign),
     players: game.players.map((player) => ({
@@ -958,7 +890,7 @@ function startTrivia(pin) {
       ranking: getRanking(game)
     });
 
-    showBetweenGamesScoreboard(pin, "knowledge");
+    showGameScoreboard(pin, "knowledge");
 
     return;
   }
@@ -1074,7 +1006,7 @@ function endTrivia(pin) {
     ranking: getRanking(game)
   });
 
-  showBetweenGamesScoreboard(pin, "knowledge");
+  showGameScoreboard(pin, "knowledge");
 }
 
 function publicFriendQuestion(game) {
@@ -1142,7 +1074,7 @@ function startFriendTrivia(pin) {
     .slice(0, VOTAZO_QUESTIONS_PER_GAME);
 
   if (!questions.length) {
-    showBetweenGamesScoreboard(pin, "friend");
+    showGameScoreboard(pin, "friend");
 
     return;
   }
@@ -1180,7 +1112,7 @@ function nextFriendQuestion(pin) {
   game.friend.currentQuestionIndex++;
 
   if (game.friend.currentQuestionIndex >= questions.length) {
-    showBetweenGamesScoreboard(pin, "friend");
+    showGameScoreboard(pin, "friend");
 
     return;
   }
@@ -2059,6 +1991,12 @@ function isPokerBettingRoundComplete(game) {
   });
 }
 
+function shouldFinishPokerAfterHand(game) {
+  const playersWithChips = game.poker.players.filter((player) => player.chips > 0);
+  return playersWithChips.length <= 1 ||
+    game.poker.roundNumber >= game.poker.settings.totalRounds;
+}
+
 function finishPokerHandByFold(pin) {
   const game = games.get(pin);
 
@@ -2083,6 +2021,11 @@ function finishPokerHandByFold(pin) {
   game.poker.currentBet = 0;
   game.poker.minimumRaise = game.poker.settings.bigBlind;
   game.poker.actionEndsAt = null;
+
+  if (shouldFinishPokerAfterHand(game)) {
+    finishPokerGame(pin);
+    return;
+  }
 
   emitPokerState(pin, game);
 }
@@ -2203,6 +2146,11 @@ function finishPokerShowdown(pin) {
   game.poker.showdownResults = potResults;
   game.poker.payouts = payouts;
   game.poker.message = winnersText || "Showdown terminado.";
+
+  if (shouldFinishPokerAfterHand(game)) {
+    finishPokerGame(pin);
+    return;
+  }
 
   emitPokerState(pin, game);
 }
@@ -2765,170 +2713,7 @@ function finishCompleteGame(pin) {
 
   clearHeadsUpTimers(game);
 
-  showBetweenGamesScoreboard(pin, "heads");
-}
-
-function clearWordConnectTimers(game) {
-  if (!game || !game.word) return;
-
-  if (game.word.gameTimer) {
-    clearTimeout(game.word.gameTimer);
-  }
-}
-
-function normalizeWord(word) {
-  return String(word || "")
-    .trim()
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function canBuildWordFromLetters(word, letters) {
-  const available = {};
-
-  letters.forEach((letter) => {
-    available[letter] = (available[letter] || 0) + 1;
-  });
-
-  for (const letter of word) {
-    if (!available[letter]) {
-      return false;
-    }
-
-    available[letter]--;
-  }
-
-  return true;
-}
-
-function getWordPoints(word) {
-  if (word.length <= 2) return 0;
-  if (word.length === 3) return 30;
-  if (word.length === 4) return 60;
-  if (word.length === 5) return 100;
-  return 150;
-}
-
-function getPublicWordConnectState(game, viewerId) {
-  const playerWords = game.word.wordsByPlayer[viewerId] || [];
-
-  return {
-    letters: game.word.puzzle.letters,
-    durationMs: game.word.durationMs,
-    endAt: game.word.endAt,
-    foundWords: playerWords,
-    foundCount: playerWords.length,
-    ranking: getRanking(game)
-  };
-}
-
-function startWordConnectIntro(pin) {
-  const game = games.get(pin);
-
-  if (!game) return;
-
-  game.status = "word_intro";
-  game.word = {
-    puzzle: null,
-    wordsByPlayer: {},
-    durationMs: getCampaignWordConnectDuration(game),
-    endAt: null,
-    gameTimer: null,
-    awaitingContinue: false,
-    lastResult: null,
-    open: false
-  };
-
-  io.to(pin).emit("word_connect_intro", {
-    game: publicGame(game)
-  });
-}
-
-function beginWordConnect(pin) {
-  const game = games.get(pin);
-
-  if (!game) return;
-
-  const puzzles = getCampaignWordConnectPuzzles(game);
-
-  if (!puzzles.length) {
-    showBetweenGamesScoreboard(pin, "word");
-
-    return;
-  }
-
-  const [puzzle] = shuffleArray(puzzles);
-
-  game.status = "word_connect";
-  game.word.puzzle = {
-    letters: puzzle.letters,
-    validWords: puzzle.validWords.map(normalizeWord)
-  };
-  game.word.wordsByPlayer = {};
-  game.word.endAt = Date.now() + game.word.durationMs;
-  game.word.awaitingContinue = false;
-  game.word.lastResult = null;
-  game.word.open = true;
-
-  game.players.forEach((player) => {
-    game.word.wordsByPlayer[player.id] = [];
-  });
-
-  game.players.forEach((player) => {
-    io.to(player.id).emit("word_connect_started", {
-      game: publicGame(game),
-      wordState: getPublicWordConnectState(game, player.id)
-    });
-  });
-
-  game.word.gameTimer = setTimeout(() => {
-    finishWordConnect(pin);
-  }, game.word.durationMs + 250);
-}
-
-function finishWordConnect(pin) {
-  const game = games.get(pin);
-
-  if (!game || game.status !== "word_connect" || !game.word) return;
-  if (!game.word.open) return;
-
-  game.word.open = false;
-  game.word.awaitingContinue = true;
-
-  clearWordConnectTimers(game);
-
-  const playerResults = game.players.map((player) => {
-    const words = game.word.wordsByPlayer[player.id] || [];
-
-    const points = words.reduce((total, item) => {
-      return total + item.points;
-    }, 0);
-
-    return {
-      playerId: player.id,
-      playerName: player.name,
-      words,
-      wordCount: words.length,
-      points,
-      totalScore: player.score
-    };
-  });
-
-  const result = {
-    letters: game.word.puzzle.letters,
-    validWords: game.word.puzzle.validWords,
-    playerResults,
-    ranking: getRanking(game)
-  };
-
-  game.word.lastResult = result;
-
-  io.to(pin).emit("word_connect_finished", {
-    game: publicGame(game),
-    ...result
-  });
-
+  showGameScoreboard(pin, "heads");
 }
 
 function cleanStopAnswer(value) {
@@ -2943,6 +2728,10 @@ function normalizeStopComparableText(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase();
+}
+
+function normalizeStopDuplicateText(value) {
+  return cleanStopAnswer(value).toLocaleUpperCase("es");
 }
 
 function clearStopProgressTimer(progress) {
@@ -2989,6 +2778,7 @@ function startStopIntro(pin) {
     voteTimer: null,
     betweenTimer: null,
     acceptedByPlayer: {},
+    pointsByPlayer: {},
     awaitingContinue: false,
     lastResult: null
   };
@@ -3007,7 +2797,7 @@ function beginStop(pin) {
   const [selectedLetter] = shuffleArray(game.stop.letters);
 
   if (!selectedList || !selectedLetter) {
-    showBetweenGamesScoreboard(pin, "stop");
+    showGameScoreboard(pin, "stop");
     return;
   }
 
@@ -3213,6 +3003,7 @@ function beginStopVoting(pin) {
   game.stop.voteResults = [];
   game.stop.currentVote = null;
   game.stop.acceptedByPlayer = {};
+  game.stop.pointsByPlayer = {};
 
   game.stop.list.categories.forEach((category, categoryIndex) => {
     game.players.forEach((player) => {
@@ -3343,11 +3134,19 @@ function finishStopVoteItem(pin) {
   const rejectVotes = currentVote.eligibleVoters.length - acceptVotes;
   const accepted = acceptVotes > currentVote.eligibleVoters.length / 2;
   const author = game.players.find((player) => player.clientId === currentVote.authorClientId);
+  const comparableWord = normalizeStopDuplicateText(currentVote.word);
+  const repeated = game.players.filter((player) => {
+    const answer = game.stop.progress[player.clientId]?.answers[currentVote.categoryIndex];
+    return answer?.word && normalizeStopDuplicateText(answer.word) === comparableWord;
+  }).length >= 2;
+  const points = accepted ? (repeated ? 50 : 100) : 0;
 
   if (accepted && author) {
-    author.score += 100;
+    author.score += points;
     game.stop.acceptedByPlayer[author.clientId] =
       (game.stop.acceptedByPlayer[author.clientId] || 0) + 1;
+    game.stop.pointsByPlayer[author.clientId] =
+      (game.stop.pointsByPlayer[author.clientId] || 0) + points;
   }
 
   const result = {
@@ -3358,6 +3157,8 @@ function finishStopVoteItem(pin) {
     playerName: currentVote.playerName,
     word: currentVote.word,
     accepted,
+    repeated,
+    points,
     acceptVotes,
     rejectVotes
   };
@@ -3390,10 +3191,11 @@ function finishStopGame(pin) {
       acceptedCount: game.stop.acceptedByPlayer[player.clientId] || 0,
       submittedCount: (game.stop.progress[player.clientId]?.answers || [])
         .filter((answer) => answer?.word).length,
-      points: (game.stop.acceptedByPlayer[player.clientId] || 0) * 100,
+      points: game.stop.pointsByPlayer[player.clientId] || 0,
       totalScore: player.score
     }))
-    .sort((a, b) => b.acceptedCount - a.acceptedCount || a.playerName.localeCompare(b.playerName));
+    .sort((a, b) => b.points - a.points || b.acceptedCount - a.acceptedCount ||
+      a.playerName.localeCompare(b.playerName));
 
   const result = {
     letter: game.stop.letter,
@@ -3507,7 +3309,7 @@ function beginImpostor(pin) {
   const [impostor] = shuffleArray(players);
 
   if (players.length < 3 || !word || !impostor) {
-    showBetweenGamesScoreboard(pin, "impostor");
+    showGameScoreboard(pin, "impostor");
     return;
   }
 
@@ -4123,7 +3925,7 @@ function getPublicLastCardState(game, viewerSocketId) {
     isYourTurn: isViewerTurn,
     canDraw: isViewerTurn && !game.lastCard.drawnCardId,
     canPass: isViewerTurn && Boolean(game.lastCard.drawnCardId),
-    canCallLastCard: isViewerTurn && (viewerState?.hand.length || 0) === 2,
+    canCallLastCard: (viewerState?.hand.length || 0) === 2,
     drawnCardId: isViewerTurn ? game.lastCard.drawnCardId : null,
     direction: game.lastCard.direction,
     message: game.lastCard.message,
@@ -4171,7 +3973,7 @@ function startLastCardIntro(pin) {
 function beginLastCard(pin) {
   const game = games.get(pin);
 
-  if (!game || game.status !== "last_card_intro" || !game.lastCard) return;
+  if (!game || game.status !== "last_card_guide" || !game.lastCard) return;
 
   game.status = "last_card";
   game.lastCard.drawPile = createLastCardDeck();
@@ -4200,6 +4002,17 @@ function beginLastCard(pin) {
 
   startLastCardTurnTimer(pin, game);
   emitLastCardState(pin, game);
+}
+
+function showLastCardGuide(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "last_card_intro" || !game.lastCard) return;
+
+  game.status = "last_card_guide";
+  io.to(pin).emit("last_card_guide", {
+    game: publicGame(game)
+  });
 }
 
 function moveLastCardIndex(game, fromIndex, steps = 1) {
@@ -4632,37 +4445,30 @@ function finishPokerGame(pin) {
 
   const rankedPlayers = [...game.poker.players]
     .sort((a, b) => b.chips - a.chips);
-  const pokerRewards = [1000, 500];
-
-  rankedPlayers.slice(0, pokerRewards.length).forEach((pokerPlayer, index) => {
-    const player = game.players.find((item) => item.id === pokerPlayer.id);
-
-    if (player) {
-      player.score += pokerRewards[index];
-    }
-  });
 
   const ranking = rankedPlayers
     .map((player, index) => ({
       position: index + 1,
+      playerId: player.id,
       name: player.name,
-      score: player.chips,
-      pointsAwarded: pokerRewards[index] || 0
+      chips: player.chips
     }));
 
   const winner = ranking[0];
+  const result = {
+    ranking,
+    message: winner
+      ? `Poker terminado. Ganador: ${winner.name} con ${winner.chips} fichas.`
+      : "Poker terminado."
+  };
+
+  game.poker.awaitingContinue = true;
+  game.poker.lastResult = result;
 
   io.to(pin).emit("poker_finished", {
     game: publicGame(game),
-    ranking,
-    message: winner
-      ? `Poker terminado. Ganador: ${winner.name} con ${winner.score} fichas.`
-      : "Poker terminado."
+    ...result
   });
-
-  setTimeout(() => {
-    showBetweenGamesScoreboard(pin, "poker");
-  }, 2000);
 }
 
 function getPublicPokerState(game, viewerId) {
@@ -4801,10 +4607,6 @@ function reassignPlayerSocket(game, player, newSocketId) {
     moveObjectKey(game.heads.wordVotes, oldSocketId, newSocketId);
   }
 
-  if (game.word) {
-    moveObjectKey(game.word.wordsByPlayer, oldSocketId, newSocketId);
-  }
-
   if (game.poker && Array.isArray(game.poker.players)) {
     const pokerPlayer = getPokerPlayer(game, oldSocketId);
 
@@ -4881,29 +4683,6 @@ function sendCurrentStateToSocket(pin, socket, game) {
     socket.emit("heads_up_word", {
       game: publicGame(game),
       turn: publicHeadsUpTurn(game, socket.id)
-    });
-    return;
-  }
-
-  if (game.status === "word_intro") {
-    socket.emit("word_connect_intro", {
-      game: publicGame(game)
-    });
-    return;
-  }
-
-  if (game.status === "word_connect" && game.word && game.word.awaitingContinue && game.word.lastResult) {
-    socket.emit("word_connect_finished", {
-      game: publicGame(game),
-      ...game.word.lastResult
-    });
-    return;
-  }
-
-  if (game.status === "word_connect" && game.word && game.word.open) {
-    socket.emit("word_connect_started", {
-      game: publicGame(game),
-      wordState: getPublicWordConnectState(game, socket.id)
     });
     return;
   }
@@ -5055,6 +4834,13 @@ function sendCurrentStateToSocket(pin, socket, game) {
     return;
   }
 
+  if (game.status === "last_card_guide") {
+    socket.emit("last_card_guide", {
+      game: publicGame(game)
+    });
+    return;
+  }
+
   if (game.status === "last_card" && game.lastCard) {
     socket.emit("last_card_state", {
       game: publicGame(game),
@@ -5095,15 +4881,39 @@ function sendCurrentStateToSocket(pin, socket, game) {
     return;
   }
 
+  if (game.status === "poker_finished" && game.poker?.lastResult) {
+    socket.emit("poker_finished", {
+      game: publicGame(game),
+      ...game.poker.lastResult
+    });
+    return;
+  }
+
   if (game.status === "between_games") {
     socket.emit("between_games_scoreboard", {
       game: publicGame(game),
-      finishedGameId: game.betweenGames?.finishedGameId || getCurrentSelectedGameId(game),
+      finishedGameId: game.betweenGames?.finishedGameId || getSelectedGameId(game),
       finishedGameName: GAME_LABELS[game.betweenGames?.finishedGameId] || "Juego",
-      hasNextGame: Boolean(game.betweenGames?.hasNextGame),
       ranking: getRanking(game)
     });
   }
+}
+
+function resetGameStateToLobby(game) {
+  clearAllGameTimers(game);
+
+  game.status = "lobby";
+  game.selectedTheme = null;
+  game.themeVotes = {};
+  game.trivia = null;
+  game.friend = null;
+  game.heads = null;
+  game.stop = null;
+  game.impostor = null;
+  game.cacho = null;
+  game.lastCard = null;
+  game.poker = null;
+  game.betweenGames = null;
 }
 
 function finishFinalGame(pin) {
@@ -5111,24 +4921,8 @@ function finishFinalGame(pin) {
 
   if (!game) return;
 
-  clearAllGameTimers(game);
-
   const ranking = getRanking(game);
-
-  game.status = "lobby";
-  game.selectedTheme = null;
-  game.currentGameIndex = -1;
-  game.themeVotes = {};
-  game.trivia = null;
-  game.friend = null;
-  game.heads = null;
-  game.word = null;
-  game.stop = null;
-  game.impostor = null;
-  game.cacho = null;
-  game.lastCard = null;
-  game.poker = null;
-  game.betweenGames = null;
+  resetGameStateToLobby(game);
 
   io.to(pin).emit("game_finished", {
     game: publicGame(game),
@@ -5144,10 +4938,6 @@ function clearAllGameTimers(game) {
   clearCachoTimer(game);
   clearLastCardTimer(game);
   clearLackPlayersTimer(game);
-
-  if (typeof clearWordConnectTimers === "function") {
-    clearWordConnectTimers(game);
-  }
 
   if (typeof clearPokerActionTimer === "function") {
     clearPokerActionTimer(game);
@@ -5229,46 +5019,6 @@ function isFriendTriviaActiveOrIntro(game) {
   );
 }
 
-function removeFriendTriviaFromQueue(game) {
-  if (!game || !Array.isArray(game.selectedGames)) return false;
-
-  const friendIndex = game.selectedGames.indexOf("friend");
-
-  if (friendIndex === -1) return false;
-
-  game.selectedGames.splice(friendIndex, 1);
-
-  if (friendIndex <= game.currentGameIndex) {
-    game.currentGameIndex -= 1;
-  }
-
-  return true;
-}
-
-function removePendingFriendTriviaIfNeeded(pin) {
-  const game = games.get(pin);
-
-  if (!game) return false;
-  if (game.players.length >= 3) return false;
-  if (!Array.isArray(game.selectedGames)) return false;
-
-  const friendIndex = game.selectedGames.indexOf("friend");
-
-  if (friendIndex === -1) return false;
-
-  const friendAlreadyPassed = friendIndex <= game.currentGameIndex;
-  const friendIsCurrent = isFriendTriviaActiveOrIntro(game);
-
-  if (friendIsCurrent) return false;
-  if (friendAlreadyPassed) return false;
-
-  game.selectedGames.splice(friendIndex, 1);
-
-  io.to(pin).emit("game_updated", publicGame(game));
-
-  return true;
-}
-
 function cancelCurrentFriendTriviaIfNeeded(pin) {
   const game = games.get(pin);
 
@@ -5277,7 +5027,6 @@ function cancelCurrentFriendTriviaIfNeeded(pin) {
   if (!isFriendTriviaActiveOrIntro(game)) return false;
 
   clearFriendTimers(game);
-  removeFriendTriviaFromQueue(game);
 
   game.status = "friend_cancelled_insufficient_players";
 
@@ -5297,7 +5046,7 @@ function cancelCurrentFriendTriviaIfNeeded(pin) {
       return;
     }
 
-    startNextSelectedGame(pin);
+    finishFinalGame(pin);
   }, 3000);
 
   return true;
@@ -5341,13 +5090,11 @@ io.on("connection", (socket) => {
       status: "lobby",
       selectedTheme: null,
       selectedGames: sanitizeSelectedGames([], 1, campaign),
-      currentGameIndex: -1,
       players: [player],
       themeVotes: {},
       trivia: null,
       friend: null,
       heads: null,
-      word: null,
       stop: null,
       impostor: null,
       cacho: null,
@@ -5589,6 +5336,64 @@ io.on("connection", (socket) => {
     io.to(cleanGamePin).emit("game_updated", publicGame(game));
   });
 
+  socket.on("leave_lobby", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "lobby") {
+      callback({ ok: false, message: "Solo puedes salir desde el lobby." });
+      return;
+    }
+
+    const leavingPlayer = game.players.find((player) => player.id === socket.id);
+    if (!leavingPlayer) {
+      callback({ ok: false, message: "No estás dentro de esta partida." });
+      return;
+    }
+
+    const wasLeader = game.leaderId === socket.id;
+    game.players = game.players.filter((player) => player.id !== socket.id);
+    socket.leave(cleanGamePin);
+    socket.data.pin = null;
+
+    callback({ ok: true });
+
+    if (!game.players.length) {
+      clearAllGameTimers(game);
+      games.delete(cleanGamePin);
+      return;
+    }
+
+    if (wasLeader) {
+      game.leaderId = game.players[0].id;
+    }
+
+    io.to(cleanGamePin).emit("game_updated", publicGame(game));
+  });
+
+  socket.on("cancel_game_to_lobby", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status === "lobby") {
+      callback({ ok: false, message: "No hay un juego activo para cancelar." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede volver al lobby." });
+      return;
+    }
+
+    resetGameStateToLobby(game);
+    callback({ ok: true });
+
+    io.to(cleanGamePin).emit("game_cancelled_by_leader", {
+      game: publicGame(game),
+      message: "El líder canceló la partida. Todos volvieron al lobby."
+    });
+  });
+
   socket.on("start_game", ({ pin }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -5646,13 +5451,12 @@ io.on("connection", (socket) => {
     game.players.forEach((player) => {
       player.score = 0;
     });
-    game.currentGameIndex = -1;
 
     callback({
       ok: true
     });
 
-    startNextSelectedGame(cleanGamePin);
+    startSelectedGame(cleanGamePin);
   });
 
   socket.on("continue_after_scoreboard", ({ pin }, callback) => {
@@ -5675,16 +5479,9 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const hasNextGame = Boolean(game.betweenGames && game.betweenGames.hasNextGame);
-
     callback({
       ok: true
     });
-
-    if (hasNextGame) {
-      startNextSelectedGame(cleanGamePin);
-      return;
-    }
 
     finishFinalGame(cleanGamePin);
   });
@@ -5933,7 +5730,7 @@ io.on("connection", (socket) => {
     });
 
     if (game.friend.currentQuestionIndex >= game.friend.questions.length - 1) {
-      showBetweenGamesScoreboard(cleanGamePin, "friend");
+      showGameScoreboard(cleanGamePin, "friend");
       return;
     }
 
@@ -6102,164 +5899,6 @@ io.on("connection", (socket) => {
     startNextHeadsUpTurn(cleanGamePin);
   });
 
-  socket.on("start_word_connect_game", ({ pin }, callback) => {
-  const cleanGamePin = cleanPin(pin);
-  const game = games.get(cleanGamePin);
-
-  if (!game || game.status !== "word_intro" || !game.word) {
-    callback({
-      ok: false,
-      message: "Word Connect todavía no está listo."
-    });
-    return;
-  }
-
-  if (game.leaderId !== socket.id) {
-    callback({
-      ok: false,
-      message: "Solo el líder puede empezar Word Connect."
-    });
-    return;
-  }
-
-  callback({
-    ok: true
-  });
-
-  beginWordConnect(cleanGamePin);
-});
-
-socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
-  const cleanGamePin = cleanPin(pin);
-  const game = games.get(cleanGamePin);
-
-  if (!game || game.status !== "word_connect" || !game.word) {
-    callback({
-      ok: false,
-      message: "Word Connect no está activo."
-    });
-    return;
-  }
-
-  if (!game.word.open) {
-    callback({
-      ok: false,
-      message: "La ronda ya terminó."
-    });
-    return;
-  }
-
-  if (Date.now() >= game.word.endAt) {
-    finishWordConnect(cleanGamePin);
-
-    callback({
-      ok: false,
-      message: "El tiempo terminó."
-    });
-    return;
-  }
-
-  const player = game.players.find((item) => item.id === socket.id);
-
-  if (!player) {
-    callback({
-      ok: false,
-      message: "No estás dentro de la partida."
-    });
-    return;
-  }
-
-  const cleanWord = normalizeWord(word);
-
-  if (cleanWord.length < 3) {
-    callback({
-      ok: false,
-      message: "La palabra debe tener mínimo 3 letras."
-    });
-    return;
-  }
-
-  if (!canBuildWordFromLetters(cleanWord, game.word.puzzle.letters)) {
-    callback({
-      ok: false,
-      message: "Esa palabra usa letras que no están disponibles."
-    });
-    return;
-  }
-
-  if (!game.word.puzzle.validWords.includes(cleanWord)) {
-    callback({
-      ok: false,
-      message: "Esa palabra no está en la lista válida."
-    });
-    return;
-  }
-
-  const playerWords = game.word.wordsByPlayer[player.id] || [];
-  const alreadyFound = playerWords.some((item) => item.word === cleanWord);
-
-  if (alreadyFound) {
-    callback({
-      ok: false,
-      message: "Ya encontraste esa palabra."
-    });
-    return;
-  }
-
-  const points = getWordPoints(cleanWord);
-
-  player.score += points;
-
-  const wordResult = {
-    word: cleanWord,
-    points
-  };
-
-  playerWords.push(wordResult);
-  game.word.wordsByPlayer[player.id] = playerWords;
-
-  callback({
-    ok: true,
-    word: wordResult,
-    foundWords: playerWords,
-    score: player.score,
-    ranking: getRanking(game)
-  });
-
-  io.to(cleanGamePin).emit("word_connect_ranking_updated", {
-    ranking: getRanking(game)
-  });
-});
-
-  socket.on("continue_word_connect_result", ({ pin }, callback) => {
-    const cleanGamePin = cleanPin(pin);
-    const game = games.get(cleanGamePin);
-
-    if (!game || game.status !== "word_connect" || !game.word || !game.word.awaitingContinue) {
-      callback({
-        ok: false,
-        message: "Word Connect todavía no está listo para continuar."
-      });
-      return;
-    }
-
-    if (game.leaderId !== socket.id) {
-      callback({
-        ok: false,
-        message: "Solo el líder puede continuar."
-      });
-      return;
-    }
-
-    game.word.awaitingContinue = false;
-
-    callback({
-      ok: true
-    });
-
-    showBetweenGamesScoreboard(cleanGamePin, "word");
-  });
-
   socket.on("start_stop_game", ({ pin }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -6387,7 +6026,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
 
     game.stop.awaitingContinue = false;
     callback({ ok: true });
-    showBetweenGamesScoreboard(cleanGamePin, "stop");
+    showGameScoreboard(cleanGamePin, "stop");
   });
 
   socket.on("start_impostor_game", ({ pin }, callback) => {
@@ -6515,7 +6154,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     callback({ ok: true });
 
     if (isFinal) {
-      showBetweenGamesScoreboard(cleanGamePin, "impostor");
+      showGameScoreboard(cleanGamePin, "impostor");
       return;
     }
 
@@ -6591,7 +6230,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     callback({ ok: true });
 
     if (isFinal) {
-      showBetweenGamesScoreboard(cleanGamePin, "cacho");
+      showGameScoreboard(cleanGamePin, "cacho");
       return;
     }
 
@@ -6614,6 +6253,30 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
       callback({
         ok: false,
         message: "Solo el líder puede empezar ÚLTIMA CARTA."
+      });
+      return;
+    }
+
+    callback({ ok: true });
+    showLastCardGuide(cleanGamePin);
+  });
+
+  socket.on("continue_last_card_guide", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "last_card_guide" || !game.lastCard) {
+      callback({
+        ok: false,
+        message: "El inventario de cartas todavía no está listo."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede continuar."
       });
       return;
     }
@@ -6689,7 +6352,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
 
     game.lastCard.awaitingContinue = false;
     callback({ ok: true });
-    showBetweenGamesScoreboard(cleanGamePin, "lastcard");
+    showGameScoreboard(cleanGamePin, "lastcard");
   });
 
   socket.on("update_poker_settings", ({ pin, settings }, callback) => {
@@ -6821,6 +6484,31 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     finishPokerGame(cleanGamePin);
   });
 
+  socket.on("continue_poker_result", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "poker_finished" || !game.poker?.awaitingContinue) {
+      callback({
+        ok: false,
+        message: "El resultado de Poker todavía no está listo."
+      });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({
+        ok: false,
+        message: "Solo el líder puede continuar."
+      });
+      return;
+    }
+
+    callback({ ok: true });
+    resetGameStateToLobby(game);
+    io.to(cleanGamePin).emit("game_updated", publicGame(game));
+  });
+
   socket.on("submit_poker_action", ({ pin, action, amount }, callback) => {
     const cleanGamePin = cleanPin(pin);
 
@@ -6855,10 +6543,6 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     clearStopTimers(game);
     clearLastCardTimer(game);
 
-    if (typeof clearWordConnectTimers === "function") {
-      clearWordConnectTimers(game);
-    }
-
     game.trivia = null;
     game.friend = null;
     game.heads = null;
@@ -6866,10 +6550,6 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     game.impostor = null;
     game.cacho = null;
     game.lastCard = null;
-
-    if (game.word !== undefined) {
-      game.word = null;
-    }
 
     if (target === "knowledge") {
       const themes = getCampaignThemes(game);
@@ -6936,31 +6616,6 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
 
       setTimeout(() => {
         beginHeadsUp(cleanGamePin);
-      }, 500);
-
-      return;
-    }
-
-    if (target === "word-intro") {
-      callback({
-        ok: true,
-        message: "Saltando a instrucciones de Word Connect."
-      });
-
-      startWordConnectIntro(cleanGamePin);
-      return;
-    }
-
-    if (target === "word") {
-      callback({
-        ok: true,
-        message: "Saltando directo a Word Connect."
-      });
-
-      startWordConnectIntro(cleanGamePin);
-
-      setTimeout(() => {
-        beginWordConnect(cleanGamePin);
       }, 500);
 
       return;
@@ -7051,8 +6706,6 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
       if (cancelCurrentFriendTriviaIfNeeded(pin)) {
         return;
       }
-
-      removePendingFriendTriviaIfNeeded(pin);
     }
 
     if (wasLeader) {
@@ -7060,7 +6713,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
     }
 
     if (game.status === "between_games") {
-      showBetweenGamesScoreboard(pin, game.betweenGames?.finishedGameId);
+      showGameScoreboard(pin, game.betweenGames?.finishedGameId);
       return;
     }
 
@@ -7084,7 +6737,7 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
 
     if (game.status === "friend_intro") {
       if (game.players.length < 3) {
-        startNextSelectedGame(pin);
+        cancelCurrentFriendTriviaIfNeeded(pin);
         return;
       }
 
@@ -7131,20 +6784,6 @@ socket.on("submit_word_connect_word", ({ pin, word }, callback) => {
       }
     }
     
-    if (game.status === "word_intro") {
-  io.to(pin).emit("word_connect_intro", {
-    game: publicGame(game)
-  });
-  return;
-}
-
-if (game.status === "word_connect" && game.word && game.word.open) {
-  io.to(pin).emit("word_connect_ranking_updated", {
-    ranking: getRanking(game)
-  });
-  return;
-}
-
 if (game.status === "poker" && game.poker) {
   const pokerPlayer = getPokerPlayer(game, socket.id);
 
