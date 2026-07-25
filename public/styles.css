@@ -736,6 +736,16 @@ button:disabled {
   transform: translateY(-4px);
 }
 
+.last-card-play-message {
+  min-height: 46px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  line-height: 1.4;
+}
+
 .last-card-guide-list {
   display: grid;
   gap: 10px;

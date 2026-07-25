@@ -3772,17 +3772,22 @@ function resolveCachoDoubt(pin, challenger, timedOut = false) {
 const LAST_CARD_COLORS = ["red", "yellow", "green", "blue"];
 const LAST_CARD_OPPONENT_DELAY_MS = 2000;
 
-function createLastCardDeck() {
+function createLastCardDeck(playerCount = 3, generation = 0) {
   const deck = [];
   let cardId = 0;
+  const includeReverse = Number(playerCount) !== 2;
+  const actionTypes = includeReverse
+    ? ["skip", "reverse", "draw2"]
+    : ["skip", "draw2"];
+  const nextCardId = () => `last-card-${generation}-${cardId++}`;
 
   LAST_CARD_COLORS.forEach((color) => {
-    deck.push({ id: `last-card-${cardId++}`, color, type: "number", value: "0" });
+    deck.push({ id: nextCardId(), color, type: "number", value: "0" });
 
     for (let value = 1; value <= 9; value++) {
       for (let copy = 0; copy < 2; copy++) {
         deck.push({
-          id: `last-card-${cardId++}`,
+          id: nextCardId(),
           color,
           type: "number",
           value: String(value)
@@ -3790,16 +3795,16 @@ function createLastCardDeck() {
       }
     }
 
-    ["skip", "reverse", "draw2"].forEach((type) => {
+    actionTypes.forEach((type) => {
       for (let copy = 0; copy < 2; copy++) {
-        deck.push({ id: `last-card-${cardId++}`, color, type, value: type });
+        deck.push({ id: nextCardId(), color, type, value: type });
       }
     });
   });
 
   for (let copy = 0; copy < 4; copy++) {
-    deck.push({ id: `last-card-${cardId++}`, color: "wild", type: "wild", value: "wild" });
-    deck.push({ id: `last-card-${cardId++}`, color: "wild", type: "wild4", value: "wild4" });
+    deck.push({ id: nextCardId(), color: "wild", type: "wild", value: "wild" });
+    deck.push({ id: nextCardId(), color: "wild", type: "wild4", value: "wild4" });
   }
 
   return shuffleArray(deck);
@@ -4022,11 +4027,13 @@ function handleLastCardCall(pin, player) {
 }
 
 function refillLastCardDrawPile(game) {
-  if (game.lastCard.drawPile.length || game.lastCard.discardPile.length <= 1) return;
+  if (game.lastCard.drawPile.length) return;
 
-  const topCard = game.lastCard.discardPile.pop();
-  game.lastCard.drawPile = shuffleArray(game.lastCard.discardPile);
-  game.lastCard.discardPile = [topCard];
+  game.lastCard.deckGeneration = (game.lastCard.deckGeneration || 0) + 1;
+  game.lastCard.drawPile = createLastCardDeck(
+    game.lastCard.players.length,
+    game.lastCard.deckGeneration
+  );
 }
 
 function drawLastCards(game, player, amount) {
@@ -4043,6 +4050,26 @@ function drawLastCards(game, player, amount) {
   }
 
   return drawnCards;
+}
+
+function takeInitialLastCard(game) {
+  let startingCardIndex = game.lastCard.drawPile.findIndex((card) => {
+    return card.type === "number";
+  });
+
+  if (startingCardIndex < 0) {
+    game.lastCard.deckGeneration = (game.lastCard.deckGeneration || 0) + 1;
+    game.lastCard.drawPile.push(...createLastCardDeck(
+      game.lastCard.players.length,
+      game.lastCard.deckGeneration
+    ));
+    startingCardIndex = game.lastCard.drawPile.findIndex((card) => {
+      return card.type === "number";
+    });
+  }
+
+  const [startingCard] = game.lastCard.drawPile.splice(startingCardIndex, 1);
+  return startingCard;
 }
 
 function hasLastCardColorMatch(game, player, excludedCardId = null) {
@@ -4094,6 +4121,7 @@ function getPublicLastCardState(game, viewerSocketId) {
     topCard: getPublicLastCard(topCard),
     currentColor: game.lastCard.currentColor,
     drawPileCount: game.lastCard.drawPile.length,
+    drawPileInfinite: true,
     currentPlayerId: currentAppPlayer?.id || null,
     currentPlayerName: currentAppPlayer?.name || currentPlayer?.name || "Jugador",
     isYourTurn: isViewerTurn,
@@ -4130,6 +4158,7 @@ function startLastCardIntro(pin) {
     drawPile: [],
     discardPile: [],
     currentColor: null,
+    deckGeneration: 0,
     currentPlayerIndex: 0,
     direction: 1,
     drawnCardId: null,
@@ -4154,12 +4183,13 @@ function beginLastCard(pin) {
   if (!game || game.status !== "last_card_guide" || !game.lastCard) return;
 
   game.status = "last_card";
-  game.lastCard.drawPile = createLastCardDeck();
   game.lastCard.players = game.players.map((player) => ({
     clientId: player.clientId,
     name: player.name,
     hand: []
   }));
+  game.lastCard.deckGeneration = 0;
+  game.lastCard.drawPile = createLastCardDeck(game.lastCard.players.length, 0);
 
   for (let cardIndex = 0; cardIndex < game.lastCard.initialHandSize; cardIndex++) {
     game.lastCard.players.forEach((player) => {
@@ -4167,10 +4197,7 @@ function beginLastCard(pin) {
     });
   }
 
-  let startingCardIndex = game.lastCard.drawPile.findIndex((card) => card.type === "number");
-  if (startingCardIndex < 0) startingCardIndex = 0;
-
-  const [startingCard] = game.lastCard.drawPile.splice(startingCardIndex, 1);
+  const startingCard = takeInitialLastCard(game);
   game.lastCard.discardPile = [startingCard];
   game.lastCard.currentColor = startingCard.color;
   game.lastCard.currentPlayerIndex = 0;
@@ -7038,6 +7065,9 @@ module.exports = {
     server,
     io,
     games,
+    createLastCardDeck,
+    drawLastCards,
+    takeInitialLastCard,
     createInactiveLastCardCall,
     getPublicLastCardState,
     emitLastCardState,

@@ -273,6 +273,7 @@ const lastCardIntroWaitingText = document.getElementById("lastCardIntroWaitingTe
 const lastCardGuideLeaderControls = document.getElementById("lastCardGuideLeaderControls");
 const continueLastCardGuideBtn = document.getElementById("continueLastCardGuideBtn");
 const lastCardGuideWaitingText = document.getElementById("lastCardGuideWaitingText");
+const lastCardReverseGuideRow = document.getElementById("lastCardReverseGuideRow");
 const lastCardTurnText = document.getElementById("lastCardTurnText");
 const lastCardTimerText = document.getElementById("lastCardTimerText");
 const lastCardTimerFill = document.getElementById("lastCardTimerFill");
@@ -2875,6 +2876,7 @@ function renderLastCardGuide(game) {
   continueLastCardGuideBtn.disabled = false;
   lastCardGuideLeaderControls.classList.toggle("hidden", !isLeader);
   lastCardGuideWaitingText.classList.toggle("hidden", isLeader);
+  lastCardReverseGuideRow.classList.toggle("hidden", game.players.length === 2);
   showScreen(lastCardGuideScreen);
 }
 
@@ -2933,7 +2935,9 @@ function renderLastCardGame(state) {
     : "Sentido: antihorario";
   lastCardActiveColor.className = `last-card-color-swatch is-${state.currentColor}`;
   lastCardActiveColor.title = LAST_CARD_COLOR_NAMES[state.currentColor] || state.currentColor;
-  lastCardDrawCount.textContent = `${state.drawPileCount} cartas`;
+  lastCardDrawCount.textContent = state.drawPileInfinite
+    ? "∞ cartas"
+    : `${state.drawPileCount} cartas`;
   lastCardStatusText.textContent = state.message || "";
   lastCardCallStatus.textContent = state.callMessage || "";
 
