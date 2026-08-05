@@ -21,6 +21,7 @@
         "available": {
             "knowledge": true,
             "friend": true,
+            "conversa": true,
             "heads": true,
             "stop": true,
             "impostor": true,
@@ -637,6 +638,19 @@
                 ]
             }
         ]
+    },
+    "conversa": {
+        "questionsPerGame": 12,
+        "modes": {
+            "random": [],
+            "amigos": [],
+            "filosofico": [],
+            "citas": {
+                "level1": [],
+                "level2": [],
+                "level3": []
+            }
+        }
     },
     "headsUp": {
         "durationMs": 90000,

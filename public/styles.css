@@ -397,6 +397,76 @@ button:disabled {
   background: #d62828;
 }
 
+.conversa-mode-panel {
+  margin-top: 18px;
+}
+
+.conversa-mode-options {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.conversa-mode-btn {
+  margin-top: 0;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  text-align: left;
+}
+
+.conversa-mode-btn.is-selected {
+  border-color: var(--color-primary);
+  background: rgba(116, 255, 122, 0.2);
+}
+
+.conversa-turn-text {
+  margin: 12px 0 8px;
+  color: var(--color-tertiary);
+  font-weight: 900;
+}
+
+.conversa-level-text {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.conversa-rating-panel {
+  margin-top: 20px;
+}
+
+.conversa-rating-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.conversa-rating-btn {
+  width: 100%;
+  aspect-ratio: 1;
+  margin-top: 0;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.26);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #141827;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.conversa-rating-btn.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #07200a;
+}
+
 .toast {
   position: fixed;
   left: 50%;

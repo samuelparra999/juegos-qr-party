@@ -125,6 +125,14 @@
         </label>
 
         <label class="game-option">
+          <input id="gameConversa" class="game-checkbox-input" type="radio" name="selectedGame" value="conversa" />
+          <span>
+            <strong>Conversa</strong>
+            <small>Responde preguntas y recibe calificaciones del grupo.</small>
+          </span>
+        </label>
+
+        <label class="game-option">
           <input id="gameHeads" class="game-checkbox-input" type="radio" name="selectedGame" value="heads" />
           <span>
             <strong>Heads Up</strong>
@@ -320,6 +328,70 @@
 
       <h3>Tabla acumulada</h3>
       <ul id="friendRankingList" class="ranking-list"></ul>
+    </section>
+
+    <!-- Instrucciones de Conversa -->
+    <section id="conversaIntroScreen" class="card hidden">
+      <p class="small-title">Conversa</p>
+
+      <h2>Instrucciones</h2>
+
+      <p class="subtitle">
+        En cada turno, una persona responde una pregunta en voz alta. Los demás
+        califican su respuesta del 1 al 5.
+      </p>
+
+      <p class="subtitle">
+        Cuando todos los jugadores que no están de turno califican, se pasa a la
+        siguiente pregunta.
+      </p>
+
+      <div id="conversaLeaderSetup" class="conversa-mode-panel hidden">
+        <h3>Modo de conversación</h3>
+        <div id="conversaModeOptions" class="conversa-mode-options"></div>
+        <button id="startConversaBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p id="conversaIntroWaitingText" class="waiting-text">
+        Esperando a que el líder elija el modo de Conversa...
+      </p>
+    </section>
+
+    <!-- Conversa -->
+    <section id="conversaScreen" class="card hidden">
+      <p class="small-title">Conversa</p>
+
+      <div class="question-header">
+        <span id="conversaQuestionCounter"></span>
+        <span id="conversaModeText"></span>
+      </div>
+
+      <p id="conversaTurnText" class="conversa-turn-text"></p>
+      <p id="conversaLevelText" class="conversa-level-text"></p>
+
+      <h2 id="conversaQuestionText"></h2>
+
+      <div id="conversaRatingPanel" class="conversa-rating-panel hidden">
+        <p class="subtitle">Califica la respuesta</p>
+        <div id="conversaRatingOptions" class="conversa-rating-options"></div>
+      </div>
+
+      <p id="conversaStatusText" class="answer-status"></p>
+      <p id="conversaProgressText" class="waiting-text"></p>
+    </section>
+
+    <!-- Resultado de Conversa -->
+    <section id="conversaResultScreen" class="card hidden">
+      <div id="conversaResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueConversaResultBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p class="small-title">Conversa</p>
+      <h2>Resultados</h2>
+      <p id="conversaResultSummary" class="subtitle"></p>
+
+      <h3>Tabla final</h3>
+      <ul id="conversaRankingList" class="ranking-list"></ul>
     </section>
 
     <!-- Instrucciones de Heads Up -->

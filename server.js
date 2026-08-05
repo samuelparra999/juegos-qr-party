@@ -17,6 +17,7 @@ const games = new Map();
 const GAME_ORDER = [
   "knowledge",
   "friend",
+  "conversa",
   "heads",
   "stop",
   "impostor",
@@ -28,6 +29,7 @@ const GAME_ORDER = [
 const GAME_LABELS = {
   knowledge: "Trivia de conocimiento",
   friend: "Votazo",
+  conversa: "Conversa",
   heads: "Heads Up",
   stop: "STOP",
   impostor: "Impostor",
@@ -81,6 +83,91 @@ const DEFAULT_STOP_LISTS = [
     ]
   }
 ];
+
+const CONVERSA_MODES = [
+  { id: "random", name: "Excavadora de datos random" },
+  { id: "amigos", name: "Amigos" },
+  { id: "filosofico", name: "Filosófico" },
+  { id: "citas", name: "Citas" }
+];
+
+const DEFAULT_CONVERSA_QUESTIONS = {
+  random: [
+    "¿Qué gusto pequeño te alegra más de lo que debería?",
+    "¿Qué hobby te gustaría probar aunque todavía no sepas nada?",
+    "¿Qué plan sencillo te parece casi perfecto?",
+    "¿Qué comida podrías repetir muchas veces sin cansarte?",
+    "¿Qué lugar cotidiano te da tranquilidad?",
+    "¿Qué talento inútil te gustaría tener?",
+    "¿Qué objeto personal dice mucho de ti?",
+    "¿Qué deseo simple tienes para este año?",
+    "¿Qué canción te cambia el ánimo rápido?",
+    "¿Qué tema podrías conversar durante horas?",
+    "¿Qué costumbre tuya te parece muy tuya?",
+    "¿Qué cosa te da curiosidad últimamente?"
+  ],
+  amigos: [
+    "Cuenta una anécdota breve de un plan que salió distinto a lo esperado.",
+    "¿Qué opinión impopular tienes sobre comida?",
+    "¿Qué regla pondrías para una convivencia perfecta entre amigos?",
+    "¿Qué situación imaginaria sería más divertida vivir por un día?",
+    "¿Qué plan cotidiano mejora cuando lo haces en grupo?",
+    "¿Qué pequeña pelea de amigos casi siempre vale la pena evitar?",
+    "¿Qué compra innecesaria defenderías sin vergüenza?",
+    "¿Qué costumbre social te parece rara pero aceptable?",
+    "¿Qué personaje del grupo sobreviviría mejor a un viaje sin planear?",
+    "¿Qué tema superficial puede convertirse en debate intenso?",
+    "¿Qué excusa para cancelar un plan te parece más perdonable?",
+    "¿Qué tradición inventarías para este grupo?"
+  ],
+  filosofico: [
+    "¿Qué pesa más al tomar una decisión difícil: intención o consecuencia?",
+    "¿Qué significa para ti vivir con propósito en lo cotidiano?",
+    "¿Cuándo una mentira puede ser moralmente defendible?",
+    "¿Qué te parece más justo: igualdad de oportunidades o igualdad de resultados?",
+    "¿Qué parte de tu identidad cambiaría menos con el tiempo?",
+    "¿Qué responsabilidad tenemos con personas que nunca conoceremos?",
+    "¿La libertad vale igual si casi nadie puede usarla bien?",
+    "¿Qué hace que una vida sea admirable?",
+    "¿Qué deuda moral tienes con tu versión futura?",
+    "¿Qué debería ser más importante: paz personal o verdad?",
+    "¿Cuándo perdonar deja de ser virtud?",
+    "¿Qué práctica diaria te parece más filosófica de lo que parece?"
+  ],
+  citas: {
+    level1: [
+      "¿Cuál sería una primera cita sencilla pero bonita para ti?",
+      "¿Qué detalle pequeño te hace sentir cuidado?",
+      "¿Qué tema te gusta conversar cuando estás conociendo a alguien?",
+      "¿Qué plan te ayuda a mostrarte como eres?",
+      "¿Qué cualidad notas primero en una persona?",
+      "¿Qué señal te hace sentir comodidad en una cita?",
+      "¿Qué comida pedirías para compartir?",
+      "¿Qué tipo de humor conecta contigo?",
+      "¿Qué canción pondrías en un viaje corto?",
+      "¿Qué pregunta ligera revela bastante de alguien?"
+    ],
+    level2: [
+      "¿Qué necesitas para confiar emocionalmente en alguien?",
+      "¿Qué diferencia entre dos personas puede enriquecer una relación?",
+      "¿Cómo te gusta resolver un desacuerdo?",
+      "¿Qué hábito tuyo debería entender alguien que sale contigo?",
+      "¿Qué significa para ti tener química?",
+      "¿Qué expectativa de pareja te parece importante decir temprano?",
+      "¿Qué gesto te hace perder interés?",
+      "¿Qué te cuesta pedir aunque lo necesites?",
+      "¿Qué límite sano valoras en una relación?",
+      "¿Qué admiras en la forma de amar de otra persona?"
+    ],
+    level3: [
+      "¿Qué miedo profundo puede aparecer cuando te vinculas con alguien?",
+      "¿Qué tendría que pasar para construir una relación muy seria?",
+      "¿Qué parte de tu vida no negociarías por una relación?",
+      "¿Qué herida antigua te gustaría no repetir en pareja?",
+      "¿Cómo sabes que amar no te está borrando a ti mismo?"
+    ]
+  }
+};
 
 const DEFAULT_POKER_SETTINGS = {
   initialChips: 5000,
@@ -335,6 +422,83 @@ function normalizeVotazoQuestion(rawQuestion) {
     question,
     options
   };
+}
+
+function normalizeConversaQuestion(rawQuestion) {
+  const text = typeof rawQuestion === "string"
+    ? rawQuestion
+    : rawQuestion?.question || rawQuestion?.text;
+  const question = String(text || "").trim();
+
+  return question ? { question } : null;
+}
+
+function normalizeConversaList(rawList) {
+  return Array.isArray(rawList)
+    ? rawList.map(normalizeConversaQuestion).filter(Boolean)
+    : [];
+}
+
+function getCampaignConversaSettings(game) {
+  const rawSettings = game.campaign?.conversa || {};
+  const rawModes = rawSettings.modes || {};
+  const fallbackQuestions = DEFAULT_CONVERSA_QUESTIONS;
+  const questionsPerGame = Math.max(
+    1,
+    Math.min(30, Number(rawSettings.questionsPerGame) || 12)
+  );
+
+  const citas = rawModes.citas || rawSettings.citas || {};
+
+  return {
+    questionsPerGame,
+    modes: CONVERSA_MODES,
+    questions: {
+      random: normalizeConversaList(rawModes.random || rawSettings.random),
+      amigos: normalizeConversaList(rawModes.amigos || rawSettings.amigos),
+      filosofico: normalizeConversaList(rawModes.filosofico || rawSettings.filosofico),
+      citas: {
+        level1: normalizeConversaList(citas.level1 || citas.nivel1),
+        level2: normalizeConversaList(citas.level2 || citas.nivel2),
+        level3: normalizeConversaList(citas.level3 || citas.nivel3)
+      }
+    },
+    fallbackQuestions
+  };
+}
+
+function getConversaMode(modeId) {
+  return CONVERSA_MODES.find((mode) => mode.id === modeId) || CONVERSA_MODES[0];
+}
+
+function getConversaModeQuestions(settings, modeId) {
+  if (modeId === "citas") {
+    const citas = settings.questions.citas || {};
+    const fallback = settings.fallbackQuestions.citas;
+
+    return [
+      ...shuffleArray(citas.level1.length ? citas.level1 : fallback.level1.map(normalizeConversaQuestion))
+        .filter(Boolean)
+        .slice(0, 8)
+        .map((question) => ({ ...question, level: "Nivel 1" })),
+      ...shuffleArray(citas.level2.length ? citas.level2 : fallback.level2.map(normalizeConversaQuestion))
+        .filter(Boolean)
+        .slice(0, 8)
+        .map((question) => ({ ...question, level: "Nivel 2" })),
+      ...shuffleArray(citas.level3.length ? citas.level3 : fallback.level3.map(normalizeConversaQuestion))
+        .filter(Boolean)
+        .slice(0, 3)
+        .map((question) => ({ ...question, level: "Nivel 3" }))
+    ];
+  }
+
+  const campaignQuestions = settings.questions[modeId] || [];
+  const fallbackQuestions = (settings.fallbackQuestions[modeId] || [])
+    .map(normalizeConversaQuestion)
+    .filter(Boolean);
+  const sourceQuestions = campaignQuestions.length ? campaignQuestions : fallbackQuestions;
+
+  return shuffleArray(sourceQuestions).slice(0, settings.questionsPerGame);
 }
 
 function getCampaignHeadsUpWords(game) {
@@ -693,6 +857,7 @@ function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
   const available = campaign?.games?.available || {
     knowledge: true,
     friend: true,
+    conversa: true,
     heads: true,
     stop: true,
     impostor: true,
@@ -755,6 +920,11 @@ function startSelectedGame(pin) {
 
     if (selectedGame === "friend") {
       startFriendTriviaIntro(pin);
+      return;
+    }
+
+    if (selectedGame === "conversa") {
+      startConversaIntro(pin);
       return;
     }
 
@@ -1208,8 +1378,277 @@ function finishFriendQuestion(pin) {
   });
 }
 
-function endFullGame(pin) {
-  startHeadsUpIntro(pin);
+function getPublicConversaIntro(game) {
+  return {
+    modes: CONVERSA_MODES.map((mode) => ({ ...mode }))
+  };
+}
+
+function startConversaIntro(pin) {
+  const game = games.get(pin);
+
+  if (!game) return;
+
+  game.status = "conversa_intro";
+  game.conversa = {
+    ...getCampaignConversaSettings(game),
+    selectedMode: null,
+    questions: [],
+    players: [],
+    currentQuestionIndex: -1,
+    currentPlayerIndex: -1,
+    ratings: {},
+    questionOpen: false,
+    questionResults: [],
+    lastMessage: "",
+    awaitingContinue: false,
+    lastResult: null
+  };
+
+  io.to(pin).emit("conversa_intro", {
+    game: publicGame(game),
+    intro: getPublicConversaIntro(game)
+  });
+}
+
+function getConversaAppPlayer(game, clientId) {
+  return game?.players.find((player) => player.clientId === clientId) || null;
+}
+
+function getCurrentConversaPlayer(game) {
+  return game?.conversa?.players[game.conversa.currentPlayerIndex] || null;
+}
+
+function getConnectedConversaRaters(game) {
+  const currentPlayer = getCurrentConversaPlayer(game);
+
+  if (!currentPlayer) return [];
+
+  return game.players.filter((player) => {
+    return player.connected !== false && player.clientId !== currentPlayer.clientId;
+  });
+}
+
+function getNextConversaPlayerIndex(game, fromIndex) {
+  const players = game.conversa.players;
+
+  for (let offset = 1; offset <= players.length; offset++) {
+    const index = (fromIndex + offset) % players.length;
+    const appPlayer = getConversaAppPlayer(game, players[index].clientId);
+
+    if (appPlayer && appPlayer.connected !== false) return index;
+  }
+
+  return Math.max(0, fromIndex);
+}
+
+function getPublicConversaState(game, viewerSocketId) {
+  const viewer = game.players.find((player) => player.id === viewerSocketId);
+  const currentPlayer = getCurrentConversaPlayer(game);
+  const currentAppPlayer = currentPlayer
+    ? getConversaAppPlayer(game, currentPlayer.clientId)
+    : null;
+  const question = game.conversa.questions[game.conversa.currentQuestionIndex] || {};
+  const raters = getConnectedConversaRaters(game);
+  const viewerRating = viewer ? game.conversa.ratings[viewer.clientId] : null;
+  const isYourTurn = Boolean(
+    viewer &&
+    currentPlayer &&
+    viewer.clientId === currentPlayer.clientId
+  );
+
+  return {
+    modeId: game.conversa.selectedMode?.id || "",
+    modeName: game.conversa.selectedMode?.name || "Conversa",
+    question: question.question || "",
+    level: question.level || "",
+    number: game.conversa.currentQuestionIndex + 1,
+    total: game.conversa.questions.length,
+    currentPlayerId: currentAppPlayer?.id || null,
+    currentPlayerName: currentAppPlayer?.name || currentPlayer?.name || "Jugador",
+    isYourTurn,
+    canRate: Boolean(
+      viewer &&
+      !isYourTurn &&
+      viewer.connected !== false &&
+      game.conversa.questionOpen &&
+      !viewerRating
+    ),
+    yourRating: viewerRating || null,
+    ratingCount: raters.filter((player) => game.conversa.ratings[player.clientId]).length,
+    totalRaters: raters.length,
+    message: game.conversa.lastMessage
+  };
+}
+
+function emitConversaState(pin, game) {
+  game.players.forEach((player) => {
+    io.to(player.id).emit("conversa_question", {
+      game: publicGame(game),
+      conversaState: getPublicConversaState(game, player.id)
+    });
+  });
+}
+
+function beginConversa(pin, rawModeId) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "conversa_intro" || !game.conversa) {
+    return { ok: false, message: "Conversa todavía no está listo." };
+  }
+
+  const mode = getConversaMode(rawModeId);
+  const questions = getConversaModeQuestions(game.conversa, mode.id);
+
+  if (!questions.length) {
+    return { ok: false, message: "No hay preguntas disponibles para este modo." };
+  }
+
+  game.conversa.selectedMode = mode;
+  game.conversa.questions = questions;
+  game.conversa.players = game.players.map((player) => ({
+    clientId: player.clientId,
+    name: player.name
+  }));
+  game.conversa.currentQuestionIndex = -1;
+  game.conversa.currentPlayerIndex = -1;
+  game.conversa.questionResults = [];
+  game.conversa.lastMessage = "";
+  game.conversa.awaitingContinue = false;
+  game.conversa.lastResult = null;
+
+  startNextConversaQuestion(pin);
+
+  return { ok: true };
+}
+
+function startNextConversaQuestion(pin) {
+  const game = games.get(pin);
+
+  if (!game?.conversa) return;
+
+  game.conversa.currentQuestionIndex++;
+
+  if (game.conversa.currentQuestionIndex >= game.conversa.questions.length) {
+    finishConversaGame(pin);
+    return;
+  }
+
+  game.status = "conversa";
+  game.conversa.currentPlayerIndex = getNextConversaPlayerIndex(
+    game,
+    game.conversa.currentPlayerIndex
+  );
+  game.conversa.ratings = {};
+  game.conversa.questionOpen = true;
+
+  const currentPlayer = getCurrentConversaPlayer(game);
+  game.conversa.lastMessage = `${currentPlayer?.name || "Jugador"} responde esta pregunta.`;
+
+  emitConversaState(pin, game);
+}
+
+function haveAllConversaRatersScored(game) {
+  const raters = getConnectedConversaRaters(game);
+
+  return Boolean(raters.length) &&
+    raters.every((player) => game.conversa.ratings[player.clientId]);
+}
+
+function finishConversaQuestion(pin, skipped = false) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "conversa" || !game.conversa?.questionOpen) return;
+
+  const currentPlayer = getCurrentConversaPlayer(game);
+  const appPlayer = currentPlayer ? getConversaAppPlayer(game, currentPlayer.clientId) : null;
+  const raters = getConnectedConversaRaters(game);
+  const ratings = skipped
+    ? []
+    : raters
+        .map((player) => Number(game.conversa.ratings[player.clientId]))
+        .filter((rating) => Number.isInteger(rating) && rating >= 1 && rating <= 5);
+  const average = ratings.length
+    ? Number((ratings.reduce((total, rating) => total + rating, 0) / ratings.length).toFixed(2))
+    : 0;
+
+  game.conversa.questionOpen = false;
+
+  if (appPlayer && !skipped) {
+    appPlayer.score = Number((appPlayer.score + average).toFixed(2));
+  }
+
+  const result = {
+    questionNumber: game.conversa.currentQuestionIndex + 1,
+    playerName: appPlayer?.name || currentPlayer?.name || "Jugador",
+    question: game.conversa.questions[game.conversa.currentQuestionIndex]?.question || "",
+    ratings,
+    average,
+    skipped
+  };
+
+  game.conversa.questionResults.push(result);
+  game.conversa.lastMessage = skipped
+    ? `${result.playerName} salió de la pregunta.`
+    : `${result.playerName} recibió ${average} punto${average === 1 ? "" : "s"}.`;
+
+  startNextConversaQuestion(pin);
+}
+
+function submitConversaRating(pin, player, rawRating) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "conversa" || !game.conversa?.questionOpen) {
+    return { ok: false, message: "Conversa no tiene una pregunta activa." };
+  }
+
+  const currentPlayer = getCurrentConversaPlayer(game);
+  if (!currentPlayer) {
+    return { ok: false, message: "No hay jugador de turno." };
+  }
+
+  if (currentPlayer.clientId === player.clientId) {
+    return { ok: false, message: "El jugador de turno no califica su propia respuesta." };
+  }
+
+  const rating = Number(rawRating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return { ok: false, message: "La calificación debe ser un número del 1 al 5." };
+  }
+
+  if (game.conversa.ratings[player.clientId]) {
+    return { ok: false, message: "Ya calificaste esta respuesta." };
+  }
+
+  game.conversa.ratings[player.clientId] = rating;
+
+  if (haveAllConversaRatersScored(game)) {
+    finishConversaQuestion(pin);
+    return { ok: true };
+  }
+
+  emitConversaState(pin, game);
+
+  return { ok: true };
+}
+
+function finishConversaGame(pin) {
+  const game = games.get(pin);
+
+  if (!game?.conversa) return;
+
+  game.status = "conversa_result";
+  game.conversa.awaitingContinue = true;
+  game.conversa.lastResult = {
+    modeName: game.conversa.selectedMode?.name || "Conversa",
+    results: game.conversa.questionResults,
+    ranking: getRanking(game)
+  };
+
+  io.to(pin).emit("conversa_finished", {
+    game: publicGame(game),
+    ...game.conversa.lastResult
+  });
 }
 
 function clearHeadsUpTimers(game) {
@@ -3467,17 +3906,12 @@ function getNextCachoPlayerIndex(game, fromIndex) {
 function isHigherCachoBid(currentBid, quantity, face) {
   if (!currentBid) return true;
 
-  if (currentBid.face === 1) {
-    if (face === 1) return quantity > currentBid.quantity;
-    return quantity >= currentBid.quantity * 2 + 1;
-  }
-
-  if (face === 1) {
-    return quantity >= Math.ceil(currentBid.quantity / 2);
-  }
-
   return quantity > currentBid.quantity ||
     (quantity === currentBid.quantity && face > currentBid.face);
+}
+
+function countCachoFace(dice, face) {
+  return dice.filter((die) => die === face).length;
 }
 
 function getPublicCachoState(game, viewerSocketId) {
@@ -3705,9 +4139,7 @@ function resolveCachoDoubt(pin, challenger, timedOut = false) {
   const bidderState = getCachoPlayer(game, bid.bidderClientId);
   const challengerState = getCachoPlayer(game, challenger.clientId);
   const allDice = getActiveCachoPlayers(game).flatMap((player) => player.dice);
-  const actualCount = allDice.filter((die) => {
-    return bid.face === 1 ? die === 1 : die === bid.face || die === 1;
-  }).length;
+  const actualCount = countCachoFace(allDice, bid.face);
   const bidWasTrue = actualCount >= bid.quantity;
   const loserState = bidWasTrue ? challengerState : bidderState;
 
@@ -4891,6 +5323,30 @@ function sendCurrentStateToSocket(pin, socket, game) {
     return;
   }
 
+  if (game.status === "conversa_intro" && game.conversa) {
+    socket.emit("conversa_intro", {
+      game: publicGame(game),
+      intro: getPublicConversaIntro(game)
+    });
+    return;
+  }
+
+  if (game.status === "conversa" && game.conversa) {
+    socket.emit("conversa_question", {
+      game: publicGame(game),
+      conversaState: getPublicConversaState(game, socket.id)
+    });
+    return;
+  }
+
+  if (game.status === "conversa_result" && game.conversa?.lastResult) {
+    socket.emit("conversa_finished", {
+      game: publicGame(game),
+      ...game.conversa.lastResult
+    });
+    return;
+  }
+
   if (game.status === "heads_intro") {
     socket.emit("heads_up_intro", {
       game: publicGame(game)
@@ -5134,6 +5590,7 @@ function resetGameStateToLobby(game) {
   game.themeVotes = {};
   game.trivia = null;
   game.friend = null;
+  game.conversa = null;
   game.heads = null;
   game.stop = null;
   game.impostor = null;
@@ -5322,6 +5779,7 @@ io.on("connection", (socket) => {
       themeVotes: {},
       trivia: null,
       friend: null,
+      conversa: null,
       heads: null,
       stop: null,
       impostor: null,
@@ -6390,6 +6848,55 @@ io.on("connection", (socket) => {
     startImpostorVoting(cleanGamePin);
   });
 
+  socket.on("start_conversa_game", ({ pin, mode }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "conversa_intro" || !game.conversa) {
+      callback({ ok: false, message: "Conversa todavía no está listo." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede empezar Conversa." });
+      return;
+    }
+
+    callback(beginConversa(cleanGamePin, mode));
+  });
+
+  socket.on("submit_conversa_rating", ({ pin, rating }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+
+    if (!player) {
+      callback({ ok: false, message: "No estás dentro de la partida." });
+      return;
+    }
+
+    callback(submitConversaRating(cleanGamePin, player, rating));
+  });
+
+  socket.on("continue_conversa_result", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "conversa_result" || !game.conversa?.awaitingContinue) {
+      callback({ ok: false, message: "El resultado de Conversa todavía no está listo." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede continuar." });
+      return;
+    }
+
+    game.conversa.awaitingContinue = false;
+    callback({ ok: true });
+    showGameScoreboard(cleanGamePin, "conversa");
+  });
+
   socket.on("start_cacho_game", ({ pin }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -6785,6 +7292,7 @@ io.on("connection", (socket) => {
 
     game.trivia = null;
     game.friend = null;
+    game.conversa = null;
     game.heads = null;
     game.stop = null;
     game.impostor = null;
@@ -6924,6 +7432,22 @@ io.on("connection", (socket) => {
       ) {
         finishFriendQuestion(pin);
         return;
+      }
+
+      if (game.status === "conversa" && game.conversa?.questionOpen) {
+        const currentConversaPlayer = getCurrentConversaPlayer(game);
+
+        if (currentConversaPlayer?.clientId === disconnectingPlayer.clientId) {
+          finishConversaQuestion(pin, true);
+          return;
+        }
+
+        if (haveAllConversaRatersScored(game)) {
+          finishConversaQuestion(pin);
+          return;
+        }
+
+        emitConversaState(pin, game);
       }
 
       return;
@@ -7066,6 +7590,10 @@ module.exports = {
     io,
     games,
     createLastCardDeck,
+    getCampaignConversaSettings,
+    getConversaModeQuestions,
+    isHigherCachoBid,
+    countCachoFace,
     drawLastCards,
     takeInitialLastCard,
     createInactiveLastCardCall,

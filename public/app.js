@@ -15,6 +15,8 @@ let stopVotePending = false;
 let currentCachoState = null;
 let selectedCachoFace = 2;
 let cachoActionPending = false;
+let selectedConversaMode = "random";
+let conversaRatingPending = false;
 let currentLastCardState = null;
 let lastCardActionPending = false;
 let selectedWildCardId = null;
@@ -40,6 +42,9 @@ const friendIntroScreen = document.getElementById("friendIntroScreen");
 const friendCancelledScreen = document.getElementById("friendCancelledScreen");
 const friendScreen = document.getElementById("friendScreen");
 const friendResultScreen = document.getElementById("friendResultScreen");
+const conversaIntroScreen = document.getElementById("conversaIntroScreen");
+const conversaScreen = document.getElementById("conversaScreen");
+const conversaResultScreen = document.getElementById("conversaResultScreen");
 const headsIntroScreen = document.getElementById("headsIntroScreen");
 const headsScreen = document.getElementById("headsScreen");
 const headsResultScreen = document.getElementById("headsResultScreen");
@@ -94,6 +99,7 @@ const waitingText = document.getElementById("waitingText");
 const gameKnowledge = document.getElementById("gameKnowledge");
 const gameSelectionBox = document.getElementById("gameSelectionBox");
 const gameFriend = document.getElementById("gameFriend");
+const gameConversa = document.getElementById("gameConversa");
 const gameHeads = document.getElementById("gameHeads");
 const gameStop = document.getElementById("gameStop");
 const gameImpostor = document.getElementById("gameImpostor");
@@ -105,6 +111,7 @@ const gamePoker = document.getElementById("gamePoker");
 const gameCheckboxes = [
   gameKnowledge,
   gameFriend,
+  gameConversa,
   gameHeads,
   gameStop,
   gameImpostor,
@@ -153,6 +160,25 @@ const continueFriendQuestionBtn = document.getElementById("continueFriendQuestio
 const friendOptionsResultList = document.getElementById("friendOptionsResultList");
 const friendAnswersList = document.getElementById("friendAnswersList");
 const friendRankingList = document.getElementById("friendRankingList");
+
+// Conversa
+const conversaLeaderSetup = document.getElementById("conversaLeaderSetup");
+const conversaModeOptions = document.getElementById("conversaModeOptions");
+const startConversaBtn = document.getElementById("startConversaBtn");
+const conversaIntroWaitingText = document.getElementById("conversaIntroWaitingText");
+const conversaQuestionCounter = document.getElementById("conversaQuestionCounter");
+const conversaModeText = document.getElementById("conversaModeText");
+const conversaTurnText = document.getElementById("conversaTurnText");
+const conversaLevelText = document.getElementById("conversaLevelText");
+const conversaQuestionText = document.getElementById("conversaQuestionText");
+const conversaRatingPanel = document.getElementById("conversaRatingPanel");
+const conversaRatingOptions = document.getElementById("conversaRatingOptions");
+const conversaStatusText = document.getElementById("conversaStatusText");
+const conversaProgressText = document.getElementById("conversaProgressText");
+const conversaResultLeaderControls = document.getElementById("conversaResultLeaderControls");
+const continueConversaResultBtn = document.getElementById("continueConversaResultBtn");
+const conversaResultSummary = document.getElementById("conversaResultSummary");
+const conversaRankingList = document.getElementById("conversaRankingList");
 
 // Heads Up
 const startHeadsUpBtn = document.getElementById("startHeadsUpBtn");
@@ -654,6 +680,10 @@ function applyCampaignGameAvailability(campaign) {
     gameFriend.closest(".game-option").classList.toggle("hidden", !available.friend);
   }
 
+  if (gameConversa && gameConversa.closest(".game-option")) {
+    gameConversa.closest(".game-option").classList.toggle("hidden", !available.conversa);
+  }
+
   if (gameHeads && gameHeads.closest(".game-option")) {
     gameHeads.closest(".game-option").classList.toggle("hidden", !available.heads);
   }
@@ -913,6 +943,33 @@ continueFriendQuestionBtn.addEventListener("click", () => {
     if (!response.ok) {
       showToast(response.message || "No se pudo continuar.");
     }
+  });
+});
+
+startConversaBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  startConversaBtn.disabled = true;
+  socket.emit("start_conversa_game", {
+    pin: currentGame.pin,
+    mode: selectedConversaMode
+  }, (response) => {
+    if (response.ok) return;
+
+    startConversaBtn.disabled = false;
+    showToast(response.message || "No se pudo empezar Conversa.");
+  });
+});
+
+continueConversaResultBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  continueConversaResultBtn.disabled = true;
+  socket.emit("continue_conversa_result", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    continueConversaResultBtn.disabled = false;
+    showToast(response.message || "No se pudo continuar.");
   });
 });
 
@@ -1397,6 +1454,21 @@ socket.on("friend_question_result", (data) => {
   renderFriendQuestionResult(data);
 });
 
+socket.on("conversa_intro", (data) => {
+  currentGame = data.game;
+  renderConversaIntro(data.intro || {});
+});
+
+socket.on("conversa_question", (data) => {
+  currentGame = data.game;
+  renderConversaQuestion(data.conversaState);
+});
+
+socket.on("conversa_finished", (data) => {
+  currentGame = data.game;
+  renderConversaResult(data);
+});
+
 socket.on("heads_up_intro", (data) => {
   currentGame = data.game;
   renderHeadsUpIntro(data.game);
@@ -1692,6 +1764,7 @@ function renderGameSelection(game) {
 
   if (gameKnowledge) gameKnowledge.checked = selectedGames.includes("knowledge");
   if (gameFriend) gameFriend.checked = selectedGames.includes("friend");
+  if (gameConversa) gameConversa.checked = selectedGames.includes("conversa");
   if (gameHeads) gameHeads.checked = selectedGames.includes("heads");
   if (gameStop) gameStop.checked = selectedGames.includes("stop");
   if (gameImpostor) gameImpostor.checked = selectedGames.includes("impostor");
@@ -1701,6 +1774,7 @@ function renderGameSelection(game) {
 
   if (gameKnowledge) gameKnowledge.disabled = !isLeader;
   if (gameFriend) gameFriend.disabled = !isLeader;
+  if (gameConversa) gameConversa.disabled = !isLeader;
   if (gameHeads) gameHeads.disabled = !isLeader;
   if (gameStop) gameStop.disabled = !isLeader;
   if (gameImpostor) gameImpostor.disabled = !isLeader;
@@ -2093,6 +2167,128 @@ function renderFriendQuestionResult(data) {
   renderRankingList(friendRankingList, data.ranking);
 
   showScreen(friendResultScreen);
+}
+
+// --------------------------------------------------
+// Conversa
+// --------------------------------------------------
+
+function renderConversaIntro(intro) {
+  isLeader = currentGame && currentGame.leaderId === socket.id;
+  startConversaBtn.disabled = false;
+  conversaLeaderSetup.classList.toggle("hidden", !isLeader);
+  conversaIntroWaitingText.classList.toggle("hidden", isLeader);
+  conversaModeOptions.innerHTML = "";
+
+  const modes = intro.modes && intro.modes.length
+    ? intro.modes
+    : [
+        { id: "random", name: "Excavadora de datos random" },
+        { id: "amigos", name: "Amigos" },
+        { id: "filosofico", name: "Filosófico" },
+        { id: "citas", name: "Citas" }
+      ];
+
+  if (!modes.some((mode) => mode.id === selectedConversaMode)) {
+    selectedConversaMode = modes[0]?.id || "random";
+  }
+
+  modes.forEach((mode) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "conversa-mode-btn";
+    button.textContent = mode.name;
+    button.classList.toggle("is-selected", mode.id === selectedConversaMode);
+    button.setAttribute("aria-pressed", String(mode.id === selectedConversaMode));
+    button.addEventListener("click", () => {
+      selectedConversaMode = mode.id;
+      renderConversaIntro({ modes });
+    });
+
+    conversaModeOptions.appendChild(button);
+  });
+
+  showScreen(conversaIntroScreen);
+}
+
+function submitConversaRating(rating, selectedButton) {
+  if (!currentGame || conversaRatingPending) return;
+
+  conversaRatingPending = true;
+  selectedButton.classList.add("is-selected");
+  conversaRatingOptions.querySelectorAll("button").forEach((button) => {
+    button.disabled = true;
+  });
+  conversaStatusText.textContent = "Calificación enviada.";
+
+  socket.emit("submit_conversa_rating", {
+    pin: currentGame.pin,
+    rating
+  }, (response) => {
+    if (response.ok) return;
+
+    conversaRatingPending = false;
+    showToast(response.message || "No se pudo enviar la calificación.");
+    conversaRatingOptions.querySelectorAll("button").forEach((button) => {
+      button.disabled = false;
+      button.classList.remove("is-selected");
+    });
+    conversaStatusText.textContent = "Intenta enviar tu calificación otra vez.";
+  });
+}
+
+function renderConversaQuestion(state) {
+  if (!state) return;
+
+  conversaRatingPending = false;
+  conversaQuestionCounter.textContent = `Pregunta ${state.number}/${state.total}`;
+  conversaModeText.textContent = state.modeName || "Conversa";
+  conversaTurnText.textContent = state.isYourTurn
+    ? "Es tu turno de responder"
+    : `Responde ${state.currentPlayerName}`;
+  conversaLevelText.textContent = state.level || "";
+  conversaLevelText.classList.toggle("hidden", !state.level);
+  conversaQuestionText.textContent = state.question;
+  conversaProgressText.textContent =
+    `Calificaciones: ${state.ratingCount}/${state.totalRaters}`;
+
+  conversaRatingOptions.innerHTML = "";
+
+  for (let rating = 1; rating <= 5; rating++) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "conversa-rating-btn";
+    button.textContent = String(rating);
+    button.disabled = !state.canRate;
+    button.classList.toggle("is-selected", state.yourRating === rating);
+    button.addEventListener("click", () => submitConversaRating(rating, button));
+    conversaRatingOptions.appendChild(button);
+  }
+
+  conversaRatingPanel.classList.toggle("hidden", state.isYourTurn);
+
+  if (state.isYourTurn) {
+    conversaStatusText.textContent = "Responde en voz alta. El grupo calificará tu respuesta.";
+  } else if (state.yourRating) {
+    conversaStatusText.textContent = `Calificaste con ${state.yourRating}.`;
+  } else {
+    conversaStatusText.textContent = state.canRate
+      ? "Elige una calificación del 1 al 5."
+      : "Esperando la respuesta del jugador de turno.";
+  }
+
+  showScreen(conversaScreen);
+}
+
+function renderConversaResult(data) {
+  isLeader = data.game && data.game.leaderId === socket.id;
+  continueConversaResultBtn.disabled = false;
+  conversaResultLeaderControls.classList.toggle("hidden", !isLeader);
+  conversaResultSummary.textContent =
+    `${data.modeName || "Conversa"} terminó con ${data.results?.length || 0} pregunta${data.results?.length === 1 ? "" : "s"}.`;
+
+  renderRankingList(conversaRankingList, data.ranking || []);
+  showScreen(conversaResultScreen);
 }
 
 // --------------------------------------------------
@@ -2690,13 +2886,6 @@ function renderCachoIntro(game) {
 function getSuggestedCachoBid(state) {
   if (!state.currentBid) return { quantity: 1, face: 2 };
 
-  if (state.currentBid.face === 1) {
-    return {
-      quantity: Math.min(state.totalDice, state.currentBid.quantity + 1),
-      face: 1
-    };
-  }
-
   if (state.currentBid.face < 6) {
     return {
       quantity: state.currentBid.quantity,
@@ -2705,9 +2894,16 @@ function getSuggestedCachoBid(state) {
   }
 
   return {
-    quantity: Math.ceil(state.currentBid.quantity / 2),
+    quantity: Math.min(state.totalDice, state.currentBid.quantity + 1),
     face: 1
   };
+}
+
+function isHigherCachoBidClient(currentBid, quantity, face) {
+  if (!currentBid) return true;
+
+  return quantity > currentBid.quantity ||
+    (quantity === currentBid.quantity && face > currentBid.face);
 }
 
 function renderCachoGame(state) {
@@ -2797,10 +2993,14 @@ function renderCachoControls() {
   const quantity = Number(cachoQuantityInput.value) || 1;
   const minQuantity = Number(cachoQuantityInput.min) || 1;
   const maxQuantity = Number(cachoQuantityInput.max) || minQuantity;
+  const bidIsValid =
+    quantity >= minQuantity &&
+    quantity <= maxQuantity &&
+    isHigherCachoBidClient(currentCachoState.currentBid, quantity, selectedCachoFace);
   cachoQuantityInput.disabled = disabled;
   cachoDecreaseQuantityBtn.disabled = disabled || quantity <= minQuantity;
   cachoIncreaseQuantityBtn.disabled = disabled || quantity >= maxQuantity;
-  submitCachoBidBtn.disabled = disabled;
+  submitCachoBidBtn.disabled = disabled || !bidIsValid;
   callCachoDoubtBtn.disabled = disabled || !currentCachoState.canDoubt;
 
   cachoFaceButtons.forEach((button) => {
