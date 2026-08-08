@@ -96,7 +96,7 @@ const CONVERSA_ARCHETYPES = [
     id: "ingeniero",
     name: "Ingeniero",
     emoji: "🧠",
-    description: "Respuesta lÃ³gica, pragmÃ¡tica, objetiva o analÃ­tica."
+    description: "Respuesta lógica, pragmática, objetiva o analí­tica."
   },
   {
     id: "payaso",
@@ -108,19 +108,19 @@ const CONVERSA_ARCHETYPES = [
     id: "artista",
     name: "Artista",
     emoji: "🎨",
-    description: "Respuestas abstractas, filosÃ³ficas, con sentidos figurados y profundos."
+    description: "Respuestas abstractas, filosóficas, con sentidos figurados y profundos."
   },
   {
     id: "narrativo",
     name: "Narrativo",
     emoji: "📖",
-    description: "Responde usando anÃ©cdotas o historias."
+    description: "Responde usando anécdotas o historias."
   },
   {
     id: "emocional",
     name: "Emocional",
     emoji: "❤️",
-    description: "Expresa sentimientos o incluye mucho drama o exageraciÃ³n."
+    description: "Expresa sentimientos o incluye mucho drama o exageración."
   },
   {
     id: "tangencial",
