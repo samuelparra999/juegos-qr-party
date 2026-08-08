@@ -128,7 +128,7 @@
           <input id="gameConversa" class="game-checkbox-input" type="radio" name="selectedGame" value="conversa" />
           <span>
             <strong>Conversa</strong>
-            <small>Responde preguntas y recibe calificaciones del grupo.</small>
+            <small>Responde preguntas y descubre tus arquetipos.</small>
           </span>
         </label>
 
@@ -338,11 +338,11 @@
 
       <p class="subtitle">
         En cada turno, una persona responde una pregunta en voz alta. Los demás
-        califican su respuesta del 1 al 5.
+        clasifican su respuesta segun el arquetipo que mejor la describa.
       </p>
 
       <p class="subtitle">
-        Cuando todos los jugadores que no están de turno califican, se pasa a la
+        Cuando todos los jugadores que no están de turno clasifican, se pasa a la
         siguiente pregunta.
       </p>
 
@@ -354,6 +354,23 @@
 
       <p id="conversaIntroWaitingText" class="waiting-text">
         Esperando a que el líder elija el modo de Conversa...
+      </p>
+    </section>
+
+    <!-- GuÃ­a de arquetipos de Conversa -->
+    <section id="conversaGuideScreen" class="card hidden">
+      <div id="conversaGuideLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueConversaGuideBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p class="small-title">Conversa</p>
+      <h2>Arquetipos de respuesta</h2>
+      <p id="conversaGuideSummary" class="subtitle"></p>
+
+      <div id="conversaArchetypeGuideList" class="conversa-archetype-guide-list"></div>
+
+      <p id="conversaGuideWaitingText" class="waiting-text">
+        Esperando a que el lÃ­der empiece la ronda...
       </p>
     </section>
 
@@ -371,13 +388,13 @@
 
       <h2 id="conversaQuestionText"></h2>
 
-      <div id="conversaRatingPanel" class="conversa-rating-panel hidden">
-        <p class="subtitle">Califica la respuesta</p>
-        <div id="conversaRatingOptions" class="conversa-rating-options"></div>
+      <div id="conversaArchetypePanel" class="conversa-archetype-panel hidden">
+        <p id="conversaArchetypePrompt" class="subtitle">Elige un arquetipo para la respuesta.</p>
+        <p id="conversaProgressText" class="waiting-text conversa-progress-text"></p>
+        <div id="conversaArchetypeOptions" class="conversa-archetype-options"></div>
       </div>
 
       <p id="conversaStatusText" class="answer-status"></p>
-      <p id="conversaProgressText" class="waiting-text"></p>
     </section>
 
     <!-- Resultado de Conversa -->
@@ -390,8 +407,8 @@
       <h2>Resultados</h2>
       <p id="conversaResultSummary" class="subtitle"></p>
 
-      <h3>Tabla final</h3>
-      <ul id="conversaRankingList" class="ranking-list"></ul>
+      <h3>Arquetipo probable por jugador</h3>
+      <ul id="conversaArchetypeResultsList" class="conversa-archetype-results-list"></ul>
     </section>
 
     <!-- Instrucciones de Heads Up -->

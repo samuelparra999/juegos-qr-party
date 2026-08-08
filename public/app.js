@@ -16,7 +16,7 @@ let currentCachoState = null;
 let selectedCachoFace = 2;
 let cachoActionPending = false;
 let selectedConversaMode = "random";
-let conversaRatingPending = false;
+let conversaClassificationPending = false;
 let currentLastCardState = null;
 let lastCardActionPending = false;
 let selectedWildCardId = null;
@@ -43,6 +43,7 @@ const friendCancelledScreen = document.getElementById("friendCancelledScreen");
 const friendScreen = document.getElementById("friendScreen");
 const friendResultScreen = document.getElementById("friendResultScreen");
 const conversaIntroScreen = document.getElementById("conversaIntroScreen");
+const conversaGuideScreen = document.getElementById("conversaGuideScreen");
 const conversaScreen = document.getElementById("conversaScreen");
 const conversaResultScreen = document.getElementById("conversaResultScreen");
 const headsIntroScreen = document.getElementById("headsIntroScreen");
@@ -166,19 +167,24 @@ const conversaLeaderSetup = document.getElementById("conversaLeaderSetup");
 const conversaModeOptions = document.getElementById("conversaModeOptions");
 const startConversaBtn = document.getElementById("startConversaBtn");
 const conversaIntroWaitingText = document.getElementById("conversaIntroWaitingText");
+const conversaGuideLeaderControls = document.getElementById("conversaGuideLeaderControls");
+const continueConversaGuideBtn = document.getElementById("continueConversaGuideBtn");
+const conversaGuideSummary = document.getElementById("conversaGuideSummary");
+const conversaArchetypeGuideList = document.getElementById("conversaArchetypeGuideList");
+const conversaGuideWaitingText = document.getElementById("conversaGuideWaitingText");
 const conversaQuestionCounter = document.getElementById("conversaQuestionCounter");
 const conversaModeText = document.getElementById("conversaModeText");
 const conversaTurnText = document.getElementById("conversaTurnText");
 const conversaLevelText = document.getElementById("conversaLevelText");
 const conversaQuestionText = document.getElementById("conversaQuestionText");
-const conversaRatingPanel = document.getElementById("conversaRatingPanel");
-const conversaRatingOptions = document.getElementById("conversaRatingOptions");
+const conversaArchetypePanel = document.getElementById("conversaArchetypePanel");
+const conversaArchetypeOptions = document.getElementById("conversaArchetypeOptions");
 const conversaStatusText = document.getElementById("conversaStatusText");
 const conversaProgressText = document.getElementById("conversaProgressText");
 const conversaResultLeaderControls = document.getElementById("conversaResultLeaderControls");
 const continueConversaResultBtn = document.getElementById("continueConversaResultBtn");
 const conversaResultSummary = document.getElementById("conversaResultSummary");
-const conversaRankingList = document.getElementById("conversaRankingList");
+const conversaArchetypeResultsList = document.getElementById("conversaArchetypeResultsList");
 
 // Heads Up
 const startHeadsUpBtn = document.getElementById("startHeadsUpBtn");
@@ -961,6 +967,18 @@ startConversaBtn.addEventListener("click", () => {
   });
 });
 
+continueConversaGuideBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+
+  continueConversaGuideBtn.disabled = true;
+  socket.emit("continue_conversa_guide", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+
+    continueConversaGuideBtn.disabled = false;
+    showToast(response.message || "No se pudo empezar Conversa.");
+  });
+});
+
 continueConversaResultBtn.addEventListener("click", () => {
   if (!currentGame) return;
 
@@ -1457,6 +1475,11 @@ socket.on("friend_question_result", (data) => {
 socket.on("conversa_intro", (data) => {
   currentGame = data.game;
   renderConversaIntro(data.intro || {});
+});
+
+socket.on("conversa_guide", (data) => {
+  currentGame = data.game;
+  renderConversaGuide(data.guide || {});
 });
 
 socket.on("conversa_question", (data) => {
@@ -2211,36 +2234,64 @@ function renderConversaIntro(intro) {
   showScreen(conversaIntroScreen);
 }
 
-function submitConversaRating(rating, selectedButton) {
-  if (!currentGame || conversaRatingPending) return;
+function renderConversaGuide(guide) {
+  isLeader = currentGame && currentGame.leaderId === socket.id;
+  continueConversaGuideBtn.disabled = false;
+  conversaGuideLeaderControls.classList.toggle("hidden", !isLeader);
+  conversaGuideWaitingText.classList.toggle("hidden", isLeader);
+  conversaGuideSummary.textContent =
+    `${guide.modeName || "Conversa"} · ${guide.questionTotal || 0} pregunta${guide.questionTotal === 1 ? "" : "s"}.`;
+  conversaArchetypeGuideList.innerHTML = "";
 
-  conversaRatingPending = true;
+  (guide.archetypes || []).forEach((archetype) => {
+    const row = document.createElement("div");
+    row.className = "conversa-archetype-guide-row";
+
+    const icon = document.createElement("span");
+    icon.className = "conversa-archetype-icon";
+    icon.textContent = archetype.emoji;
+
+    const text = document.createElement("p");
+    text.innerHTML = `<strong>${archetype.name}</strong><small>${archetype.description}</small>`;
+
+    row.appendChild(icon);
+    row.appendChild(text);
+    conversaArchetypeGuideList.appendChild(row);
+  });
+
+  showScreen(conversaGuideScreen);
+}
+
+function submitConversaClassification(archetypeId, selectedButton) {
+  if (!currentGame || conversaClassificationPending) return;
+
+  conversaClassificationPending = true;
   selectedButton.classList.add("is-selected");
-  conversaRatingOptions.querySelectorAll("button").forEach((button) => {
+  conversaArchetypeOptions.querySelectorAll("button").forEach((button) => {
     button.disabled = true;
   });
-  conversaStatusText.textContent = "Calificación enviada.";
+  conversaStatusText.textContent = "Clasificación enviada.";
 
-  socket.emit("submit_conversa_rating", {
+  socket.emit("submit_conversa_classification", {
     pin: currentGame.pin,
-    rating
+    archetypeId
   }, (response) => {
     if (response.ok) return;
 
-    conversaRatingPending = false;
-    showToast(response.message || "No se pudo enviar la calificación.");
-    conversaRatingOptions.querySelectorAll("button").forEach((button) => {
+    conversaClassificationPending = false;
+    showToast(response.message || "No se pudo enviar la clasificación.");
+    conversaArchetypeOptions.querySelectorAll("button").forEach((button) => {
       button.disabled = false;
       button.classList.remove("is-selected");
     });
-    conversaStatusText.textContent = "Intenta enviar tu calificación otra vez.";
+    conversaStatusText.textContent = "Intenta enviar tu clasificación otra vez.";
   });
 }
 
 function renderConversaQuestion(state) {
   if (!state) return;
 
-  conversaRatingPending = false;
+  conversaClassificationPending = false;
   conversaQuestionCounter.textContent = `Pregunta ${state.number}/${state.total}`;
   conversaModeText.textContent = state.modeName || "Conversa";
   conversaTurnText.textContent = state.isYourTurn
@@ -2250,30 +2301,35 @@ function renderConversaQuestion(state) {
   conversaLevelText.classList.toggle("hidden", !state.level);
   conversaQuestionText.textContent = state.question;
   conversaProgressText.textContent =
-    `Calificaciones: ${state.ratingCount}/${state.totalRaters}`;
+    `Calificaciones: ${state.classificationCount}/${state.totalRaters}`;
 
-  conversaRatingOptions.innerHTML = "";
+  conversaArchetypeOptions.innerHTML = "";
 
-  for (let rating = 1; rating <= 5; rating++) {
+  (state.archetypes || []).forEach((archetype) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "conversa-rating-btn";
-    button.textContent = String(rating);
+    button.className = "conversa-archetype-btn";
+    button.title = `${archetype.name}: ${archetype.description}`;
+    button.setAttribute("aria-label", `${archetype.name}: ${archetype.description}`);
+    button.textContent = archetype.emoji;
     button.disabled = !state.canRate;
-    button.classList.toggle("is-selected", state.yourRating === rating);
-    button.addEventListener("click", () => submitConversaRating(rating, button));
-    conversaRatingOptions.appendChild(button);
-  }
+    button.classList.toggle("is-selected", state.yourClassification === archetype.id);
+    button.addEventListener("click", () => submitConversaClassification(archetype.id, button));
+    conversaArchetypeOptions.appendChild(button);
+  });
 
-  conversaRatingPanel.classList.toggle("hidden", state.isYourTurn);
+  conversaArchetypePanel.classList.toggle("hidden", state.isYourTurn);
 
   if (state.isYourTurn) {
-    conversaStatusText.textContent = "Responde en voz alta. El grupo calificará tu respuesta.";
-  } else if (state.yourRating) {
-    conversaStatusText.textContent = `Calificaste con ${state.yourRating}.`;
+    conversaStatusText.textContent = "Responde en voz alta. El grupo clasificará tu respuesta.";
+  } else if (state.yourClassification) {
+    const selected = (state.archetypes || []).find((archetype) => archetype.id === state.yourClassification);
+    conversaStatusText.textContent = selected
+      ? `Clasificaste como ${selected.name}.`
+      : "Clasificación enviada.";
   } else {
     conversaStatusText.textContent = state.canRate
-      ? "Elige una calificación del 1 al 5."
+      ? "Elige un arquetipo para la respuesta."
       : "Esperando la respuesta del jugador de turno.";
   }
 
@@ -2287,7 +2343,44 @@ function renderConversaResult(data) {
   conversaResultSummary.textContent =
     `${data.modeName || "Conversa"} terminó con ${data.results?.length || 0} pregunta${data.results?.length === 1 ? "" : "s"}.`;
 
-  renderRankingList(conversaRankingList, data.ranking || []);
+  conversaArchetypeResultsList.innerHTML = "";
+
+  (data.archetypeProfiles || []).forEach((profile) => {
+    const li = document.createElement("li");
+    li.className = "conversa-archetype-result-row";
+
+    const name = document.createElement("strong");
+    name.textContent = profile.playerName;
+
+    const archetypes = document.createElement("div");
+    archetypes.className = "conversa-archetype-result-icons";
+
+    if (profile.topArchetypes && profile.topArchetypes.length) {
+      profile.topArchetypes.forEach((archetype) => {
+        const badge = document.createElement("span");
+        badge.className = "conversa-archetype-result-badge";
+        const percent = Math.round((archetype.probability || 0) * 100);
+        badge.title = `${archetype.name}: ${percent}%`;
+        badge.textContent = `${archetype.emoji} ${archetype.name}`;
+        archetypes.appendChild(badge);
+      });
+    } else {
+      const empty = document.createElement("span");
+      empty.className = "conversa-archetype-empty";
+      empty.textContent = "Sin clasificaciones";
+      archetypes.appendChild(empty);
+    }
+
+    const detail = document.createElement("small");
+    detail.textContent =
+      `${profile.totalClassifications || 0} clasificaci${profile.totalClassifications === 1 ? "ón" : "ones"} recibida${profile.totalClassifications === 1 ? "" : "s"}.`;
+
+    li.appendChild(name);
+    li.appendChild(archetypes);
+    li.appendChild(detail);
+    conversaArchetypeResultsList.appendChild(li);
+  });
+
   showScreen(conversaResultScreen);
 }
 

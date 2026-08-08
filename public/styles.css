@@ -438,17 +438,22 @@ button:disabled {
   font-weight: 800;
 }
 
-.conversa-rating-panel {
+.conversa-archetype-panel {
   margin-top: 20px;
 }
 
-.conversa-rating-options {
+.conversa-progress-text {
+  margin: 12px 0 18px;
+  font-weight: 800;
+}
+
+.conversa-archetype-options {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
-.conversa-rating-btn {
+.conversa-archetype-btn {
   width: 100%;
   aspect-ratio: 1;
   margin-top: 0;
@@ -457,14 +462,90 @@ button:disabled {
   border-radius: 8px;
   background: #ffffff;
   color: #141827;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 900;
 }
 
-.conversa-rating-btn.is-selected {
+.conversa-archetype-btn.is-selected {
   border-color: var(--color-primary);
   background: var(--color-primary);
   color: #07200a;
+}
+
+.conversa-archetype-guide-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.conversa-archetype-guide-row {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.conversa-archetype-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #141827;
+  display: grid;
+  place-items: center;
+  font-size: 23px;
+}
+
+.conversa-archetype-guide-row p {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.conversa-archetype-guide-row small {
+  color: var(--muted-text-color);
+  line-height: 1.35;
+}
+
+.conversa-archetype-results-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.conversa-archetype-result-row {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  display: grid;
+  gap: 8px;
+}
+
+.conversa-archetype-result-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.conversa-archetype-result-badge,
+.conversa-archetype-empty {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #141827;
+  font-weight: 900;
+}
+
+.conversa-archetype-result-row small {
+  color: var(--muted-text-color);
 }
 
 .toast {

@@ -91,6 +91,51 @@ const CONVERSA_MODES = [
   { id: "citas", name: "Citas" }
 ];
 
+const CONVERSA_ARCHETYPES = [
+  {
+    id: "ingeniero",
+    name: "Ingeniero",
+    emoji: "🧠",
+    description: "Respuesta lÃ³gica, pragmÃ¡tica, objetiva o analÃ­tica."
+  },
+  {
+    id: "payaso",
+    name: "Payaso",
+    emoji: "🤡",
+    description: "Agrega chistes y bromas a sus respuestas."
+  },
+  {
+    id: "artista",
+    name: "Artista",
+    emoji: "🎨",
+    description: "Respuestas abstractas, filosÃ³ficas, con sentidos figurados y profundos."
+  },
+  {
+    id: "narrativo",
+    name: "Narrativo",
+    emoji: "📖",
+    description: "Responde usando anÃ©cdotas o historias."
+  },
+  {
+    id: "emocional",
+    name: "Emocional",
+    emoji: "❤️",
+    description: "Expresa sentimientos o incluye mucho drama o exageraciÃ³n."
+  },
+  {
+    id: "tangencial",
+    name: "Tangencial",
+    emoji: "🌀",
+    description: "Salta de una idea a otra, cambia bruscamente de tema o responde fuera de contexto."
+  },
+  {
+    id: "cortante",
+    name: "Cortante",
+    emoji: "✂️",
+    description: "Respuestas muy breves."
+  }
+];
+
 const DEFAULT_CONVERSA_QUESTIONS = {
   random: [
     "¿Qué gusto pequeño te alegra más de lo que debería?",
@@ -164,7 +209,10 @@ const DEFAULT_CONVERSA_QUESTIONS = {
       "¿Qué tendría que pasar para construir una relación muy seria?",
       "¿Qué parte de tu vida no negociarías por una relación?",
       "¿Qué herida antigua te gustaría no repetir en pareja?",
-      "¿Cómo sabes que amar no te está borrando a ti mismo?"
+      "¿Cómo sabes que amar no te está borrando a ti mismo?",
+      "¿Qué verdad personal te costaría decir en una relación seria?",
+      "¿Qué significa elegir a alguien incluso en una temporada difícil?",
+      "¿Qué necesitarías sanar antes de amar con más libertad?"
     ]
   }
 };
@@ -471,23 +519,34 @@ function getConversaMode(modeId) {
   return CONVERSA_MODES.find((mode) => mode.id === modeId) || CONVERSA_MODES[0];
 }
 
-function getConversaModeQuestions(settings, modeId) {
+function sampleConversaQuestions(sourceQuestions, fallbackQuestions, count) {
+  const pool = sourceQuestions.length ? sourceQuestions : fallbackQuestions;
+  const result = [];
+
+  if (!pool.length || count <= 0) return result;
+
+  while (result.length < count) {
+    const remaining = count - result.length;
+    result.push(...shuffleArray(pool).slice(0, remaining));
+  }
+
+  return result;
+}
+
+function getConversaModeQuestions(settings, modeId, playerCount = 2) {
   if (modeId === "citas") {
     const citas = settings.questions.citas || {};
     const fallback = settings.fallbackQuestions.citas;
+    const level1Fallback = fallback.level1.map(normalizeConversaQuestion).filter(Boolean);
+    const level2Fallback = fallback.level2.map(normalizeConversaQuestion).filter(Boolean);
+    const level3Fallback = fallback.level3.map(normalizeConversaQuestion).filter(Boolean);
 
     return [
-      ...shuffleArray(citas.level1.length ? citas.level1 : fallback.level1.map(normalizeConversaQuestion))
-        .filter(Boolean)
-        .slice(0, 8)
+      ...sampleConversaQuestions(citas.level1, level1Fallback, 8)
         .map((question) => ({ ...question, level: "Nivel 1" })),
-      ...shuffleArray(citas.level2.length ? citas.level2 : fallback.level2.map(normalizeConversaQuestion))
-        .filter(Boolean)
-        .slice(0, 8)
+      ...sampleConversaQuestions(citas.level2, level2Fallback, 8)
         .map((question) => ({ ...question, level: "Nivel 2" })),
-      ...shuffleArray(citas.level3.length ? citas.level3 : fallback.level3.map(normalizeConversaQuestion))
-        .filter(Boolean)
-        .slice(0, 3)
+      ...sampleConversaQuestions(citas.level3, level3Fallback, 8)
         .map((question) => ({ ...question, level: "Nivel 3" }))
     ];
   }
@@ -496,9 +555,9 @@ function getConversaModeQuestions(settings, modeId) {
   const fallbackQuestions = (settings.fallbackQuestions[modeId] || [])
     .map(normalizeConversaQuestion)
     .filter(Boolean);
-  const sourceQuestions = campaignQuestions.length ? campaignQuestions : fallbackQuestions;
+  const questionCount = Math.max(1, Number(playerCount) || 2) * 3;
 
-  return shuffleArray(sourceQuestions).slice(0, settings.questionsPerGame);
+  return sampleConversaQuestions(campaignQuestions, fallbackQuestions, questionCount);
 }
 
 function getCampaignHeadsUpWords(game) {
@@ -1380,7 +1439,8 @@ function finishFriendQuestion(pin) {
 
 function getPublicConversaIntro(game) {
   return {
-    modes: CONVERSA_MODES.map((mode) => ({ ...mode }))
+    modes: CONVERSA_MODES.map((mode) => ({ ...mode })),
+    archetypes: CONVERSA_ARCHETYPES.map((archetype) => ({ ...archetype }))
   };
 }
 
@@ -1397,7 +1457,7 @@ function startConversaIntro(pin) {
     players: [],
     currentQuestionIndex: -1,
     currentPlayerIndex: -1,
-    ratings: {},
+    classifications: {},
     questionOpen: false,
     questionResults: [],
     lastMessage: "",
@@ -1409,6 +1469,14 @@ function startConversaIntro(pin) {
     game: publicGame(game),
     intro: getPublicConversaIntro(game)
   });
+}
+
+function getPublicConversaGuide(game) {
+  return {
+    modeName: game.conversa.selectedMode?.name || "Conversa",
+    questionTotal: game.conversa.questions.length,
+    archetypes: CONVERSA_ARCHETYPES.map((archetype) => ({ ...archetype }))
+  };
 }
 
 function getConversaAppPlayer(game, clientId) {
@@ -1450,7 +1518,7 @@ function getPublicConversaState(game, viewerSocketId) {
     : null;
   const question = game.conversa.questions[game.conversa.currentQuestionIndex] || {};
   const raters = getConnectedConversaRaters(game);
-  const viewerRating = viewer ? game.conversa.ratings[viewer.clientId] : null;
+  const viewerClassification = viewer ? game.conversa.classifications[viewer.clientId] : null;
   const isYourTurn = Boolean(
     viewer &&
     currentPlayer &&
@@ -1472,11 +1540,12 @@ function getPublicConversaState(game, viewerSocketId) {
       !isYourTurn &&
       viewer.connected !== false &&
       game.conversa.questionOpen &&
-      !viewerRating
+      !viewerClassification
     ),
-    yourRating: viewerRating || null,
-    ratingCount: raters.filter((player) => game.conversa.ratings[player.clientId]).length,
+    yourClassification: viewerClassification || null,
+    classificationCount: raters.filter((player) => game.conversa.classifications[player.clientId]).length,
     totalRaters: raters.length,
+    archetypes: CONVERSA_ARCHETYPES.map((archetype) => ({ ...archetype })),
     message: game.conversa.lastMessage
   };
 }
@@ -1498,7 +1567,7 @@ function beginConversa(pin, rawModeId) {
   }
 
   const mode = getConversaMode(rawModeId);
-  const questions = getConversaModeQuestions(game.conversa, mode.id);
+  const questions = getConversaModeQuestions(game.conversa, mode.id, game.players.length);
 
   if (!questions.length) {
     return { ok: false, message: "No hay preguntas disponibles para este modo." };
@@ -1512,10 +1581,28 @@ function beginConversa(pin, rawModeId) {
   }));
   game.conversa.currentQuestionIndex = -1;
   game.conversa.currentPlayerIndex = -1;
+  game.conversa.classifications = {};
   game.conversa.questionResults = [];
   game.conversa.lastMessage = "";
   game.conversa.awaitingContinue = false;
   game.conversa.lastResult = null;
+
+  game.status = "conversa_guide";
+
+  io.to(pin).emit("conversa_guide", {
+    game: publicGame(game),
+    guide: getPublicConversaGuide(game)
+  });
+
+  return { ok: true };
+}
+
+function startConversaQuestions(pin) {
+  const game = games.get(pin);
+
+  if (!game || game.status !== "conversa_guide" || !game.conversa?.questions?.length) {
+    return { ok: false, message: "Conversa todavÃ­a no estÃ¡ listo para empezar." };
+  }
 
   startNextConversaQuestion(pin);
 
@@ -1539,7 +1626,7 @@ function startNextConversaQuestion(pin) {
     game,
     game.conversa.currentPlayerIndex
   );
-  game.conversa.ratings = {};
+  game.conversa.classifications = {};
   game.conversa.questionOpen = true;
 
   const currentPlayer = getCurrentConversaPlayer(game);
@@ -1552,7 +1639,11 @@ function haveAllConversaRatersScored(game) {
   const raters = getConnectedConversaRaters(game);
 
   return Boolean(raters.length) &&
-    raters.every((player) => game.conversa.ratings[player.clientId]);
+    raters.every((player) => game.conversa.classifications[player.clientId]);
+}
+
+function getConversaArchetype(archetypeId) {
+  return CONVERSA_ARCHETYPES.find((archetype) => archetype.id === archetypeId) || null;
 }
 
 function finishConversaQuestion(pin, skipped = false) {
@@ -1563,39 +1654,43 @@ function finishConversaQuestion(pin, skipped = false) {
   const currentPlayer = getCurrentConversaPlayer(game);
   const appPlayer = currentPlayer ? getConversaAppPlayer(game, currentPlayer.clientId) : null;
   const raters = getConnectedConversaRaters(game);
-  const ratings = skipped
+  const classifications = skipped
     ? []
     : raters
-        .map((player) => Number(game.conversa.ratings[player.clientId]))
-        .filter((rating) => Number.isInteger(rating) && rating >= 1 && rating <= 5);
-  const average = ratings.length
-    ? Number((ratings.reduce((total, rating) => total + rating, 0) / ratings.length).toFixed(2))
-    : 0;
+        .map((player) => {
+          const archetype = getConversaArchetype(game.conversa.classifications[player.clientId]);
+          if (!archetype) return null;
+
+          return {
+            raterClientId: player.clientId,
+            raterName: player.name,
+            archetypeId: archetype.id,
+            archetypeName: archetype.name,
+            emoji: archetype.emoji
+          };
+        })
+        .filter(Boolean);
 
   game.conversa.questionOpen = false;
 
-  if (appPlayer && !skipped) {
-    appPlayer.score = Number((appPlayer.score + average).toFixed(2));
-  }
-
   const result = {
     questionNumber: game.conversa.currentQuestionIndex + 1,
+    playerClientId: appPlayer?.clientId || currentPlayer?.clientId || null,
     playerName: appPlayer?.name || currentPlayer?.name || "Jugador",
     question: game.conversa.questions[game.conversa.currentQuestionIndex]?.question || "",
-    ratings,
-    average,
+    classifications,
     skipped
   };
 
   game.conversa.questionResults.push(result);
   game.conversa.lastMessage = skipped
     ? `${result.playerName} salió de la pregunta.`
-    : `${result.playerName} recibió ${average} punto${average === 1 ? "" : "s"}.`;
+    : `${result.playerName} fue clasificado por el grupo.`;
 
   startNextConversaQuestion(pin);
 }
 
-function submitConversaRating(pin, player, rawRating) {
+function submitConversaClassification(pin, player, rawArchetypeId) {
   const game = games.get(pin);
 
   if (!game || game.status !== "conversa" || !game.conversa?.questionOpen) {
@@ -1608,19 +1703,19 @@ function submitConversaRating(pin, player, rawRating) {
   }
 
   if (currentPlayer.clientId === player.clientId) {
-    return { ok: false, message: "El jugador de turno no califica su propia respuesta." };
+    return { ok: false, message: "El jugador de turno no clasifica su propia respuesta." };
   }
 
-  const rating = Number(rawRating);
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-    return { ok: false, message: "La calificación debe ser un número del 1 al 5." };
+  const archetype = getConversaArchetype(rawArchetypeId);
+  if (!archetype) {
+    return { ok: false, message: "Elige un arquetipo válido." };
   }
 
-  if (game.conversa.ratings[player.clientId]) {
-    return { ok: false, message: "Ya calificaste esta respuesta." };
+  if (game.conversa.classifications[player.clientId]) {
+    return { ok: false, message: "Ya clasificaste esta respuesta." };
   }
 
-  game.conversa.ratings[player.clientId] = rating;
+  game.conversa.classifications[player.clientId] = archetype.id;
 
   if (haveAllConversaRatersScored(game)) {
     finishConversaQuestion(pin);
@@ -1630,6 +1725,46 @@ function submitConversaRating(pin, player, rawRating) {
   emitConversaState(pin, game);
 
   return { ok: true };
+}
+
+function getConversaArchetypeProfiles(game) {
+  return game.conversa.players.map((conversaPlayer) => {
+    const appPlayer = getConversaAppPlayer(game, conversaPlayer.clientId);
+    const counts = Object.fromEntries(CONVERSA_ARCHETYPES.map((archetype) => [archetype.id, 0]));
+    let total = 0;
+
+    game.conversa.questionResults.forEach((result) => {
+      if (result.playerClientId !== conversaPlayer.clientId) return;
+
+      (result.classifications || []).forEach((classification) => {
+        if (counts[classification.archetypeId] === undefined) return;
+
+        counts[classification.archetypeId]++;
+        total++;
+      });
+    });
+
+    const maxCount = Math.max(0, ...Object.values(counts));
+    const topArchetypes = maxCount > 0
+      ? CONVERSA_ARCHETYPES
+          .filter((archetype) => counts[archetype.id] === maxCount)
+          .map((archetype) => ({
+            id: archetype.id,
+            name: archetype.name,
+            emoji: archetype.emoji,
+            count: counts[archetype.id],
+            probability: total ? Number((counts[archetype.id] / total).toFixed(2)) : 0
+          }))
+      : [];
+
+    return {
+      playerId: appPlayer?.id || null,
+      playerName: appPlayer?.name || conversaPlayer.name,
+      totalClassifications: total,
+      counts,
+      topArchetypes
+    };
+  });
 }
 
 function finishConversaGame(pin) {
@@ -1642,6 +1777,7 @@ function finishConversaGame(pin) {
   game.conversa.lastResult = {
     modeName: game.conversa.selectedMode?.name || "Conversa",
     results: game.conversa.questionResults,
+    archetypeProfiles: getConversaArchetypeProfiles(game),
     ranking: getRanking(game)
   };
 
@@ -5331,6 +5467,14 @@ function sendCurrentStateToSocket(pin, socket, game) {
     return;
   }
 
+  if (game.status === "conversa_guide" && game.conversa) {
+    socket.emit("conversa_guide", {
+      game: publicGame(game),
+      guide: getPublicConversaGuide(game)
+    });
+    return;
+  }
+
   if (game.status === "conversa" && game.conversa) {
     socket.emit("conversa_question", {
       game: publicGame(game),
@@ -6865,7 +7009,24 @@ io.on("connection", (socket) => {
     callback(beginConversa(cleanGamePin, mode));
   });
 
-  socket.on("submit_conversa_rating", ({ pin, rating }, callback) => {
+  socket.on("continue_conversa_guide", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "conversa_guide" || !game.conversa) {
+      callback({ ok: false, message: "La guÃ­a de Conversa todavÃ­a no estÃ¡ lista." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el lÃ­der puede continuar." });
+      return;
+    }
+
+    callback(startConversaQuestions(cleanGamePin));
+  });
+
+  socket.on("submit_conversa_classification", ({ pin, archetypeId }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
     const player = game?.players.find((item) => item.id === socket.id);
@@ -6875,7 +7036,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    callback(submitConversaRating(cleanGamePin, player, rating));
+    callback(submitConversaClassification(cleanGamePin, player, archetypeId));
   });
 
   socket.on("continue_conversa_result", ({ pin }, callback) => {
@@ -7592,6 +7753,7 @@ module.exports = {
     createLastCardDeck,
     getCampaignConversaSettings,
     getConversaModeQuestions,
+    getConversaArchetypeProfiles,
     isHigherCachoBid,
     countCachoFace,
     drawLastCards,
