@@ -26,6 +26,7 @@
             "stop": true,
             "impostor": true,
             "cacho": true,
+            "vertical": true,
             "lastcard": true,
             "poker": true
         }

@@ -165,6 +165,14 @@
         </label>
 
         <label class="game-option">
+          <input id="gameVertical" class="game-checkbox-input" type="radio" name="selectedGame" value="vertical" />
+          <span>
+            <strong>Integración vertical</strong>
+            <small>Construye una cadena de valor del café y domina el mercado.</small>
+          </span>
+        </label>
+
+        <label class="game-option">
           <input id="gameLastCard" class="game-checkbox-input" type="radio" name="selectedGame" value="lastcard" />
           <span>
             <strong>ÚLTIMA CARTA</strong>
@@ -838,6 +846,77 @@
         <h3>Tabla acumulada</h3>
         <ul id="cachoRankingList" class="ranking-list"></ul>
       </div>
+    </section>
+
+    <!-- Instrucciones de Integración vertical -->
+    <section id="verticalIntroScreen" class="card hidden">
+      <p class="small-title">Integración vertical</p>
+      <h2>Construye la cadena del café</h2>
+
+      <p class="subtitle">
+        Lanza los dados y adquiere actividades de producción, transformación y distribución.
+        Completa una compañía para instalar plantas o equipos y aumentar la renta.
+      </p>
+
+      <p class="subtitle">
+        También encontrarás puertos, aeropuertos, servicios, cartas empresariales e inspecciones.
+        Puedes hipotecar activos para recuperar efectivo; la última empresa solvente gana.
+      </p>
+
+      <div id="verticalCompanyLegend" class="vertical-company-legend"></div>
+      <p id="verticalStartingCashText" class="vertical-intro-cash"></p>
+
+      <button id="startVerticalBtn" class="primary-btn hidden">Continuar</button>
+      <p id="verticalIntroWaitingText" class="waiting-text">
+        Esperando a que el líder continúe...
+      </p>
+    </section>
+
+    <!-- Integración vertical -->
+    <section id="verticalScreen" class="card vertical-game-screen hidden">
+      <p class="small-title">Integración vertical</p>
+
+      <div class="vertical-turn-header">
+        <strong id="verticalTurnText"></strong>
+        <div id="verticalDice" class="vertical-dice" aria-label="Último lanzamiento"></div>
+      </div>
+
+      <p id="verticalStatusText" class="vertical-status-box"></p>
+      <div id="verticalBusinessCard" class="vertical-business-card hidden"></div>
+
+      <div
+        id="verticalBoardCarousel"
+        class="vertical-board-carousel"
+        aria-label="Casillas de la cadena de valor"
+      ></div>
+
+      <div id="verticalActions" class="vertical-main-actions">
+        <button id="rollVerticalDiceBtn" class="primary-btn">Lanzar dados</button>
+        <button id="buyVerticalSquareBtn" class="primary-btn hidden">Adquirir</button>
+        <button id="skipVerticalPurchaseBtn" class="secondary-btn hidden">No adquirir</button>
+        <button id="payVerticalJailBtn" class="secondary-btn hidden">Pagar salida · $50</button>
+        <button id="endVerticalTurnBtn" class="primary-btn hidden">Terminar turno</button>
+        <button id="declareVerticalBankruptcyBtn" class="danger-btn hidden">Declarar insolvencia</button>
+      </div>
+
+      <h3 class="vertical-finance-title">Balance de jugadores</h3>
+      <div
+        id="verticalPlayersCarousel"
+        class="vertical-players-carousel"
+        aria-label="Balance financiero de los jugadores"
+      ></div>
+    </section>
+
+    <!-- Resultado de Integración vertical -->
+    <section id="verticalResultScreen" class="card hidden">
+      <div id="verticalResultLeaderControls" class="between-games-top-actions hidden">
+        <button id="continueVerticalResultBtn" class="primary-btn">Continuar</button>
+      </div>
+
+      <p class="small-title">Integración vertical</p>
+      <h2 id="verticalWinnerText"></h2>
+      <p class="subtitle">Valor final de cada compañía</p>
+      <ul id="verticalResultList" class="vertical-result-list"></ul>
     </section>
 
     <!-- Instrucciones de ÚLTIMA CARTA -->

@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/last-card-call.test.js && node tests/last-card-call.socket.test.js && node tests/last-card-deck.test.js && node tests/conversa-cacho-rules.test.js"
+    "test": "node tests/last-card-call.test.js && node tests/last-card-call.socket.test.js && node tests/last-card-deck.test.js && node tests/conversa-cacho-rules.test.js && node tests/vertical-integration.test.js"
   },
   "dependencies": {
     "express": "^4.18.3",

@@ -15,6 +15,10 @@ let stopVotePending = false;
 let currentCachoState = null;
 let selectedCachoFace = 2;
 let cachoActionPending = false;
+let currentVerticalState = null;
+let verticalActionPending = false;
+let selectedVerticalSquareId = null;
+let lastVerticalFocusedPosition = null;
 let selectedConversaMode = "random";
 let conversaClassificationPending = false;
 let currentLastCardState = null;
@@ -62,6 +66,9 @@ const impostorResultScreen = document.getElementById("impostorResultScreen");
 const cachoIntroScreen = document.getElementById("cachoIntroScreen");
 const cachoScreen = document.getElementById("cachoScreen");
 const cachoResultScreen = document.getElementById("cachoResultScreen");
+const verticalIntroScreen = document.getElementById("verticalIntroScreen");
+const verticalScreen = document.getElementById("verticalScreen");
+const verticalResultScreen = document.getElementById("verticalResultScreen");
 const lastCardIntroScreen = document.getElementById("lastCardIntroScreen");
 const lastCardGuideScreen = document.getElementById("lastCardGuideScreen");
 const lastCardScreen = document.getElementById("lastCardScreen");
@@ -105,6 +112,7 @@ const gameHeads = document.getElementById("gameHeads");
 const gameStop = document.getElementById("gameStop");
 const gameImpostor = document.getElementById("gameImpostor");
 const gameCacho = document.getElementById("gameCacho");
+const gameVertical = document.getElementById("gameVertical");
 const gameLastCard = document.getElementById("gameLastCard");
 const friendGameHelp = document.getElementById("friendGameHelp");
 const gamePoker = document.getElementById("gamePoker");
@@ -117,6 +125,7 @@ const gameCheckboxes = [
   gameStop,
   gameImpostor,
   gameCacho,
+  gameVertical,
   gameLastCard,
   gamePoker
 ].filter(Boolean);
@@ -298,6 +307,28 @@ const cachoRevealedDiceList = document.getElementById("cachoRevealedDiceList");
 const cachoLoserText = document.getElementById("cachoLoserText");
 const cachoFinalRanking = document.getElementById("cachoFinalRanking");
 const cachoRankingList = document.getElementById("cachoRankingList");
+
+// Integración vertical
+const startVerticalBtn = document.getElementById("startVerticalBtn");
+const verticalIntroWaitingText = document.getElementById("verticalIntroWaitingText");
+const verticalCompanyLegend = document.getElementById("verticalCompanyLegend");
+const verticalStartingCashText = document.getElementById("verticalStartingCashText");
+const verticalTurnText = document.getElementById("verticalTurnText");
+const verticalDice = document.getElementById("verticalDice");
+const verticalStatusText = document.getElementById("verticalStatusText");
+const verticalBusinessCard = document.getElementById("verticalBusinessCard");
+const verticalBoardCarousel = document.getElementById("verticalBoardCarousel");
+const verticalPlayersCarousel = document.getElementById("verticalPlayersCarousel");
+const rollVerticalDiceBtn = document.getElementById("rollVerticalDiceBtn");
+const buyVerticalSquareBtn = document.getElementById("buyVerticalSquareBtn");
+const skipVerticalPurchaseBtn = document.getElementById("skipVerticalPurchaseBtn");
+const payVerticalJailBtn = document.getElementById("payVerticalJailBtn");
+const endVerticalTurnBtn = document.getElementById("endVerticalTurnBtn");
+const declareVerticalBankruptcyBtn = document.getElementById("declareVerticalBankruptcyBtn");
+const verticalResultLeaderControls = document.getElementById("verticalResultLeaderControls");
+const continueVerticalResultBtn = document.getElementById("continueVerticalResultBtn");
+const verticalWinnerText = document.getElementById("verticalWinnerText");
+const verticalResultList = document.getElementById("verticalResultList");
 
 // ÚLTIMA CARTA
 const startLastCardBtn = document.getElementById("startLastCardBtn");
@@ -704,6 +735,10 @@ function applyCampaignGameAvailability(campaign) {
 
   if (gameCacho && gameCacho.closest(".game-option")) {
     gameCacho.closest(".game-option").classList.toggle("hidden", !available.cacho);
+  }
+
+  if (gameVertical && gameVertical.closest(".game-option")) {
+    gameVertical.closest(".game-option").classList.toggle("hidden", !available.vertical);
   }
 
   if (gameLastCard && gameLastCard.closest(".game-option")) {
@@ -1304,6 +1339,47 @@ continueCachoResultBtn.addEventListener("click", () => {
   });
 });
 
+function emitVerticalAction(eventName, payload = {}) {
+  if (!currentGame || verticalActionPending) return;
+
+  verticalActionPending = true;
+  renderVerticalControls();
+  socket.emit(eventName, { pin: currentGame.pin, ...payload }, (response) => {
+    if (response.ok) return;
+
+    verticalActionPending = false;
+    renderVerticalControls();
+    showToast(response.message || "No se pudo completar la acción.");
+  });
+}
+
+startVerticalBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+  startVerticalBtn.disabled = true;
+  socket.emit("start_vertical_game", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+    startVerticalBtn.disabled = false;
+    showToast(response.message || "No se pudo empezar Integración vertical.");
+  });
+});
+
+rollVerticalDiceBtn.addEventListener("click", () => emitVerticalAction("roll_vertical_dice"));
+buyVerticalSquareBtn.addEventListener("click", () => emitVerticalAction("buy_vertical_square"));
+skipVerticalPurchaseBtn.addEventListener("click", () => emitVerticalAction("skip_vertical_purchase"));
+payVerticalJailBtn.addEventListener("click", () => emitVerticalAction("pay_vertical_jail_fine"));
+endVerticalTurnBtn.addEventListener("click", () => emitVerticalAction("end_vertical_turn"));
+declareVerticalBankruptcyBtn.addEventListener("click", () => emitVerticalAction("declare_vertical_bankruptcy"));
+
+continueVerticalResultBtn.addEventListener("click", () => {
+  if (!currentGame) return;
+  continueVerticalResultBtn.disabled = true;
+  socket.emit("continue_vertical_result", { pin: currentGame.pin }, (response) => {
+    if (response.ok) return;
+    continueVerticalResultBtn.disabled = false;
+    showToast(response.message || "No se pudo continuar.");
+  });
+});
+
 startLastCardBtn.addEventListener("click", () => {
   if (!currentGame) return;
 
@@ -1630,6 +1706,21 @@ socket.on("cacho_round_result", (data) => {
   renderCachoResult(data.result);
 });
 
+socket.on("vertical_intro", (data) => {
+  currentGame = data.game;
+  renderVerticalIntro(data);
+});
+
+socket.on("vertical_state", (data) => {
+  currentGame = data.game;
+  renderVerticalGame(data.verticalState);
+});
+
+socket.on("vertical_finished", (data) => {
+  currentGame = data.game;
+  renderVerticalResult(data);
+});
+
 socket.on("last_card_intro", (data) => {
   currentGame = data.game;
   renderLastCardIntro(data.game);
@@ -1792,6 +1883,7 @@ function renderGameSelection(game) {
   if (gameStop) gameStop.checked = selectedGames.includes("stop");
   if (gameImpostor) gameImpostor.checked = selectedGames.includes("impostor");
   if (gameCacho) gameCacho.checked = selectedGames.includes("cacho");
+  if (gameVertical) gameVertical.checked = selectedGames.includes("vertical");
   if (gameLastCard) gameLastCard.checked = selectedGames.includes("lastcard");
   if (gamePoker) gamePoker.checked = selectedGames.includes("poker");
 
@@ -1802,6 +1894,7 @@ function renderGameSelection(game) {
   if (gameStop) gameStop.disabled = !isLeader;
   if (gameImpostor) gameImpostor.disabled = !isLeader;
   if (gameCacho) gameCacho.disabled = !isLeader;
+  if (gameVertical) gameVertical.disabled = !isLeader;
   if (gameLastCard) gameLastCard.disabled = !isLeader;
   if (gamePoker) gamePoker.disabled = !isLeader;
 
@@ -3154,6 +3247,349 @@ function renderCachoResult(result) {
   }
 
   showScreen(cachoResultScreen);
+}
+
+// --------------------------------------------------
+// Integración vertical
+// --------------------------------------------------
+
+function formatVerticalMoney(value) {
+  const amount = Number(value) || 0;
+  return `${amount < 0 ? "-" : ""}$${Math.abs(amount).toLocaleString("es-CO")}`;
+}
+
+function renderVerticalIntro(data) {
+  isLeader = data.game?.leaderId === socket.id;
+  startVerticalBtn.disabled = false;
+  startVerticalBtn.classList.toggle("hidden", !isLeader);
+  verticalIntroWaitingText.classList.toggle("hidden", isLeader);
+  verticalStartingCashText.textContent =
+    `Capital inicial: ${formatVerticalMoney(data.startingCash || 1500)} por jugador.`;
+  verticalCompanyLegend.innerHTML = "";
+
+  (data.companies || []).forEach((company) => {
+    const item = document.createElement("div");
+    item.className = "vertical-company-key";
+    item.style.setProperty("--company-color", company.color);
+    const marker = document.createElement("span");
+    marker.className = "vertical-company-marker";
+    marker.textContent = company.equipment;
+    const name = document.createElement("strong");
+    name.textContent = company.name;
+    item.append(marker, name);
+    verticalCompanyLegend.appendChild(item);
+  });
+
+  showScreen(verticalIntroScreen);
+}
+
+function getVerticalSquareTypeLabel(square) {
+  const labels = {
+    start: "Inicio",
+    property: "Actividad",
+    transport: square.transportKind || "Nodo logístico",
+    utility: "Servicio público",
+    fortune: "Fortuna",
+    chest: "Cofre",
+    jail: "Cárcel",
+    goToJail: "Ir a la cárcel",
+    rest: "Parada",
+    tax: "Obligación"
+  };
+  return labels[square.type] || "Casilla";
+}
+
+function createVerticalPropertyTable(square) {
+  const table = document.createElement("table");
+  table.className = "vertical-property-table";
+  const thead = document.createElement("thead");
+  const headingRow = document.createElement("tr");
+
+  ["Costo", "Renta", "Etapa"].forEach((label) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    headingRow.appendChild(th);
+  });
+  thead.appendChild(headingRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  const stages = ["Propiedad", "Compañía", `1 ${square.equipment}`, `2 ${square.equipment}`, `3 ${square.equipment}`];
+  stages.forEach((stage, index) => {
+    const row = document.createElement("tr");
+    [formatVerticalMoney(square.costs[index]), formatVerticalMoney(square.rents[index]), stage]
+      .forEach((value) => {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.appendChild(cell);
+      });
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  return table;
+}
+
+function createVerticalManageButton(label, action, square, className = "secondary-btn") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `vertical-asset-btn ${className}`;
+  button.textContent = label;
+  button.disabled = verticalActionPending;
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    emitVerticalAction("manage_vertical_asset", { squareId: square.id, action });
+  });
+  return button;
+}
+
+function createVerticalSquareCard(square, index) {
+  const card = document.createElement("article");
+  card.className = "vertical-square-card";
+  card.dataset.squareId = square.id;
+  card.dataset.position = String(index);
+  card.tabIndex = 0;
+  card.classList.toggle("is-selected", selectedVerticalSquareId === square.id);
+  card.classList.toggle("is-occupied", square.occupants.length > 0);
+  card.classList.toggle("is-mortgaged", square.mortgaged);
+  if (square.color) card.style.setProperty("--square-color", square.color);
+
+  const strip = document.createElement("div");
+  strip.className = "vertical-square-strip";
+  strip.textContent = square.companyName || getVerticalSquareTypeLabel(square);
+  const meta = document.createElement("div");
+  meta.className = "vertical-square-meta";
+  meta.textContent = `Casilla ${index} · ${getVerticalSquareTypeLabel(square)}`;
+  const title = document.createElement("h3");
+  title.textContent = `${square.icon || square.equipment || "☕"} ${square.name}`;
+  card.append(strip, meta, title);
+
+  if (square.occupants.length) {
+    const occupants = document.createElement("p");
+    occupants.className = "vertical-occupants";
+    occupants.textContent = `Aquí: ${square.occupants.join(", ")}`;
+    card.appendChild(occupants);
+  }
+
+  if (square.type === "property") {
+    card.appendChild(createVerticalPropertyTable(square));
+    const improvements = document.createElement("p");
+    improvements.className = "vertical-improvements";
+    improvements.textContent = square.improvements
+      ? `Planta o equipo: ${square.equipment.repeat(square.improvements)}`
+      : "Planta o equipo: ninguno";
+    card.appendChild(improvements);
+  } else if (["transport", "utility"].includes(square.type)) {
+    const purchase = document.createElement("div");
+    purchase.className = "vertical-simple-finance";
+    const cost = document.createElement("span");
+    cost.textContent = `Costo ${formatVerticalMoney(square.price)}`;
+    const rent = document.createElement("span");
+    rent.textContent = `Renta actual ${formatVerticalMoney(square.rentNow)}`;
+    purchase.append(cost, rent);
+    card.appendChild(purchase);
+  } else if (square.amount) {
+    const amount = document.createElement("p");
+    amount.className = "vertical-special-copy";
+    amount.textContent = `Pago: ${formatVerticalMoney(square.amount)}`;
+    card.appendChild(amount);
+  } else {
+    const copy = document.createElement("p");
+    copy.className = "vertical-special-copy";
+    copy.textContent = square.type === "fortune" || square.type === "chest"
+      ? "Toma una decisión del entorno empresarial."
+      : "Esta casilla no se puede adquirir.";
+    card.appendChild(copy);
+  }
+
+  if (["property", "transport", "utility"].includes(square.type)) {
+    const ownership = document.createElement("div");
+    ownership.className = "vertical-ownership";
+    const owner = document.createElement("span");
+    owner.textContent = `Propietario: ${square.ownerName || "Banco"}`;
+    const mortgage = document.createElement("span");
+    mortgage.className = square.mortgaged ? "is-alert" : "";
+    mortgage.textContent = `Hipotecada: ${square.mortgaged ? "Sí" : "No"}`;
+    ownership.append(owner, mortgage);
+    card.appendChild(ownership);
+  }
+
+  const controls = document.createElement("div");
+  controls.className = "vertical-asset-actions";
+  if (square.canBuild) controls.appendChild(createVerticalManageButton(`Instalar ${square.equipment} · ${formatVerticalMoney(square.improvementCost)}`, "build", square, "primary-btn"));
+  if (square.canSellImprovement) controls.appendChild(createVerticalManageButton("Vender equipo", "sell", square));
+  if (square.canMortgage) controls.appendChild(createVerticalManageButton(`Hipotecar · ${formatVerticalMoney(square.mortgageValue)}`, "mortgage", square));
+  if (square.canUnmortgage) controls.appendChild(createVerticalManageButton(`Levantar hipoteca · ${formatVerticalMoney(square.unmortgageCost)}`, "unmortgage", square));
+  if (controls.children.length) card.appendChild(controls);
+
+  const selectCard = () => {
+    selectedVerticalSquareId = square.id;
+    renderVerticalBoard(currentVerticalState, false);
+  };
+  card.addEventListener("click", selectCard);
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectCard();
+    }
+  });
+  return card;
+}
+
+function renderVerticalBoard(state, focusCurrent) {
+  const previousScroll = verticalBoardCarousel.scrollLeft;
+  verticalBoardCarousel.innerHTML = "";
+  state.board.forEach((square, index) => {
+    verticalBoardCarousel.appendChild(createVerticalSquareCard(square, index));
+  });
+
+  requestAnimationFrame(() => {
+    if (focusCurrent) {
+      const current = state.players.find((player) => player.isCurrent);
+      const target = verticalBoardCarousel.querySelector(`[data-position="${current?.position ?? 0}"]`);
+      if (target) {
+        verticalBoardCarousel.scrollTo({
+          left: Math.max(0, target.offsetLeft - (verticalBoardCarousel.clientWidth - target.offsetWidth) / 2),
+          behavior: "smooth"
+        });
+      }
+      return;
+    }
+    verticalBoardCarousel.scrollLeft = previousScroll;
+  });
+}
+
+function createVerticalFinancialTable(financials) {
+  const table = document.createElement("table");
+  table.className = "vertical-financial-table";
+  const rows = [
+    ["Propiedad", financials.propertyValue, `${financials.propertyPercentage}%`],
+    ["Efectivo", financials.cash, `${financials.cashPercentage}%`],
+    ["Hipoteca", -financials.mortgage, `${financials.mortgagePercentage}%`],
+    ["Total neto", financials.netWorth, "—"]
+  ];
+
+  const heading = document.createElement("tr");
+  ["Concepto", "Valor", "% activos"].forEach((label) => {
+    const th = document.createElement("th");
+    th.textContent = label;
+    heading.appendChild(th);
+  });
+  table.appendChild(heading);
+  rows.forEach(([label, value, percentage], index) => {
+    const row = document.createElement("tr");
+    if (index === rows.length - 1) row.className = "is-total";
+    [label, formatVerticalMoney(value), percentage].forEach((content) => {
+      const cell = document.createElement("td");
+      cell.textContent = content;
+      row.appendChild(cell);
+    });
+    table.appendChild(row);
+  });
+  return table;
+}
+
+function renderVerticalPlayers(state) {
+  const previousScroll = verticalPlayersCarousel.scrollLeft;
+  verticalPlayersCarousel.innerHTML = "";
+  state.players.forEach((player) => {
+    const item = document.createElement("article");
+    item.className = "vertical-player-finance";
+    item.classList.toggle("is-current", player.isCurrent);
+    item.classList.toggle("is-bankrupt", player.bankrupt);
+    const heading = document.createElement("div");
+    heading.className = "vertical-player-finance-heading";
+    const name = document.createElement("strong");
+    name.textContent = `${player.name}${player.isYou ? " · Tú" : ""}`;
+    const stateLabel = document.createElement("span");
+    stateLabel.textContent = player.bankrupt
+      ? "Insolvente"
+      : player.inJail ? "En auditoría" : player.isCurrent ? "En turno" : `Casilla ${player.position}`;
+    heading.append(name, stateLabel);
+    item.append(heading, createVerticalFinancialTable(player.financials));
+    verticalPlayersCarousel.appendChild(item);
+  });
+  requestAnimationFrame(() => {
+    verticalPlayersCarousel.scrollLeft = previousScroll;
+  });
+}
+
+function renderVerticalControls() {
+  if (!currentVerticalState) return;
+  const state = currentVerticalState;
+  const current = state.players.find((player) => player.isCurrent);
+  const landing = current ? state.board[current.position] : null;
+  const toggle = (button, visible) => {
+    button.classList.toggle("hidden", !visible);
+    button.disabled = verticalActionPending;
+  };
+
+  toggle(rollVerticalDiceBtn, state.canRoll);
+  toggle(buyVerticalSquareBtn, Boolean(landing?.canBuy));
+  if (landing?.canBuy) buyVerticalSquareBtn.textContent = `Adquirir · ${formatVerticalMoney(landing.price)}`;
+  toggle(skipVerticalPurchaseBtn, state.canSkipPurchase);
+  toggle(payVerticalJailBtn, state.canPayJail);
+  toggle(endVerticalTurnBtn, state.canEndTurn);
+  toggle(declareVerticalBankruptcyBtn, state.canDeclareBankruptcy);
+}
+
+function renderVerticalGame(state) {
+  if (!state) return;
+  isLeader = currentGame?.leaderId === socket.id;
+  const current = state.players.find((player) => player.isCurrent);
+  const positionChanged = lastVerticalFocusedPosition !== current?.position;
+  currentVerticalState = state;
+  verticalActionPending = false;
+  verticalTurnText.textContent = state.isYourTurn ? "Es tu turno" : `Turno de ${state.currentPlayerName}`;
+  verticalStatusText.textContent = state.mustResolveDebt
+    ? `Tienes una deuda. Vende equipos o hipoteca activos hasta recuperar liquidez. ${state.message}`
+    : state.message || "La cadena está lista.";
+
+  verticalDice.innerHTML = "";
+  (state.dice || []).forEach((value) => {
+    const die = document.createElement("span");
+    die.textContent = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][value];
+    verticalDice.appendChild(die);
+  });
+  verticalBusinessCard.classList.toggle("hidden", !state.lastCard);
+  verticalBusinessCard.textContent = state.lastCard
+    ? `${state.lastCard.deckType === "fortune" ? "Fortuna" : "Cofre"}: ${state.lastCard.text}`
+    : "";
+
+  if (positionChanged || !selectedVerticalSquareId) {
+    selectedVerticalSquareId = state.board[current?.position || 0]?.id || null;
+  }
+  renderVerticalBoard(state, positionChanged || activeScreen !== verticalScreen);
+  renderVerticalPlayers(state);
+  renderVerticalControls();
+  lastVerticalFocusedPosition = current?.position ?? null;
+  showScreen(verticalScreen);
+}
+
+function renderVerticalResult(data) {
+  isLeader = data.game?.leaderId === socket.id;
+  currentVerticalState = null;
+  verticalActionPending = false;
+  selectedVerticalSquareId = null;
+  lastVerticalFocusedPosition = null;
+  continueVerticalResultBtn.disabled = false;
+  verticalResultLeaderControls.classList.toggle("hidden", !isLeader);
+  verticalWinnerText.textContent = data.winnerName
+    ? `${data.winnerName} domina la cadena del café`
+    : "La partida terminó";
+  verticalResultList.innerHTML = "";
+  (data.ranking || []).forEach((player) => {
+    const item = document.createElement("li");
+    item.className = "vertical-result-row";
+    const heading = document.createElement("div");
+    const position = document.createElement("strong");
+    position.textContent = `${player.position}. ${player.name}`;
+    const worth = document.createElement("span");
+    worth.textContent = player.bankrupt ? "Insolvente" : `Patrimonio ${formatVerticalMoney(player.netWorth)}`;
+    heading.append(position, worth);
+    item.append(heading, createVerticalFinancialTable(player));
+    verticalResultList.appendChild(item);
+  });
+  showScreen(verticalResultScreen);
 }
 
 function renderLastCardIntro(game) {

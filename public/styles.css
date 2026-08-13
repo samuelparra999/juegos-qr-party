@@ -2149,3 +2149,377 @@ button:disabled {
     justify-content: flex-start;
   }
 }
+
+/* Integración vertical */
+.vertical-company-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.vertical-company-key {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--company-color) 70%, white);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+.vertical-company-key strong {
+  min-width: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.vertical-company-marker {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--company-color);
+  display: grid;
+  place-items: center;
+}
+
+.vertical-intro-cash {
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--color-tertiary);
+  font-weight: 900;
+  text-align: center;
+}
+
+.vertical-game-screen {
+  overflow: hidden;
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+.vertical-turn-header {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vertical-turn-header > strong {
+  min-width: 0;
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.vertical-dice {
+  min-width: 86px;
+  min-height: 46px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.vertical-dice span {
+  width: 40px;
+  height: 40px;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #151923;
+  display: grid;
+  place-items: center;
+  font-family: "Segoe UI Symbol", sans-serif;
+  font-size: 35px;
+  line-height: 1;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.vertical-status-box,
+.vertical-business-card {
+  margin: 10px 0 14px;
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+.vertical-business-card {
+  border-color: #f2d25c;
+  background: rgba(85, 62, 5, 0.56);
+  color: #fff1ad;
+  font-weight: 800;
+}
+
+.vertical-board-carousel,
+.vertical-players-carousel {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.46) rgba(0, 0, 0, 0.2);
+  padding: 3px 2px 13px;
+}
+
+.vertical-square-card {
+  --square-color: #7a879e;
+  width: min(310px, calc(100vw - 84px));
+  min-width: min(310px, calc(100vw - 84px));
+  height: 460px;
+  overflow-y: auto;
+  scroll-snap-align: center;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: #f7f8fb;
+  color: #171b24;
+  box-shadow: 0 9px 24px rgba(0, 0, 0, 0.26);
+  outline: none;
+}
+
+.vertical-square-card.is-selected {
+  border-color: #72a7ff;
+  box-shadow: 0 0 0 3px rgba(79, 142, 255, 0.35), 0 9px 24px rgba(0, 0, 0, 0.26);
+}
+
+.vertical-square-card.is-occupied .vertical-square-meta {
+  color: #065f46;
+}
+
+.vertical-square-card.is-mortgaged {
+  background: #edf0f4;
+}
+
+.vertical-square-strip {
+  min-height: 48px;
+  padding: 10px 12px;
+  background: var(--square-color);
+  color: #11151f;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.vertical-square-meta {
+  padding: 10px 12px 0;
+  color: #5b6474;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.vertical-square-card h3 {
+  min-height: 44px;
+  margin: 8px 12px;
+  font-size: 18px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.vertical-occupants {
+  margin: 0 12px 9px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: #d9f8e7;
+  color: #07563e;
+  font-size: 12px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.vertical-property-table,
+.vertical-financial-table {
+  width: calc(100% - 24px);
+  margin: 10px 12px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+}
+
+.vertical-property-table th,
+.vertical-property-table td,
+.vertical-financial-table th,
+.vertical-financial-table td {
+  padding: 6px 5px;
+  border: 1px solid #cfd5df;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.vertical-property-table th,
+.vertical-financial-table th {
+  background: #272d3a;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.vertical-property-table th:last-child,
+.vertical-property-table td:last-child,
+.vertical-financial-table th:first-child,
+.vertical-financial-table td:first-child {
+  text-align: left;
+}
+
+.vertical-improvements,
+.vertical-special-copy {
+  margin: 10px 12px;
+  color: #333b48;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.vertical-simple-finance,
+.vertical-ownership {
+  margin: 10px 12px;
+  padding: 9px;
+  border: 1px solid #ccd2dd;
+  border-radius: 7px;
+  background: #ffffff;
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.vertical-ownership .is-alert {
+  color: #b42334;
+}
+
+.vertical-asset-actions {
+  margin: 10px 12px 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.vertical-asset-btn {
+  min-height: 42px;
+  margin: 0;
+  padding: 8px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.vertical-main-actions {
+  min-height: 58px;
+  margin-top: 3px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vertical-main-actions button {
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.danger-btn {
+  background: #b62d41;
+  color: #ffffff;
+}
+
+.vertical-finance-title {
+  margin: 22px 0 10px;
+  font-size: 17px;
+}
+
+.vertical-player-finance {
+  width: min(310px, calc(100vw - 84px));
+  min-width: min(310px, calc(100vw - 84px));
+  min-height: 235px;
+  scroll-snap-align: center;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: #f7f8fb;
+  color: #171b24;
+  overflow: hidden;
+}
+
+.vertical-player-finance.is-current {
+  border-color: #63d6a5;
+}
+
+.vertical-player-finance.is-bankrupt {
+  opacity: 0.58;
+}
+
+.vertical-player-finance-heading {
+  min-height: 58px;
+  padding: 10px 12px;
+  background: #202633;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vertical-player-finance-heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.vertical-player-finance-heading span {
+  flex: 0 0 auto;
+  color: #a8f0cb;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.vertical-financial-table .is-total td {
+  border-top: 2px solid #727b8a;
+  font-weight: 900;
+}
+
+.vertical-result-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vertical-result-row {
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.vertical-result-row > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vertical-result-row > div span {
+  color: var(--color-tertiary);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.vertical-result-row .vertical-financial-table {
+  background: #ffffff;
+  color: #171b24;
+}
+
+@media (max-width: 360px) {
+  .vertical-company-legend,
+  .vertical-main-actions,
+  .vertical-asset-actions {
+    grid-template-columns: 1fr;
+  }
+}

@@ -22,6 +22,7 @@ const GAME_ORDER = [
   "stop",
   "impostor",
   "cacho",
+  "vertical",
   "lastcard",
   "poker"
 ];
@@ -34,6 +35,7 @@ const GAME_LABELS = {
   stop: "STOP",
   impostor: "Impostor",
   cacho: "Cacho",
+  vertical: "Integración vertical",
   lastcard: "ÚLTIMA CARTA",
   poker: "Poker"
 };
@@ -41,6 +43,127 @@ const GAME_LABELS = {
 const DEFAULT_SELECTED_GAMES = [];
 const VOTAZO_QUESTIONS_PER_GAME = 5;
 const MIN_CONNECTED_PLAYERS = 2;
+const VERTICAL_STARTING_CASH = 1500;
+const VERTICAL_PASS_START_BONUS = 200;
+const VERTICAL_JAIL_FINE = 50;
+
+const VERTICAL_COMPANIES = [
+  { id: "origen", name: "Origen Fértil", color: "#7ddc77", equipment: "🌱" },
+  { id: "cosecha", name: "Cosecha Andina", color: "#8dd9ff", equipment: "🧺" },
+  { id: "proceso", name: "Procesos del Grano", color: "#e58aaa", equipment: "⚙️" },
+  { id: "calidad", name: "Calidad y Trazabilidad", color: "#f0a14a", equipment: "🔬" },
+  { id: "transformacion", name: "Transformación Tostadora", color: "#ef6868", equipment: "🏭" },
+  { id: "logistica", name: "Logística Cafetera", color: "#f1d85c", equipment: "🚚" },
+  { id: "mercado", name: "Mercado y Marca", color: "#65c989", equipment: "📦" },
+  { id: "experiencia", name: "Experiencia Final", color: "#657fe8", equipment: "☕" }
+];
+
+function verticalProperty(id, name, companyIndex, price, baseRent, improvementCost) {
+  const company = VERTICAL_COMPANIES[companyIndex];
+  const groupSize = companyIndex === 0 || companyIndex === 7 ? 2 : 3;
+  const groupCost = price * groupSize;
+  const groupedRent = baseRent * 2;
+  const firstIncrement = Math.max(8, Math.round(baseRent * 0.8));
+  const secondIncrement = Math.max(20, Math.round(baseRent * 2.4));
+  const thirdIncrement = Math.max(12, Math.round(baseRent * 1.2));
+
+  return {
+    id,
+    type: "property",
+    name,
+    companyId: company.id,
+    companyName: company.name,
+    color: company.color,
+    equipment: company.equipment,
+    price,
+    groupCost,
+    improvementCost,
+    costs: [price, groupCost, groupCost + improvementCost, groupCost + improvementCost * 2, groupCost + improvementCost * 3],
+    rents: [baseRent, groupedRent, groupedRent + firstIncrement, groupedRent + firstIncrement + secondIncrement, groupedRent + firstIncrement + secondIncrement + thirdIncrement],
+    mortgageValue: Math.floor(price / 2)
+  };
+}
+
+const VERTICAL_BOARD = [
+  { id: "inicio", type: "start", name: "Inicio de operaciones", icon: "🚩" },
+  verticalProperty("finca", "Finca cafetera", 0, 60, 6, 50),
+  { id: "cofre-1", type: "chest", name: "Cofre empresarial", icon: "💼" },
+  verticalProperty("vivero", "Vivero de cafetos", 0, 60, 8, 50),
+  { id: "impuesto-1", type: "tax", name: "Obligaciones tributarias", amount: 100, icon: "🧾" },
+  { id: "aeropuerto-1", type: "transport", transportKind: "Aeropuerto", name: "Aeropuerto El Dorado", price: 200, mortgageValue: 100, icon: "✈️" },
+  verticalProperty("recoleccion", "Recolección selectiva", 1, 100, 10, 50),
+  { id: "fortuna-1", type: "fortune", name: "Fortuna empresarial", icon: "📈" },
+  verticalProperty("acopio", "Centro de acopio", 1, 100, 12, 50),
+  verticalProperty("beneficio", "Beneficio húmedo", 1, 120, 14, 50),
+  { id: "carcel", type: "jail", name: "Auditoría regulatoria", icon: "🔒" },
+  verticalProperty("lavado", "Lavado y fermentación", 2, 140, 16, 100),
+  { id: "energia", type: "utility", name: "Energía industrial", price: 150, mortgageValue: 75, icon: "⚡" },
+  verticalProperty("secado", "Secado solar", 2, 140, 18, 100),
+  verticalProperty("trilla", "Trilla", 2, 160, 20, 100),
+  { id: "puerto-1", type: "transport", transportKind: "Puerto", name: "Puerto de Cartagena", price: 200, mortgageValue: 100, icon: "⚓" },
+  verticalProperty("laboratorio", "Laboratorio de catación", 3, 180, 22, 100),
+  { id: "cofre-2", type: "chest", name: "Cofre empresarial", icon: "💼" },
+  verticalProperty("clasificacion", "Clasificación de grano", 3, 180, 24, 100),
+  verticalProperty("certificacion", "Certificación de origen", 3, 200, 26, 100),
+  { id: "parada", type: "rest", name: "Pausa estratégica", icon: "🛋️" },
+  verticalProperty("tostion", "Planta de tostión", 4, 220, 28, 150),
+  { id: "fortuna-2", type: "fortune", name: "Fortuna empresarial", icon: "📈" },
+  verticalProperty("molienda", "Molienda", 4, 220, 30, 150),
+  verticalProperty("empaque", "Empaque", 4, 240, 32, 150),
+  { id: "aeropuerto-2", type: "transport", transportKind: "Aeropuerto", name: "Aeropuerto José María Córdova", price: 200, mortgageValue: 100, icon: "✈️" },
+  verticalProperty("bodega", "Bodega regional", 5, 260, 34, 150),
+  verticalProperty("distribucion", "Centro de distribución", 5, 260, 36, 150),
+  { id: "agua", type: "utility", name: "Agua de proceso", price: 150, mortgageValue: 75, icon: "💧" },
+  verticalProperty("transporte", "Transporte terrestre", 5, 280, 38, 150),
+  { id: "ir-carcel", type: "goToJail", name: "Ir a auditoría", icon: "🚨" },
+  verticalProperty("marca", "Agencia de marca", 6, 300, 40, 200),
+  verticalProperty("mayorista", "Canal mayorista", 6, 300, 42, 200),
+  { id: "cofre-3", type: "chest", name: "Cofre empresarial", icon: "💼" },
+  verticalProperty("comercio", "Plataforma de comercio", 6, 320, 44, 200),
+  { id: "puerto-2", type: "transport", transportKind: "Puerto", name: "Puerto de Buenaventura", price: 200, mortgageValue: 100, icon: "⚓" },
+  { id: "fortuna-3", type: "fortune", name: "Fortuna empresarial", icon: "📈" },
+  verticalProperty("cafeteria", "Cafetería insignia", 7, 350, 48, 200),
+  { id: "impuesto-2", type: "tax", name: "Tasa de sostenibilidad", amount: 100, icon: "🌿" },
+  verticalProperty("barra", "Barra de especialidad", 7, 400, 52, 200)
+];
+
+VERTICAL_COMPANIES.forEach((company) => {
+  const companySquares = VERTICAL_BOARD.filter((square) => square.companyId === company.id);
+  const companyCost = companySquares.reduce((total, square) => total + square.price, 0);
+
+  companySquares.forEach((square) => {
+    square.groupCost = companyCost;
+    square.costs = [
+      square.price,
+      companyCost,
+      companyCost + square.improvementCost,
+      companyCost + square.improvementCost * 2,
+      companyCost + square.improvementCost * 3
+    ];
+  });
+});
+
+const VERTICAL_FORTUNE_CARDS = [
+  { text: "Tu café triunfa en una feria internacional. Recibe $150.", cash: 150 },
+  { text: "La tasa de cambio encarece una importación. Paga $100.", cash: -100 },
+  { text: "Firmaste un contrato de suministro. Recibe $120.", cash: 120 },
+  { text: "Una interrupción logística obliga a contratar transporte urgente. Paga $75.", cash: -75 },
+  { text: "Una alianza comercial te lleva al inicio de operaciones.", moveTo: 0, collectStart: true },
+  { text: "Una inspección detecta incumplimientos. Ve a auditoría sin cobrar por el inicio.", goToJail: true },
+  { text: "Tu campaña colaborativa funciona. Cobra $25 a cada competidor.", collectFromEach: 25 },
+  { text: "Aportas a una rueda de innovación sectorial. Paga $20 a cada competidor.", payEach: 20 }
+];
+
+const VERTICAL_CHEST_CARDS = [
+  { text: "Obtienes un fondo de innovación. Recibe $100.", cash: 100 },
+  { text: "Mantenimiento preventivo de emergencia. Paga $100.", cash: -100 },
+  { text: "La autoridad tributaria aprueba una devolución. Recibe $60.", cash: 60 },
+  { text: "Capacitación obligatoria para tu equipo. Paga $50.", cash: -50 },
+  { text: "Una auditoría de calidad reconoce tu operación. Recibe $80.", cash: 80 },
+  { text: "Renuevas licencias y certificaciones. Paga $60.", cash: -60 },
+  { text: "Un cliente paga una factura vencida. Recibe $75.", cash: 75 },
+  { text: "Contribuyes al programa cafetero local. Paga $40.", cash: -40 }
+];
 const LACK_PLAYERS_GRACE_MS = Math.max(
   0,
   Number(process.env.LACK_PLAYERS_GRACE_MS) || 30000
@@ -224,38 +347,46 @@ const DEFAULT_CONVERSA_QUESTIONS = {
   ],
   citas: {
     level1: [
-      "¿Cuál sería una primera cita sencilla pero bonita para ti?",
-      "¿Qué detalle pequeño te hace sentir cuidado?",
-      "¿Qué tema te gusta conversar cuando estás conociendo a alguien?",
-      "¿Qué plan te ayuda a mostrarte como eres?",
-      "¿Qué cualidad notas primero en una persona?",
-      "¿Qué señal te hace sentir comodidad en una cita?",
-      "¿Qué comida pedirías para compartir?",
-      "¿Qué tipo de humor conecta contigo?",
-      "¿Qué canción pondrías en un viaje corto?",
-      "¿Qué pregunta ligera revela bastante de alguien?"
+      "Dada la oportunidad de invitar a cenar a cualquier persona del mundo, ¿a quién elegirías?",
+      "¿Te gustaría ser famoso? ¿De qué manera?",
+      "Antes de hacer una llamada telefónica, ¿ensayas alguna vez lo que vas a decir? ¿Por qué?",
+      "¿Cómo sería un día perfecto para ti?",
+      "¿Cuándo fue la última vez que cantaste para ti mismo? ¿Y para otra persona?",
+      "Si pudieras vivir hasta los 90 años y conservar durante los últimos 60 años de tu vida el cuerpo o la mente de una persona de 30 años, ¿cuál elegirías?",
+      "¿Tienes una intuición secreta sobre cómo morirás?",
+      "Menciona tres cosas que tú y la otra persona parecen tener en común.",
+      "¿Por qué aspecto de tu vida te sientes más agradecido?",
+      "Si pudieras cambiar algo de la forma en que te criaron, ¿qué cambiarías?",
+      "Durante cuatro minutos, cuéntale a la otra persona la historia de tu vida con el mayor detalle posible.",
+      "Si mañana pudieras despertar habiendo adquirido una sola cualidad o habilidad nueva, ¿cuál sería?"
     ],
     level2: [
-      "¿Qué necesitas para confiar emocionalmente en alguien?",
-      "¿Qué diferencia entre dos personas puede enriquecer una relación?",
-      "¿Cómo te gusta resolver un desacuerdo?",
-      "¿Qué hábito tuyo debería entender alguien que sale contigo?",
-      "¿Qué significa para ti tener química?",
-      "¿Qué expectativa de pareja te parece importante decir temprano?",
-      "¿Qué gesto te hace perder interés?",
-      "¿Qué te cuesta pedir aunque lo necesites?",
-      "¿Qué límite sano valoras en una relación?",
-      "¿Qué admiras en la forma de amar de otra persona?"
+      "Si una bola de cristal pudiera decirte la verdad sobre ti mismo, tu vida, el futuro o cualquier otra cosa, ¿qué te gustaría saber?",
+      "¿Hay algo que hayas soñado hacer durante mucho tiempo? ¿Por qué aún no lo has hecho?",
+      "¿Cuál consideras que es el mayor logro de tu vida?",
+      "¿Qué es lo que más valoras en una amistad?",
+      "¿Cuál es el recuerdo más valioso que conservas?",
+      "¿Cuál es el peor recuerdo de tu vida?",
+      "Si supieras que dentro de un año morirás de forma repentina, ¿cambiarías algo de la manera en que estás viviendo? ¿Por qué?",
+      "¿Qué significa la amistad para ti?",
+      "¿Qué papel tienen el amor y el afecto en tu vida?",
+      "Túrnense para decir una característica positiva que vean en la otra persona. Compartan cinco en total.",
+      "¿Qué tan unida y afectuosa es tu familia? ¿Sientes que tu infancia fue más feliz que la de la mayoría de las personas?",
+      "¿Cómo te sientes respecto a la relación que tienes con tu madre?"
     ],
     level3: [
-      "¿Qué miedo profundo puede aparecer cuando te vinculas con alguien?",
-      "¿Qué tendría que pasar para construir una relación muy seria?",
-      "¿Qué parte de tu vida no negociarías por una relación?",
-      "¿Qué herida antigua te gustaría no repetir en pareja?",
-      "¿Cómo sabes que amar no te está borrando a ti mismo?",
-      "¿Qué verdad personal te costaría decir en una relación seria?",
-      "¿Qué significa elegir a alguien incluso en una temporada difícil?",
-      "¿Qué necesitarías sanar antes de amar con más libertad?"
+      "Cada uno formule tres afirmaciones verdaderas que comiencen con 'nosotros'. Por ejemplo: 'Ambos estamos en esta habitación sintiendo...'.",
+      "Completa esta frase: 'Ojalá tuviera a alguien con quien pudiera compartir...'.",
+      "Si fueras a convertirte en un amigo muy cercano de la otra persona, ¿qué consideras importante que ella supiera sobre ti?",
+      "Dile a la otra persona qué es lo que te gusta de ella. Esta vez sé completamente honesto y menciona cosas que normalmente no le dirías a alguien que acabas de conocer.",
+      "Comparte con la otra persona un momento vergonzoso de tu vida.",
+      "¿Cuándo fue la última vez que lloraste frente a otra persona? ¿Y cuándo lloraste estando completamente solo?",
+      "Dile a la otra persona algo que ya te guste de ella.",
+      "¿Sobre qué tema, si es que existe alguno, consideras que no se debería hacer bromas?",
+      "Si fueras a morir esta noche sin tener la oportunidad de comunicarte con nadie, ¿qué lamentarías más no haberle dicho a alguien? ¿Por qué aún no se lo has dicho?",
+      "Tu casa, con todas tus pertenencias, se incendia. Después de poner a salvo a tus seres queridos y a tus mascotas, todavía tienes tiempo para entrar una última vez y rescatar un solo objeto. ¿Cuál salvarías y por qué?",
+      "De todas las personas de tu familia, ¿la muerte de cuál te resultaría más difícil de afrontar? ¿Por qué?",
+      "Comparte un problema personal y pídele a la otra persona que te aconseje cómo lo manejaría. Después, pídele que te diga cómo cree que te sientes respecto a ese problema."
     ]
   }
 };
@@ -964,6 +1095,7 @@ function sanitizeSelectedGames(selectedGames, playerCount, campaign = null) {
     stop: true,
     impostor: true,
     cacho: true,
+    vertical: true,
     lastcard: true,
     poker: true
   };
@@ -1047,6 +1179,11 @@ function startSelectedGame(pin) {
 
     if (selectedGame === "cacho") {
       startCachoIntro(pin);
+      return;
+    }
+
+    if (selectedGame === "vertical") {
+      startVerticalIntro(pin);
       return;
     }
 
@@ -4380,6 +4517,683 @@ function resolveCachoDoubt(pin, challenger, timedOut = false) {
   return { ok: true };
 }
 
+function getVerticalAppPlayer(game, clientId) {
+  return game.players.find((player) => player.clientId === clientId) || null;
+}
+
+function getVerticalPlayer(game, clientId) {
+  return game.vertical?.players.find((player) => player.clientId === clientId) || null;
+}
+
+function getActiveVerticalPlayers(game) {
+  return game.vertical?.players.filter((player) => !player.bankrupt) || [];
+}
+
+function getCurrentVerticalPlayer(game) {
+  return game.vertical?.players[game.vertical.currentPlayerIndex] || null;
+}
+
+function getVerticalOwnership(game, squareId) {
+  return game.vertical?.ownership?.[squareId] || null;
+}
+
+function getVerticalCompanySquares(companyId) {
+  return VERTICAL_BOARD.filter((square) => {
+    return square.type === "property" && square.companyId === companyId;
+  });
+}
+
+function ownsVerticalCompany(game, clientId, companyId) {
+  const companySquares = getVerticalCompanySquares(companyId);
+
+  return companySquares.length > 0 && companySquares.every((square) => {
+    return getVerticalOwnership(game, square.id)?.ownerClientId === clientId;
+  });
+}
+
+function getVerticalPropertyValue(game, player) {
+  return Object.entries(game.vertical.ownership).reduce((total, [squareId, ownership]) => {
+    if (ownership.ownerClientId !== player.clientId) return total;
+
+    const square = VERTICAL_BOARD.find((item) => item.id === squareId);
+    if (!square) return total;
+
+    return total + (square.price || 0) + (ownership.improvements || 0) * (square.improvementCost || 0);
+  }, 0);
+}
+
+function getVerticalMortgageTotal(game, player) {
+  return Object.entries(game.vertical.ownership).reduce((total, [squareId, ownership]) => {
+    if (ownership.ownerClientId !== player.clientId || !ownership.mortgaged) return total;
+    const square = VERTICAL_BOARD.find((item) => item.id === squareId);
+    return total + (square?.mortgageValue || 0);
+  }, 0);
+}
+
+function getVerticalFinancials(game, player) {
+  const propertyValue = getVerticalPropertyValue(game, player);
+  const mortgage = getVerticalMortgageTotal(game, player);
+  const grossAssets = Math.max(0, player.cash) + propertyValue;
+  const percentage = (value) => grossAssets > 0
+    ? Math.round((value / grossAssets) * 1000) / 10
+    : 0;
+
+  return {
+    propertyValue,
+    propertyPercentage: percentage(propertyValue),
+    cash: player.cash,
+    cashPercentage: percentage(Math.max(0, player.cash)),
+    mortgage,
+    mortgagePercentage: percentage(mortgage),
+    grossAssets,
+    netWorth: player.cash + propertyValue - mortgage
+  };
+}
+
+function getVerticalRent(game, square, diceTotal) {
+  const ownership = getVerticalOwnership(game, square.id);
+  if (!ownership || ownership.mortgaged) return 0;
+
+  if (square.type === "property") {
+    if (ownership.improvements > 0) {
+      return square.rents[Math.min(4, ownership.improvements + 1)];
+    }
+
+    return ownsVerticalCompany(game, ownership.ownerClientId, square.companyId)
+      ? square.rents[1]
+      : square.rents[0];
+  }
+
+  if (square.type === "transport") {
+    const ownedTransport = VERTICAL_BOARD.filter((item) => {
+      return item.type === "transport" &&
+        getVerticalOwnership(game, item.id)?.ownerClientId === ownership.ownerClientId;
+    }).length;
+
+    return [0, 25, 50, 100, 200][ownedTransport] || 200;
+  }
+
+  if (square.type === "utility") {
+    const ownedUtilities = VERTICAL_BOARD.filter((item) => {
+      return item.type === "utility" &&
+        getVerticalOwnership(game, item.id)?.ownerClientId === ownership.ownerClientId;
+    }).length;
+
+    return diceTotal * (ownedUtilities >= 2 ? 10 : 4);
+  }
+
+  return 0;
+}
+
+function getNextVerticalPlayerIndex(game, fromIndex) {
+  const players = game.vertical.players;
+
+  for (let offset = 1; offset <= players.length; offset++) {
+    const index = (fromIndex + offset) % players.length;
+    const appPlayer = getVerticalAppPlayer(game, players[index].clientId);
+    if (!players[index].bankrupt && appPlayer?.connected !== false) return index;
+  }
+
+  return fromIndex;
+}
+
+function verticalSquareIsPurchasable(square) {
+  return ["property", "transport", "utility"].includes(square?.type);
+}
+
+function getVerticalSquarePublic(game, square, viewerClientId) {
+  const ownership = getVerticalOwnership(game, square.id);
+  const owner = ownership ? getVerticalAppPlayer(game, ownership.ownerClientId) : null;
+  const occupants = game.vertical.players
+    .filter((player) => !player.bankrupt && player.position === VERTICAL_BOARD.indexOf(square))
+    .map((player) => player.name);
+  const currentPlayer = getCurrentVerticalPlayer(game);
+  const viewer = getVerticalPlayer(game, viewerClientId);
+  const isViewerTurn = Boolean(viewer && currentPlayer?.clientId === viewer.clientId);
+  const viewerOwns = Boolean(viewer && ownership?.ownerClientId === viewer.clientId);
+  const companyHasImprovements = square.type === "property" && getVerticalCompanySquares(square.companyId).some((item) => {
+    return (getVerticalOwnership(game, item.id)?.improvements || 0) > 0;
+  });
+
+  return {
+    ...square,
+    ownerName: owner?.name || null,
+    ownerClientId: ownership?.ownerClientId || null,
+    mortgaged: Boolean(ownership?.mortgaged),
+    improvements: ownership?.improvements || 0,
+    occupants,
+    rentNow: verticalSquareIsPurchasable(square)
+      ? getVerticalRent(game, square, game.vertical.lastRollTotal || 0)
+      : 0,
+    canBuy: Boolean(
+      isViewerTurn &&
+      game.vertical.phase === "await_property" &&
+      viewer.position === VERTICAL_BOARD.indexOf(square) &&
+      !ownership &&
+      viewer.cash >= (square.price || 0)
+    ),
+    canBuild: Boolean(isViewerTurn && canBuildVerticalProperty(game, viewer, square, ownership)),
+    canSellImprovement: Boolean(isViewerTurn && canSellVerticalImprovement(game, viewer, square, ownership)),
+    canMortgage: Boolean(isViewerTurn && viewerOwns && !ownership.mortgaged && !companyHasImprovements),
+    canUnmortgage: Boolean(
+      isViewerTurn &&
+      viewerOwns &&
+      ownership.mortgaged &&
+      viewer.cash >= Math.ceil((square.mortgageValue || 0) * 1.1)
+    ),
+    unmortgageCost: Math.ceil((square.mortgageValue || 0) * 1.1)
+  };
+}
+
+function getPublicVerticalState(game, viewerSocketId) {
+  const viewerApp = game.players.find((player) => player.id === viewerSocketId);
+  const viewer = viewerApp ? getVerticalPlayer(game, viewerApp.clientId) : null;
+  const currentPlayer = getCurrentVerticalPlayer(game);
+  const currentApp = currentPlayer
+    ? getVerticalAppPlayer(game, currentPlayer.clientId)
+    : null;
+  const isYourTurn = Boolean(viewer && currentPlayer?.clientId === viewer.clientId);
+
+  return {
+    board: VERTICAL_BOARD.map((square) => getVerticalSquarePublic(game, square, viewer?.clientId)),
+    companies: VERTICAL_COMPANIES,
+    players: game.vertical.players.map((player) => {
+      const appPlayer = getVerticalAppPlayer(game, player.clientId);
+      return {
+        id: appPlayer?.id || null,
+        clientId: player.clientId,
+        name: player.name,
+        position: player.position,
+        inJail: player.inJail,
+        bankrupt: player.bankrupt,
+        isCurrent: currentPlayer?.clientId === player.clientId,
+        isYou: viewer?.clientId === player.clientId,
+        financials: getVerticalFinancials(game, player)
+      };
+    }),
+    currentPlayerId: currentApp?.id || null,
+    currentPlayerName: currentPlayer?.name || "",
+    isYourTurn,
+    phase: game.vertical.phase,
+    dice: [...game.vertical.lastRoll],
+    message: game.vertical.message,
+    lastCard: game.vertical.lastCard,
+    canRoll: Boolean(isYourTurn && game.vertical.phase === "await_roll" && viewer.cash >= 0),
+    canEndTurn: Boolean(isYourTurn && game.vertical.phase === "await_end" && viewer.cash >= 0),
+    canSkipPurchase: Boolean(isYourTurn && game.vertical.phase === "await_property"),
+    canPayJail: Boolean(
+      isYourTurn &&
+      game.vertical.phase === "await_roll" &&
+      viewer.inJail &&
+      viewer.cash >= VERTICAL_JAIL_FINE
+    ),
+    mustResolveDebt: Boolean(isYourTurn && viewer.cash < 0),
+    canDeclareBankruptcy: Boolean(isYourTurn && viewer.cash < 0),
+    serverNow: Date.now()
+  };
+}
+
+function emitVerticalState(pin, game) {
+  game.players.forEach((player) => {
+    io.to(player.id).emit("vertical_state", {
+      game: publicGame(game),
+      verticalState: getPublicVerticalState(game, player.id)
+    });
+  });
+}
+
+function startVerticalIntro(pin) {
+  const game = games.get(pin);
+  if (!game) return;
+
+  game.status = "vertical_intro";
+  game.vertical = null;
+
+  io.to(pin).emit("vertical_intro", {
+    game: publicGame(game),
+    companies: VERTICAL_COMPANIES,
+    startingCash: VERTICAL_STARTING_CASH
+  });
+}
+
+function beginVerticalGame(pin) {
+  const game = games.get(pin);
+  if (!game || game.status !== "vertical_intro") {
+    return { ok: false, message: "Integración vertical todavía no está listo." };
+  }
+
+  game.vertical = {
+    players: game.players.map((player) => ({
+      clientId: player.clientId,
+      name: player.name,
+      position: 0,
+      cash: VERTICAL_STARTING_CASH,
+      inJail: false,
+      jailTurns: 0,
+      doubleStreak: 0,
+      bankrupt: false
+    })),
+    ownership: {},
+    currentPlayerIndex: 0,
+    phase: "await_roll",
+    lastRoll: [],
+    lastRollTotal: 0,
+    extraRoll: false,
+    message: `${game.players[0]?.name || "Jugador"} comienza la integración de la cadena.`,
+    lastCard: null,
+    pendingCreditorClientId: null,
+    turnNumber: 1,
+    lastResult: null
+  };
+  game.status = "vertical";
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
+function sendVerticalPlayerToJail(game, player) {
+  player.position = 10;
+  player.inJail = true;
+  player.jailTurns = 0;
+  player.doubleStreak = 0;
+  game.vertical.extraRoll = false;
+}
+
+function applyVerticalCash(game, player, amount, creditorClientId = null) {
+  player.cash += amount;
+  if (amount < 0) {
+    game.vertical.pendingCreditorClientId = creditorClientId;
+  }
+}
+
+function drawVerticalBusinessCard(game, player, deckType) {
+  const deck = deckType === "fortune" ? VERTICAL_FORTUNE_CARDS : VERTICAL_CHEST_CARDS;
+  const card = deck[Math.floor(Math.random() * deck.length)];
+  const activePlayers = getActiveVerticalPlayers(game).filter((item) => item.clientId !== player.clientId);
+  game.vertical.lastCard = { deckType, text: card.text };
+
+  if (card.cash) applyVerticalCash(game, player, card.cash);
+
+  if (card.collectFromEach) {
+    activePlayers.forEach((other) => {
+      applyVerticalCash(game, other, -card.collectFromEach, player.clientId);
+      applyVerticalCash(game, player, card.collectFromEach);
+    });
+  }
+
+  if (card.payEach) {
+    activePlayers.forEach((other) => {
+      applyVerticalCash(game, player, -card.payEach, other.clientId);
+      applyVerticalCash(game, other, card.payEach);
+    });
+  }
+
+  if (card.goToJail) sendVerticalPlayerToJail(game, player);
+
+  if (Number.isInteger(card.moveTo)) {
+    if (card.collectStart && card.moveTo <= player.position) {
+      applyVerticalCash(game, player, VERTICAL_PASS_START_BONUS);
+    }
+    player.position = card.moveTo;
+  }
+
+  return card;
+}
+
+function resolveVerticalLanding(game, player) {
+  const square = VERTICAL_BOARD[player.position];
+  const ownership = getVerticalOwnership(game, square.id);
+  game.vertical.lastCard = null;
+
+  if (verticalSquareIsPurchasable(square)) {
+    if (!ownership) {
+      game.vertical.phase = "await_property";
+      game.vertical.message = `${player.name} puede adquirir ${square.name} por $${square.price}.`;
+      return;
+    }
+
+    if (ownership.ownerClientId !== player.clientId && !ownership.mortgaged) {
+      const owner = getVerticalPlayer(game, ownership.ownerClientId);
+      const rent = getVerticalRent(game, square, game.vertical.lastRollTotal);
+
+      if (owner && !owner.bankrupt && rent > 0) {
+        applyVerticalCash(game, player, -rent, owner.clientId);
+        applyVerticalCash(game, owner, rent);
+        game.vertical.message = `${player.name} pagó $${rent} de renta a ${owner.name}.`;
+      }
+    } else if (ownership.mortgaged) {
+      game.vertical.message = `${square.name} está hipotecada y no cobra renta.`;
+    } else {
+      game.vertical.message = `${player.name} llegó a una actividad de su propia cadena.`;
+    }
+  } else if (square.type === "tax") {
+    applyVerticalCash(game, player, -square.amount);
+    game.vertical.message = `${player.name} pagó $${square.amount} por ${square.name.toLowerCase()}.`;
+  } else if (square.type === "goToJail") {
+    sendVerticalPlayerToJail(game, player);
+    game.vertical.message = `${player.name} fue enviado a la cárcel por una auditoría regulatoria.`;
+  } else if (square.type === "fortune" || square.type === "chest") {
+    const card = drawVerticalBusinessCard(game, player, square.type);
+    game.vertical.message = card.text;
+  } else if (square.type === "start") {
+    game.vertical.message = `${player.name} consolidó un nuevo ciclo de operaciones.`;
+  } else if (square.type === "jail") {
+    game.vertical.message = `${player.name} visita la auditoría regulatoria.`;
+  } else {
+    game.vertical.message = `${player.name} hace una pausa estratégica sin costos.`;
+  }
+
+  game.vertical.phase = player.cash < 0 ? "debt" : "await_end";
+}
+
+function rollVerticalDice(pin, player) {
+  const game = games.get(pin);
+  const current = game ? getCurrentVerticalPlayer(game) : null;
+
+  if (!game || game.status !== "vertical" || !current || current.clientId !== player.clientId) {
+    return { ok: false, message: "No es tu turno." };
+  }
+
+  if (game.vertical.phase !== "await_roll") {
+    return { ok: false, message: "Los dados no están disponibles ahora." };
+  }
+
+  const die1 = Math.floor(Math.random() * 6) + 1;
+  const die2 = Math.floor(Math.random() * 6) + 1;
+  const total = die1 + die2;
+  const isDouble = die1 === die2;
+  game.vertical.lastRoll = [die1, die2];
+  game.vertical.lastRollTotal = total;
+
+  if (current.inJail) {
+    if (!isDouble && current.jailTurns < 2) {
+      current.jailTurns++;
+      game.vertical.phase = "await_end";
+      game.vertical.message = `${current.name} no obtuvo dobles y continúa en la cárcel (${current.jailTurns}/3).`;
+      emitVerticalState(pin, game);
+      return { ok: true };
+    }
+
+    if (!isDouble) applyVerticalCash(game, current, -VERTICAL_JAIL_FINE);
+    current.inJail = false;
+    current.jailTurns = 0;
+    game.vertical.extraRoll = false;
+  } else {
+    current.doubleStreak = isDouble ? current.doubleStreak + 1 : 0;
+
+    if (current.doubleStreak >= 3) {
+      sendVerticalPlayerToJail(game, current);
+      game.vertical.phase = "await_end";
+      game.vertical.message = `${current.name} obtuvo tres dobles y fue enviado a la cárcel regulatoria.`;
+      emitVerticalState(pin, game);
+      return { ok: true };
+    }
+
+    game.vertical.extraRoll = isDouble;
+  }
+
+  const previousPosition = current.position;
+  current.position = (current.position + total) % VERTICAL_BOARD.length;
+
+  if (current.position < previousPosition) {
+    applyVerticalCash(game, current, VERTICAL_PASS_START_BONUS);
+  }
+
+  resolveVerticalLanding(game, current);
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
+function buyVerticalSquare(pin, player) {
+  const game = games.get(pin);
+  const current = game ? getCurrentVerticalPlayer(game) : null;
+  const square = current ? VERTICAL_BOARD[current.position] : null;
+
+  if (!game || game.status !== "vertical" || current?.clientId !== player.clientId) {
+    return { ok: false, message: "No es tu turno." };
+  }
+
+  if (game.vertical.phase !== "await_property" || !verticalSquareIsPurchasable(square)) {
+    return { ok: false, message: "No hay una adquisición pendiente." };
+  }
+
+  if (getVerticalOwnership(game, square.id)) {
+    return { ok: false, message: "Esa actividad ya tiene propietario." };
+  }
+
+  if (current.cash < square.price) {
+    return { ok: false, message: "No tienes efectivo suficiente." };
+  }
+
+  current.cash -= square.price;
+  game.vertical.ownership[square.id] = {
+    ownerClientId: current.clientId,
+    mortgaged: false,
+    improvements: 0
+  };
+  game.vertical.phase = "await_end";
+  game.vertical.message = `${current.name} adquirió ${square.name} por $${square.price}.`;
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
+function skipVerticalPurchase(pin, player) {
+  const game = games.get(pin);
+  const current = game ? getCurrentVerticalPlayer(game) : null;
+
+  if (!game || game.status !== "vertical" || current?.clientId !== player.clientId || game.vertical.phase !== "await_property") {
+    return { ok: false, message: "No hay una adquisición pendiente." };
+  }
+
+  const square = VERTICAL_BOARD[current.position];
+  game.vertical.phase = current.cash < 0 ? "debt" : "await_end";
+  game.vertical.message = `${current.name} decidió no adquirir ${square.name}.`;
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
+function canBuildVerticalProperty(game, player, square, ownership) {
+  if (!square || square.type !== "property" || !ownership) return false;
+  if (ownership.ownerClientId !== player.clientId || ownership.mortgaged || ownership.improvements >= 3) return false;
+  if (!ownsVerticalCompany(game, player.clientId, square.companyId)) return false;
+
+  const groupOwnership = getVerticalCompanySquares(square.companyId).map((item) => {
+    return getVerticalOwnership(game, item.id);
+  });
+  if (groupOwnership.some((item) => item?.mortgaged)) return false;
+  const minimumImprovements = Math.min(...groupOwnership.map((item) => item.improvements || 0));
+  return ownership.improvements === minimumImprovements && player.cash >= square.improvementCost;
+}
+
+function canSellVerticalImprovement(game, player, square, ownership) {
+  if (!square || square.type !== "property" || !ownership || ownership.ownerClientId !== player.clientId) return false;
+  if (ownership.improvements <= 0) return false;
+  const maximumImprovements = Math.max(...getVerticalCompanySquares(square.companyId).map((item) => {
+    return getVerticalOwnership(game, item.id)?.improvements || 0;
+  }));
+  return ownership.improvements === maximumImprovements;
+}
+
+function manageVerticalAsset(pin, player, squareId, action) {
+  const game = games.get(pin);
+  const current = game ? getCurrentVerticalPlayer(game) : null;
+  const square = VERTICAL_BOARD.find((item) => item.id === String(squareId || ""));
+  const ownership = square ? getVerticalOwnership(game, square.id) : null;
+
+  if (!game || game.status !== "vertical" || current?.clientId !== player.clientId) {
+    return { ok: false, message: "Solo puedes administrar activos durante tu turno." };
+  }
+
+  if (!ownership || ownership.ownerClientId !== player.clientId) {
+    return { ok: false, message: "Ese activo no te pertenece." };
+  }
+
+  if (action === "build") {
+    if (!canBuildVerticalProperty(game, current, square, ownership)) {
+      return { ok: false, message: "Necesitas la compañía completa, liquidez y mejoras equilibradas." };
+    }
+    current.cash -= square.improvementCost;
+    ownership.improvements++;
+    game.vertical.message = `${current.name} instaló ${square.equipment} en ${square.name}.`;
+  } else if (action === "sell") {
+    if (!canSellVerticalImprovement(game, current, square, ownership)) {
+      return { ok: false, message: "No puedes vender esa mejora en este momento." };
+    }
+    ownership.improvements--;
+    current.cash += Math.floor(square.improvementCost / 2);
+    game.vertical.message = `${current.name} vendió una mejora de ${square.name}.`;
+  } else if (action === "mortgage") {
+    const companyHasImprovements = square.type === "property" && getVerticalCompanySquares(square.companyId).some((item) => {
+      return (getVerticalOwnership(game, item.id)?.improvements || 0) > 0;
+    });
+    if (ownership.mortgaged || companyHasImprovements) {
+      return { ok: false, message: "Vende primero las mejoras de la compañía." };
+    }
+    ownership.mortgaged = true;
+    current.cash += square.mortgageValue;
+    game.vertical.message = `${current.name} hipotecó ${square.name} por $${square.mortgageValue}.`;
+  } else if (action === "unmortgage") {
+    const cost = Math.ceil(square.mortgageValue * 1.1);
+    if (!ownership.mortgaged || current.cash < cost) {
+      return { ok: false, message: `Necesitas $${cost} para levantar la hipoteca.` };
+    }
+    ownership.mortgaged = false;
+    current.cash -= cost;
+    game.vertical.message = `${current.name} levantó la hipoteca de ${square.name}.`;
+  } else {
+    return { ok: false, message: "Acción de activo inválida." };
+  }
+
+  if (current.cash >= 0 && game.vertical.phase === "debt") {
+    game.vertical.phase = "await_end";
+    game.vertical.pendingCreditorClientId = null;
+  }
+
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
+function payVerticalJailFine(pin, player) {
+  const game = games.get(pin);
+  const current = game ? getCurrentVerticalPlayer(game) : null;
+
+  if (!game || game.status !== "vertical" || current?.clientId !== player.clientId || game.vertical.phase !== "await_roll" || !current.inJail) {
+    return { ok: false, message: "No puedes pagar una salida de auditoría ahora." };
+  }
+
+  if (current.cash < VERTICAL_JAIL_FINE) {
+    return { ok: false, message: "No tienes efectivo suficiente." };
+  }
+
+  current.cash -= VERTICAL_JAIL_FINE;
+  current.inJail = false;
+  current.jailTurns = 0;
+  game.vertical.message = `${current.name} pagó $${VERTICAL_JAIL_FINE} y salió de la cárcel regulatoria.`;
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
+function finishVerticalGame(pin) {
+  const game = games.get(pin);
+  if (!game?.vertical) return;
+
+  const ranking = [...game.vertical.players]
+    .map((player) => ({
+      name: player.name,
+      bankrupt: player.bankrupt,
+      ...getVerticalFinancials(game, player)
+    }))
+    .sort((a, b) => Number(a.bankrupt) - Number(b.bankrupt) || b.netWorth - a.netWorth)
+    .map((player, index) => ({ ...player, position: index + 1 }));
+  const winner = ranking[0] || null;
+  game.status = "vertical_result";
+  game.vertical.lastResult = { winnerName: winner?.name || "", ranking };
+  io.to(pin).emit("vertical_finished", {
+    game: publicGame(game),
+    ...game.vertical.lastResult
+  });
+}
+
+function endVerticalTurn(pin, player) {
+  const game = games.get(pin);
+  const current = game ? getCurrentVerticalPlayer(game) : null;
+
+  if (!game || game.status !== "vertical" || current?.clientId !== player.clientId) {
+    return { ok: false, message: "No es tu turno." };
+  }
+
+  if (current.cash < 0 || game.vertical.phase === "debt") {
+    return { ok: false, message: "Resuelve tu deuda antes de terminar el turno." };
+  }
+
+  if (game.vertical.phase !== "await_end") {
+    return { ok: false, message: "Todavía tienes una acción pendiente." };
+  }
+
+  if (game.vertical.extraRoll && !current.inJail) {
+    game.vertical.extraRoll = false;
+    game.vertical.phase = "await_roll";
+    game.vertical.message = `${current.name} obtuvo dobles y vuelve a lanzar.`;
+  } else {
+    current.doubleStreak = 0;
+    game.vertical.currentPlayerIndex = getNextVerticalPlayerIndex(game, game.vertical.currentPlayerIndex);
+    const nextPlayer = getCurrentVerticalPlayer(game);
+    game.vertical.phase = nextPlayer?.cash < 0 ? "debt" : "await_roll";
+    game.vertical.lastRoll = [];
+    game.vertical.lastRollTotal = 0;
+    game.vertical.pendingCreditorClientId = null;
+    game.vertical.turnNumber++;
+    game.vertical.message = nextPlayer?.cash < 0
+      ? `${nextPlayer.name} debe resolver su deuda antes de continuar.`
+      : `Turno de ${nextPlayer?.name || "Jugador"}.`;
+  }
+
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
+function declareVerticalBankruptcy(pin, player) {
+  const game = games.get(pin);
+  const current = game ? getCurrentVerticalPlayer(game) : null;
+
+  if (!game || game.status !== "vertical" || current?.clientId !== player.clientId || current.cash >= 0) {
+    return { ok: false, message: "No puedes declarar insolvencia ahora." };
+  }
+
+  const creditor = getVerticalPlayer(game, game.vertical.pendingCreditorClientId);
+  Object.keys(game.vertical.ownership).forEach((squareId) => {
+    const ownership = game.vertical.ownership[squareId];
+    if (ownership.ownerClientId !== current.clientId) return;
+
+    if (creditor && !creditor.bankrupt) {
+      ownership.ownerClientId = creditor.clientId;
+      ownership.improvements = 0;
+    } else {
+      delete game.vertical.ownership[squareId];
+    }
+  });
+
+  current.cash = 0;
+  current.bankrupt = true;
+  current.inJail = false;
+  game.vertical.message = `${current.name} salió del mercado por insolvencia.`;
+
+  if (getActiveVerticalPlayers(game).length <= 1) {
+    finishVerticalGame(pin);
+    return { ok: true };
+  }
+
+  game.vertical.currentPlayerIndex = getNextVerticalPlayerIndex(game, game.vertical.currentPlayerIndex);
+  const nextPlayer = getCurrentVerticalPlayer(game);
+  game.vertical.phase = nextPlayer?.cash < 0 ? "debt" : "await_roll";
+  game.vertical.lastRoll = [];
+  game.vertical.pendingCreditorClientId = null;
+  game.vertical.message += nextPlayer?.cash < 0
+    ? ` ${nextPlayer.name} debe resolver una deuda.`
+    : ` Turno de ${nextPlayer?.name || "Jugador"}.`;
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
 const LAST_CARD_COLORS = ["red", "yellow", "green", "blue"];
 const LAST_CARD_OPPONENT_DELAY_MS = 2000;
 
@@ -5697,6 +6511,31 @@ function sendCurrentStateToSocket(pin, socket, game) {
     return;
   }
 
+  if (game.status === "vertical_intro") {
+    socket.emit("vertical_intro", {
+      game: publicGame(game),
+      companies: VERTICAL_COMPANIES,
+      startingCash: VERTICAL_STARTING_CASH
+    });
+    return;
+  }
+
+  if (game.status === "vertical" && game.vertical) {
+    socket.emit("vertical_state", {
+      game: publicGame(game),
+      verticalState: getPublicVerticalState(game, socket.id)
+    });
+    return;
+  }
+
+  if (game.status === "vertical_result" && game.vertical?.lastResult) {
+    socket.emit("vertical_finished", {
+      game: publicGame(game),
+      ...game.vertical.lastResult
+    });
+    return;
+  }
+
   if (game.status === "last_card_intro") {
     socket.emit("last_card_intro", {
       game: publicGame(game)
@@ -5782,6 +6621,7 @@ function resetGameStateToLobby(game) {
   game.stop = null;
   game.impostor = null;
   game.cacho = null;
+  game.vertical = null;
   game.lastCard = null;
   game.poker = null;
   game.betweenGames = null;
@@ -5971,6 +6811,7 @@ io.on("connection", (socket) => {
       stop: null,
       impostor: null,
       cacho: null,
+      vertical: null,
       lastCard: null,
       lackPlayersTimer: null,
       campaignSlug: campaign.slug,
@@ -7176,6 +8017,105 @@ io.on("connection", (socket) => {
     beginCachoRound(cleanGamePin, nextStarterClientId);
   });
 
+  socket.on("start_vertical_game", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "vertical_intro") {
+      callback({ ok: false, message: "Integración vertical todavía no está listo." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede empezar Integración vertical." });
+      return;
+    }
+
+    callback(beginVerticalGame(cleanGamePin));
+  });
+
+  socket.on("roll_vertical_dice", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? rollVerticalDice(cleanGamePin, player)
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
+  socket.on("buy_vertical_square", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? buyVerticalSquare(cleanGamePin, player)
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
+  socket.on("skip_vertical_purchase", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? skipVerticalPurchase(cleanGamePin, player)
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
+  socket.on("manage_vertical_asset", ({ pin, squareId, action }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? manageVerticalAsset(cleanGamePin, player, squareId, action)
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
+  socket.on("pay_vertical_jail_fine", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? payVerticalJailFine(cleanGamePin, player)
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
+  socket.on("end_vertical_turn", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? endVerticalTurn(cleanGamePin, player)
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
+  socket.on("declare_vertical_bankruptcy", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? declareVerticalBankruptcy(cleanGamePin, player)
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
+  socket.on("continue_vertical_result", ({ pin }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+
+    if (!game || game.status !== "vertical_result" || !game.vertical?.lastResult) {
+      callback({ ok: false, message: "El resultado todavía no está listo." });
+      return;
+    }
+
+    if (game.leaderId !== socket.id) {
+      callback({ ok: false, message: "Solo el líder puede continuar." });
+      return;
+    }
+
+    callback({ ok: true });
+    resetGameStateToLobby(game);
+    io.to(cleanGamePin).emit("game_updated", publicGame(game));
+  });
+
   socket.on("start_last_card_game", ({ pin }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -7501,6 +8441,7 @@ io.on("connection", (socket) => {
     game.stop = null;
     game.impostor = null;
     game.cacho = null;
+    game.vertical = null;
     game.lastCard = null;
 
     if (target === "knowledge") {
@@ -7654,6 +8595,23 @@ io.on("connection", (socket) => {
         emitConversaState(pin, game);
       }
 
+      if (game.status === "vertical" && game.vertical) {
+        const currentVerticalPlayer = getCurrentVerticalPlayer(game);
+
+        if (currentVerticalPlayer?.clientId === disconnectingPlayer.clientId) {
+          if (currentVerticalPlayer.cash < 0) {
+            declareVerticalBankruptcy(pin, disconnectingPlayer);
+          } else {
+            game.vertical.phase = "await_end";
+            game.vertical.extraRoll = false;
+            endVerticalTurn(pin, disconnectingPlayer);
+          }
+          return;
+        }
+
+        emitVerticalState(pin, game);
+      }
+
       return;
     }
 
@@ -7799,6 +8757,11 @@ module.exports = {
     getConversaArchetypeProfiles,
     isHigherCachoBid,
     countCachoFace,
+    VERTICAL_BOARD,
+    VERTICAL_COMPANIES,
+    getVerticalRent,
+    getVerticalFinancials,
+    ownsVerticalCompany,
     drawLastCards,
     takeInitialLastCard,
     createInactiveLastCardCall,
