@@ -48,17 +48,17 @@ const VERTICAL_PASS_START_BONUS = 200;
 const VERTICAL_JAIL_FINE = 50;
 
 const VERTICAL_COMPANIES = [
-  { id: "origen", name: "Origen Fértil", color: "#7ddc77", equipment: "🌱" },
-  { id: "cosecha", name: "Cosecha Andina", color: "#8dd9ff", equipment: "🧺" },
-  { id: "proceso", name: "Procesos del Grano", color: "#e58aaa", equipment: "⚙️" },
-  { id: "calidad", name: "Calidad y Trazabilidad", color: "#f0a14a", equipment: "🔬" },
-  { id: "transformacion", name: "Transformación Tostadora", color: "#ef6868", equipment: "🏭" },
-  { id: "logistica", name: "Logística Cafetera", color: "#f1d85c", equipment: "🚚" },
-  { id: "mercado", name: "Mercado y Marca", color: "#65c989", equipment: "📦" },
-  { id: "experiencia", name: "Experiencia Final", color: "#657fe8", equipment: "☕" }
+  { id: "huevos", name: "Industria de Huevos", colorName: "Marrón", color: "#8b5a2b" },
+  { id: "azucar", name: "Industria del Azúcar", colorName: "Celeste", color: "#86d8ff" },
+  { id: "chocolate", name: "Industria del Chocolate", colorName: "Rosa", color: "#e78ab7" },
+  { id: "cerveza", name: "Industria Cervecera", colorName: "Naranja", color: "#f0a14a" },
+  { id: "textil", name: "Industria Textil y de Confección", colorName: "Rojo", color: "#ef6868" },
+  { id: "automotriz", name: "Industria Automotriz", colorName: "Amarillo", color: "#f1d85c" },
+  { id: "semiconductores", name: "Industria de Semiconductores", colorName: "Verde", color: "#65c989" },
+  { id: "aviacion", name: "Industria de Aviación Comercial", colorName: "Azul oscuro", color: "#3856b8" }
 ];
 
-function verticalProperty(id, name, companyIndex, price, baseRent, improvementCost) {
+function verticalProperty(id, name, companyIndex, price, baseRent, improvementCost, activity, equipmentName, equipmentEmoji) {
   const company = VERTICAL_COMPANIES[companyIndex];
   const groupSize = companyIndex === 0 || companyIndex === 7 ? 2 : 3;
   const groupCost = price * groupSize;
@@ -73,8 +73,11 @@ function verticalProperty(id, name, companyIndex, price, baseRent, improvementCo
     name,
     companyId: company.id,
     companyName: company.name,
+    colorName: company.colorName,
     color: company.color,
-    equipment: company.equipment,
+    activity,
+    equipmentName,
+    equipment: equipmentEmoji,
     price,
     groupCost,
     improvementCost,
@@ -86,45 +89,45 @@ function verticalProperty(id, name, companyIndex, price, baseRent, improvementCo
 
 const VERTICAL_BOARD = [
   { id: "inicio", type: "start", name: "Inicio de operaciones", icon: "🚩" },
-  verticalProperty("finca", "Finca cafetera", 0, 60, 6, 50),
+  verticalProperty("granja-avicola", "Granja Avícola", 0, 60, 6, 50, "Crianza de gallinas ponedoras y producción de huevos.", "Gallina", "🐔"),
   { id: "cofre-1", type: "chest", name: "Cofre empresarial", icon: "💼" },
-  verticalProperty("vivero", "Vivero de cafetos", 0, 60, 8, 50),
+  verticalProperty("empaque-huevos", "Empaque de Huevos", 0, 60, 8, 50, "Clasificación, limpieza, empaque y preparación de huevos para su distribución comercial.", "Empaque", "📦"),
   { id: "impuesto-1", type: "tax", name: "Obligaciones tributarias", amount: 100, icon: "🧾" },
   { id: "aeropuerto-1", type: "transport", transportKind: "Aeropuerto", name: "Aeropuerto El Dorado", price: 200, mortgageValue: 100, icon: "✈️" },
-  verticalProperty("recoleccion", "Recolección selectiva", 1, 100, 10, 50),
+  verticalProperty("canera-agricola", "Cañera Agrícola", 1, 100, 10, 50, "Cultivo y suministro de caña de azúcar.", "Planta", "🌱"),
   { id: "fortuna-1", type: "fortune", name: "Fortuna empresarial", icon: "📈" },
-  verticalProperty("acopio", "Centro de acopio", 1, 100, 12, 50),
-  verticalProperty("beneficio", "Beneficio húmedo", 1, 120, 14, 50),
+  verticalProperty("ingenio-azucarero", "Ingenio Azucarero", 1, 100, 12, 50, "Molienda de caña y extracción del jugo.", "Molino de caña", "🏭"),
+  verticalProperty("centrifugadora-azucar", "Centrifugadora de Azúcar", 1, 120, 14, 50, "Separación de cristales de azúcar de melaza.", "Centrifugador", "🌀"),
   { id: "carcel", type: "jail", name: "Auditoría regulatoria", icon: "🔒" },
-  verticalProperty("lavado", "Lavado y fermentación", 2, 140, 16, 100),
+  verticalProperty("beneficiadora-cacao", "Beneficiadora de Cacao", 2, 140, 16, 100, "Fermentación y preparación del cacao después de la cosecha.", "Cajón de fermentación", "🧰"),
   { id: "energia", type: "utility", name: "Energía industrial", price: 150, mortgageValue: 75, icon: "⚡" },
-  verticalProperty("secado", "Secado solar", 2, 140, 18, 100),
-  verticalProperty("trilla", "Trilla", 2, 160, 20, 100),
+  verticalProperty("procesadora-cacao", "Procesadora de Cacao", 2, 140, 18, 100, "Transformar los granos en licor, manteca y sólidos de cacao.", "Prensa de cacao", "🔧"),
+  verticalProperty("chocolatera", "Chocolatera", 2, 160, 20, 100, "Formulación, refinado y fabricación de productos de chocolate.", "Máquina chocolatera", "🍫"),
   { id: "puerto-1", type: "transport", transportKind: "Puerto", name: "Puerto de Cartagena", price: 200, mortgageValue: 100, icon: "⚓" },
-  verticalProperty("laboratorio", "Laboratorio de catación", 3, 180, 22, 100),
+  verticalProperty("malteria", "Maltería", 3, 180, 22, 100, "Transformar cebada en malta cervecera.", "Maltería", "🌾"),
   { id: "cofre-2", type: "chest", name: "Cofre empresarial", icon: "💼" },
-  verticalProperty("clasificacion", "Clasificación de grano", 3, 180, 24, 100),
-  verticalProperty("certificacion", "Certificación de origen", 3, 200, 26, 100),
+  verticalProperty("cerveceria", "Cervecería", 3, 180, 24, 100, "Elaboración y fermentación de cerveza.", "Fermentador", "🍺"),
+  verticalProperty("distribuidora-cervecera", "Distribuidora Cervecera", 3, 200, 26, 100, "Transportar cerveza hasta los puntos de venta.", "Camión", "🚚"),
   { id: "parada", type: "rest", name: "Pausa estratégica", icon: "🛋️" },
-  verticalProperty("tostion", "Planta de tostión", 4, 220, 28, 150),
+  verticalProperty("productora-algodon", "Productora de Algodón", 4, 220, 28, 150, "Cultivo y cosecha del algodón utilizado como materia prima para fabricar textiles.", "Cosechadora de algodón", "🚜"),
   { id: "fortuna-2", type: "fortune", name: "Fortuna empresarial", icon: "📈" },
-  verticalProperty("molienda", "Molienda", 4, 220, 30, 150),
-  verticalProperty("empaque", "Empaque", 4, 240, 32, 150),
+  verticalProperty("fabrica-textil", "Fábrica Textil", 4, 220, 30, 150, "Transformar el algodón en tela y confeccionar prendas.", "Máquina de coser industrial", "🧵"),
+  verticalProperty("tienda-ropa", "Tienda de Ropa", 4, 240, 32, 150, "Comercialización de prendas terminadas al consumidor.", "Tienda", "🏬"),
   { id: "aeropuerto-2", type: "transport", transportKind: "Aeropuerto", name: "Aeropuerto José María Córdova", price: 200, mortgageValue: 100, icon: "✈️" },
-  verticalProperty("bodega", "Bodega regional", 5, 260, 34, 150),
-  verticalProperty("distribucion", "Centro de distribución", 5, 260, 36, 150),
+  verticalProperty("productora-acero", "Productora de Acero", 5, 260, 34, 150, "Producir el acero utilizado para fabricar carrocerías y otras partes de vehículos.", "Horno industrial", "🔥"),
+  verticalProperty("fabrica-automoviles", "Fábrica de Automóviles", 5, 260, 36, 150, "Fabricar y ensamblar automóviles utilizando acero, componentes y otras materias primas.", "Robot industrial", "🤖"),
   { id: "agua", type: "utility", name: "Agua de proceso", price: 150, mortgageValue: 75, icon: "💧" },
-  verticalProperty("transporte", "Transporte terrestre", 5, 280, 38, 150),
+  verticalProperty("concesionario-automoviles", "Concesionario de Automóviles", 5, 280, 38, 150, "Comercializar automóviles terminados al consumidor.", "Concesionario", "🚗"),
   { id: "ir-carcel", type: "goToJail", name: "Ir a auditoría", icon: "🚨" },
-  verticalProperty("marca", "Agencia de marca", 6, 300, 40, 200),
-  verticalProperty("mayorista", "Canal mayorista", 6, 300, 42, 200),
+  verticalProperty("productora-silicio", "Productora de Silicio", 6, 300, 40, 200, "Producir y preparar silicio de alta pureza como materia prima para la fabricación de chips.", "Horno de silicio", "🔥"),
+  verticalProperty("fabrica-chips", "Fábrica de Chips", 6, 300, 42, 200, "Fabricar chips y microprocesadores utilizando silicio.", "Máquina de fabricación de chips", "💾"),
   { id: "cofre-3", type: "chest", name: "Cofre empresarial", icon: "💼" },
-  verticalProperty("comercio", "Plataforma de comercio", 6, 320, 44, 200),
+  verticalProperty("distribuidora-chips", "Distribuidora de Chips", 6, 320, 44, 200, "Vender y distribuir chips a fabricantes de computadoras, teléfonos, automóviles y otros equipos electrónicos.", "Centro de distribución", "🏢"),
   { id: "puerto-2", type: "transport", transportKind: "Puerto", name: "Puerto de Buenaventura", price: 200, mortgageValue: 100, icon: "⚓" },
   { id: "fortuna-3", type: "fortune", name: "Fortuna empresarial", icon: "📈" },
-  verticalProperty("cafeteria", "Cafetería insignia", 7, 350, 48, 200),
+  verticalProperty("fabricante-aviones", "Fabricante de Aviones", 7, 350, 48, 200, "Utilizar aluminio, motores, componentes y otros materiales para fabricar aviones comerciales.", "Línea de ensamblaje de aviones", "🏗️"),
   { id: "impuesto-2", type: "tax", name: "Tasa de sostenibilidad", amount: 100, icon: "🌿" },
-  verticalProperty("barra", "Barra de especialidad", 7, 400, 52, 200)
+  verticalProperty("aerolinea-comercial", "Aerolínea Comercial", 7, 400, 52, 200, "Comprar y operar aviones para vender servicios de transporte aéreo a pasajeros.", "Avión comercial", "✈️")
 ];
 
 VERTICAL_COMPANIES.forEach((company) => {
@@ -5033,7 +5036,7 @@ function manageVerticalAsset(pin, player, squareId, action) {
     }
     current.cash -= square.improvementCost;
     ownership.improvements++;
-    game.vertical.message = `${current.name} instaló ${square.equipment} en ${square.name}.`;
+    game.vertical.message = `${current.name} instaló ${square.equipmentName} en ${square.name}.`;
   } else if (action === "sell") {
     if (!canSellVerticalImprovement(game, current, square, ownership)) {
       return { ok: false, message: "No puedes vender esa mejora en este momento." };

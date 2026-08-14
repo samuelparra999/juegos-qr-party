@@ -2354,6 +2354,26 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.vertical-property-table th:first-child,
+.vertical-property-table td:first-child,
+.vertical-financial-table th:first-child,
+.vertical-financial-table td:first-child {
+  text-align: left;
+}
+
+.vertical-property-table th:nth-child(1) {
+  width: 36%;
+}
+
+.vertical-property-table th:nth-child(2),
+.vertical-property-table th:nth-child(3) {
+  width: 22%;
+}
+
+.vertical-property-table th:nth-child(4) {
+  width: 20%;
+}
+
 .vertical-property-table th,
 .vertical-financial-table th {
   background: #272d3a;
@@ -2361,19 +2381,22 @@ button:disabled {
   font-weight: 800;
 }
 
-.vertical-property-table th:last-child,
-.vertical-property-table td:last-child,
-.vertical-financial-table th:first-child,
-.vertical-financial-table td:first-child {
-  text-align: left;
-}
-
+.vertical-activity,
 .vertical-improvements,
 .vertical-special-copy {
   margin: 10px 12px;
   color: #333b48;
   font-size: 13px;
   font-weight: 800;
+}
+
+.vertical-activity {
+  padding: 8px;
+  border-radius: 7px;
+  background: #eef2f7;
+  color: #3c4655;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .vertical-simple-finance,

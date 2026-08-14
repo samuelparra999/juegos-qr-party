@@ -3273,9 +3273,8 @@ function renderVerticalIntro(data) {
     item.style.setProperty("--company-color", company.color);
     const marker = document.createElement("span");
     marker.className = "vertical-company-marker";
-    marker.textContent = company.equipment;
     const name = document.createElement("strong");
-    name.textContent = company.name;
+    name.textContent = `${company.colorName || ""} · ${company.name}`;
     item.append(marker, name);
     verticalCompanyLegend.appendChild(item);
   });
@@ -3305,7 +3304,7 @@ function createVerticalPropertyTable(square) {
   const thead = document.createElement("thead");
   const headingRow = document.createElement("tr");
 
-  ["Costo", "Renta", "Etapa"].forEach((label) => {
+  ["Etapa", "Costo", "Renta", "ROI"].forEach((label) => {
     const th = document.createElement("th");
     th.textContent = label;
     headingRow.appendChild(th);
@@ -3314,10 +3313,21 @@ function createVerticalPropertyTable(square) {
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  const stages = ["Propiedad", "Compañía", `1 ${square.equipment}`, `2 ${square.equipment}`, `3 ${square.equipment}`];
+  const assetName = square.equipmentName || "activo";
+  const assetIcon = square.equipment || "";
+  const stages = [
+    "Propiedad",
+    "Grupo completo",
+    `1 ${assetIcon} ${assetName}`,
+    `2 ${assetIcon} ${assetName}`,
+    `3 ${assetIcon} ${assetName}`
+  ];
   stages.forEach((stage, index) => {
     const row = document.createElement("tr");
-    [formatVerticalMoney(square.costs[index]), formatVerticalMoney(square.rents[index]), stage]
+    const cost = square.costs[index] || 0;
+    const rent = square.rents[index] || 0;
+    const roi = cost > 0 ? `${((rent / cost) * 100).toFixed(1)}%` : "0.0%";
+    [stage, formatVerticalMoney(cost), formatVerticalMoney(rent), roi]
       .forEach((value) => {
         const cell = document.createElement("td");
         cell.textContent = value;
@@ -3371,12 +3381,16 @@ function createVerticalSquareCard(square, index) {
   }
 
   if (square.type === "property") {
+    const activity = document.createElement("p");
+    activity.className = "vertical-activity";
+    activity.textContent = square.activity || "";
+    card.appendChild(activity);
     card.appendChild(createVerticalPropertyTable(square));
     const improvements = document.createElement("p");
     improvements.className = "vertical-improvements";
     improvements.textContent = square.improvements
-      ? `Planta o equipo: ${square.equipment.repeat(square.improvements)}`
-      : "Planta o equipo: ninguno";
+      ? `${square.equipmentName}: ${square.equipment.repeat(square.improvements)}`
+      : `${square.equipmentName}: ninguno`;
     card.appendChild(improvements);
   } else if (["transport", "utility"].includes(square.type)) {
     const purchase = document.createElement("div");
@@ -3415,7 +3429,7 @@ function createVerticalSquareCard(square, index) {
 
   const controls = document.createElement("div");
   controls.className = "vertical-asset-actions";
-  if (square.canBuild) controls.appendChild(createVerticalManageButton(`Instalar ${square.equipment} · ${formatVerticalMoney(square.improvementCost)}`, "build", square, "primary-btn"));
+  if (square.canBuild) controls.appendChild(createVerticalManageButton(`Instalar ${square.equipment} ${square.equipmentName} · ${formatVerticalMoney(square.improvementCost)}`, "build", square, "primary-btn"));
   if (square.canSellImprovement) controls.appendChild(createVerticalManageButton("Vender equipo", "sell", square));
   if (square.canMortgage) controls.appendChild(createVerticalManageButton(`Hipotecar · ${formatVerticalMoney(square.mortgageValue)}`, "mortgage", square));
   if (square.canUnmortgage) controls.appendChild(createVerticalManageButton(`Levantar hipoteca · ${formatVerticalMoney(square.unmortgageCost)}`, "unmortgage", square));
