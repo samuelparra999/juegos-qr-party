@@ -4,21 +4,51 @@ const {
   VERTICAL_COMPANIES,
   getVerticalRent,
   getVerticalFinancials,
-  ownsVerticalCompany
+  ownsVerticalCompany,
+  createVerticalTradeOffer,
+  respondVerticalTradeOffer,
+  cancelVerticalTradeOffer,
+  games
 } = require("../server").__test;
 
 function createGame() {
   return {
+    pin: "test-pin",
+    leaderId: "socket-a",
+    status: "vertical",
+    selectedGames: ["vertical"],
+    campaignSlug: "demo",
+    campaign: {
+      slug: "demo",
+      name: "Demo",
+      brandName: "Demo",
+      welcomeText: "",
+      visual: {},
+      games: {},
+      knowledgeTrivia: { themes: [] }
+    },
     players: [
-      { id: "socket-a", clientId: "a", name: "Ana" },
-      { id: "socket-b", clientId: "b", name: "Beto" }
+      { id: "socket-a", clientId: "a", name: "Ana", connected: true },
+      { id: "socket-b", clientId: "b", name: "Beto", connected: true },
+      { id: "socket-c", clientId: "c", name: "Caro", connected: true }
     ],
     vertical: {
       players: [
         { clientId: "a", name: "Ana", cash: 1000 },
-        { clientId: "b", name: "Beto", cash: 1500 }
+        { clientId: "b", name: "Beto", cash: 1500 },
+        { clientId: "c", name: "Caro", cash: 900 }
       ],
-      ownership: {}
+      ownership: {},
+      currentPlayerIndex: 0,
+      phase: "await_end",
+      lastRoll: [],
+      lastRollTotal: 0,
+      extraRoll: false,
+      message: "",
+      pendingCreditorClientId: null,
+      tradeOffer: null,
+      tradeOfferSequence: 0,
+      turnNumber: 1
     }
   };
 }
@@ -161,9 +191,111 @@ function testFinancialPercentagesIncludeMortgage() {
   assert.ok(financials.mortgagePercentage > 0);
 }
 
+function testTradeOfferTransfersOwnershipCashAndMortgage() {
+  const game = createGame();
+  const pin = "vertical-trade-test";
+  const square = VERTICAL_BOARD.find((item) => item.type === "property");
+  games.set(pin, game);
+
+  game.vertical.ownership[square.id] = {
+    ownerClientId: "a",
+    mortgaged: true,
+    improvements: 0
+  };
+
+  assert.deepEqual(
+    createVerticalTradeOffer(pin, game.players[0], {
+      squareId: square.id,
+      direction: "sell",
+      counterpartyClientId: "b",
+      amount: 300
+    }),
+    { ok: true }
+  );
+
+  assert.deepEqual(
+    respondVerticalTradeOffer(pin, game.players[1], game.vertical.tradeOffer.id, true),
+    { ok: true }
+  );
+  assert.equal(game.vertical.ownership[square.id].ownerClientId, "b");
+  assert.equal(game.vertical.ownership[square.id].mortgaged, true);
+  assert.equal(game.vertical.players[0].cash, 1300);
+  assert.equal(game.vertical.players[1].cash, 1200);
+  assert.equal(game.vertical.tradeOffer, null);
+  games.delete(pin);
+}
+
+function testBuyOfferRejectAndCancel() {
+  const game = createGame();
+  const pin = "vertical-trade-reject-test";
+  const square = VERTICAL_BOARD.find((item) => item.type === "property");
+  games.set(pin, game);
+  game.vertical.ownership[square.id] = {
+    ownerClientId: "a",
+    mortgaged: false,
+    improvements: 0
+  };
+
+  assert.deepEqual(
+    createVerticalTradeOffer(pin, game.players[1], {
+      squareId: square.id,
+      direction: "buy",
+      amount: 220
+    }),
+    { ok: true }
+  );
+  assert.deepEqual(
+    respondVerticalTradeOffer(pin, game.players[0], game.vertical.tradeOffer.id, false),
+    { ok: true }
+  );
+  assert.equal(game.vertical.ownership[square.id].ownerClientId, "a");
+  assert.equal(game.vertical.players[0].cash, 1000);
+  assert.equal(game.vertical.players[1].cash, 1500);
+
+  assert.deepEqual(
+    createVerticalTradeOffer(pin, game.players[1], {
+      squareId: square.id,
+      direction: "buy",
+      amount: 220
+    }),
+    { ok: true }
+  );
+  assert.deepEqual(
+    cancelVerticalTradeOffer(pin, game.players[1], game.vertical.tradeOffer.id),
+    { ok: true }
+  );
+  assert.equal(game.vertical.tradeOffer, null);
+  games.delete(pin);
+}
+
+function testTradeRequiresPropertyWithoutImprovements() {
+  const game = createGame();
+  const pin = "vertical-trade-improvements-test";
+  const square = VERTICAL_BOARD.find((item) => item.type === "property");
+  games.set(pin, game);
+  game.vertical.ownership[square.id] = {
+    ownerClientId: "a",
+    mortgaged: false,
+    improvements: 1
+  };
+
+  const result = createVerticalTradeOffer(pin, game.players[0], {
+    squareId: square.id,
+    direction: "sell",
+    counterpartyClientId: "b",
+    amount: 300
+  });
+  assert.equal(result.ok, false);
+  assert.equal(game.vertical.ownership[square.id].ownerClientId, "a");
+  games.delete(pin);
+}
+
 testBoardDistribution();
 testExactIndustryProperties();
 testEconomiesAndDiseconomiesOfScale();
 testCompanyAndRentRules();
 testFinancialPercentagesIncludeMortgage();
+testTradeOfferTransfersOwnershipCashAndMortgage();
+testBuyOfferRejectAndCancel();
+testTradeRequiresPropertyWithoutImprovements();
 console.log("Integración vertical: tablero, escala, rentas y balances OK");

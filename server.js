@@ -4565,6 +4565,41 @@ function getVerticalPropertyValue(game, player) {
   }, 0);
 }
 
+function getPublicVerticalTradeOffer(game, viewerClientId) {
+  const offer = game.vertical?.tradeOffer;
+  if (!offer || offer.status !== "pending") return null;
+
+  const square = VERTICAL_BOARD.find((item) => item.id === offer.squareId);
+  const ownership = square ? getVerticalOwnership(game, square.id) : null;
+  const seller = getVerticalPlayer(game, offer.sellerClientId);
+  const buyer = getVerticalPlayer(game, offer.buyerClientId);
+  const proposer = getVerticalPlayer(game, offer.proposerClientId);
+  const responderClientId = offer.direction === "sell"
+    ? offer.buyerClientId
+    : offer.sellerClientId;
+
+  return {
+    id: offer.id,
+    direction: offer.direction,
+    squareId: offer.squareId,
+    squareName: square?.name || "Propiedad",
+    companyName: square?.companyName || "",
+    sellerClientId: offer.sellerClientId,
+    sellerName: seller?.name || "Vendedor",
+    buyerClientId: offer.buyerClientId,
+    buyerName: buyer?.name || "Comprador",
+    proposerClientId: offer.proposerClientId,
+    proposerName: proposer?.name || "Jugador",
+    responderClientId,
+    amount: offer.amount,
+    mortgaged: Boolean(ownership?.mortgaged),
+    improvements: ownership?.improvements || 0,
+    mortgageValue: square?.mortgageValue || 0,
+    isProposer: viewerClientId === offer.proposerClientId,
+    isResponder: viewerClientId === responderClientId
+  };
+}
+
 function getVerticalMortgageTotal(game, player) {
   return Object.entries(game.vertical.ownership).reduce((total, [squareId, ownership]) => {
     if (ownership.ownerClientId !== player.clientId || !ownership.mortgaged) return total;
@@ -4654,6 +4689,16 @@ function getVerticalSquarePublic(game, square, viewerClientId) {
   const viewer = getVerticalPlayer(game, viewerClientId);
   const isViewerTurn = Boolean(viewer && currentPlayer?.clientId === viewer.clientId);
   const viewerOwns = Boolean(viewer && ownership?.ownerClientId === viewer.clientId);
+  const ownerPlayer = ownership ? getVerticalPlayer(game, ownership.ownerClientId) : null;
+  const canTrade = Boolean(
+    viewer &&
+    !viewer.bankrupt &&
+    square.type === "property" &&
+    ownership &&
+    ownerPlayer &&
+    !ownerPlayer.bankrupt &&
+    !game.vertical.tradeOffer
+  );
   const companyHasImprovements = square.type === "property" && getVerticalCompanySquares(square.companyId).some((item) => {
     return (getVerticalOwnership(game, item.id)?.improvements || 0) > 0;
   });
@@ -4684,6 +4729,8 @@ function getVerticalSquarePublic(game, square, viewerClientId) {
       ownership.mortgaged &&
       viewer.cash >= Math.ceil((square.mortgageValue || 0) * 1.1)
     ),
+    canOfferBuy: Boolean(canTrade && !viewerOwns && (ownership.improvements || 0) === 0),
+    canOfferSell: Boolean(canTrade && viewerOwns && (ownership.improvements || 0) === 0),
     unmortgageCost: Math.ceil((square.mortgageValue || 0) * 1.1)
   };
 }
@@ -4722,7 +4769,7 @@ function getPublicVerticalState(game, viewerSocketId) {
     message: game.vertical.message,
     lastCard: game.vertical.lastCard,
     canRoll: Boolean(isYourTurn && game.vertical.phase === "await_roll" && viewer.cash >= 0),
-    canEndTurn: Boolean(isYourTurn && game.vertical.phase === "await_end" && viewer.cash >= 0),
+    canEndTurn: Boolean(isYourTurn && game.vertical.phase === "await_end" && viewer.cash >= 0 && !game.vertical.tradeOffer),
     canSkipPurchase: Boolean(isYourTurn && game.vertical.phase === "await_property"),
     canPayJail: Boolean(
       isYourTurn &&
@@ -4732,6 +4779,7 @@ function getPublicVerticalState(game, viewerSocketId) {
     ),
     mustResolveDebt: Boolean(isYourTurn && viewer.cash < 0),
     canDeclareBankruptcy: Boolean(isYourTurn && viewer.cash < 0),
+    tradeOffer: getPublicVerticalTradeOffer(game, viewer?.clientId),
     serverNow: Date.now()
   };
 }
@@ -4785,6 +4833,8 @@ function beginVerticalGame(pin) {
     message: `${game.players[0]?.name || "Jugador"} comienza la integración de la cadena.`,
     lastCard: null,
     pendingCreditorClientId: null,
+    tradeOffer: null,
+    tradeOfferSequence: 0,
     turnNumber: 1,
     lastResult: null
   };
@@ -4994,6 +5044,172 @@ function skipVerticalPurchase(pin, player) {
   return { ok: true };
 }
 
+function getVerticalTradeSquare(squareId) {
+  const square = VERTICAL_BOARD.find((item) => item.id === String(squareId || ""));
+  return square?.type === "property" ? square : null;
+}
+
+function createVerticalTradeOffer(pin, player, payload = {}) {
+  const game = games.get(pin);
+  const proposer = game ? getVerticalPlayer(game, player.clientId) : null;
+  const square = getVerticalTradeSquare(payload.squareId);
+  const ownership = square ? getVerticalOwnership(game, square.id) : null;
+  const amount = Math.max(0, Math.floor(Number(payload.amount) || 0));
+  const direction = String(payload.direction || "");
+
+  if (!game || game.status !== "vertical" || !proposer || proposer.bankrupt) {
+    return { ok: false, message: "No puedes negociar en este momento." };
+  }
+
+  if (game.vertical.tradeOffer) {
+    return { ok: false, message: "Ya hay una negociación pendiente." };
+  }
+
+  if (!square || !ownership) {
+    return { ok: false, message: "Esa propiedad no está disponible para negociar." };
+  }
+
+  if ((ownership.improvements || 0) > 0) {
+    return { ok: false, message: "Vende primero los activos de mejora de esa propiedad." };
+  }
+
+  const owner = getVerticalPlayer(game, ownership.ownerClientId);
+  if (!owner || owner.bankrupt) {
+    return { ok: false, message: "El propietario no está disponible." };
+  }
+
+  if (amount <= 0) {
+    return { ok: false, message: "Escribe un monto mayor que cero." };
+  }
+
+  let sellerClientId = ownership.ownerClientId;
+  let buyerClientId = null;
+
+  if (direction === "sell") {
+    if (ownership.ownerClientId !== proposer.clientId) {
+      return { ok: false, message: "Solo el propietario puede ofrecer vender." };
+    }
+    buyerClientId = String(payload.counterpartyClientId || "");
+  } else if (direction === "buy") {
+    if (ownership.ownerClientId === proposer.clientId) {
+      return { ok: false, message: "Ya eres propietario de esa propiedad." };
+    }
+    buyerClientId = proposer.clientId;
+  } else {
+    return { ok: false, message: "Tipo de negociación inválido." };
+  }
+
+  const buyer = getVerticalPlayer(game, buyerClientId);
+  if (!buyer || buyer.bankrupt || buyer.clientId === sellerClientId) {
+    return { ok: false, message: "Selecciona un comprador válido." };
+  }
+
+  game.vertical.tradeOfferSequence = (game.vertical.tradeOfferSequence || 0) + 1;
+  game.vertical.tradeOffer = {
+    id: `vertical-offer-${game.vertical.turnNumber}-${game.vertical.tradeOfferSequence}`,
+    direction,
+    squareId: square.id,
+    sellerClientId,
+    buyerClientId,
+    proposerClientId: proposer.clientId,
+    amount,
+    status: "pending",
+    createdAt: Date.now()
+  };
+  game.vertical.message = direction === "sell"
+    ? `${proposer.name} ofreció vender ${square.name} a ${buyer.name} por $${amount}.`
+    : `${proposer.name} ofreció comprar ${square.name} a ${owner.name} por $${amount}.`;
+
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
+function respondVerticalTradeOffer(pin, player, offerId, accept) {
+  const game = games.get(pin);
+  const responder = game ? getVerticalPlayer(game, player.clientId) : null;
+  const offer = game?.vertical?.tradeOffer;
+
+  if (!game || game.status !== "vertical" || !responder || responder.bankrupt || !offer) {
+    return { ok: false, message: "No hay una negociación pendiente." };
+  }
+
+  if (offer.id !== String(offerId || "")) {
+    return { ok: false, message: "La oferta ya no está disponible." };
+  }
+
+  const responderClientId = offer.direction === "sell"
+    ? offer.buyerClientId
+    : offer.sellerClientId;
+  if (responder.clientId !== responderClientId) {
+    return { ok: false, message: "Esa oferta no está dirigida a ti." };
+  }
+
+  const square = getVerticalTradeSquare(offer.squareId);
+  const ownership = square ? getVerticalOwnership(game, square.id) : null;
+  const seller = getVerticalPlayer(game, offer.sellerClientId);
+  const buyer = getVerticalPlayer(game, offer.buyerClientId);
+
+  if (!square || !ownership || ownership.ownerClientId !== offer.sellerClientId || !seller || !buyer || seller.bankrupt || buyer.bankrupt) {
+    game.vertical.tradeOffer = null;
+    game.vertical.message = "La negociación ya no era válida.";
+    emitVerticalState(pin, game);
+    return { ok: false, message: "La negociación ya no era válida." };
+  }
+
+  if ((ownership.improvements || 0) > 0) {
+    game.vertical.tradeOffer = null;
+    game.vertical.message = "La negociación se canceló porque la propiedad tiene activos instalados.";
+    emitVerticalState(pin, game);
+    return { ok: false, message: "La propiedad tiene activos instalados." };
+  }
+
+  if (!accept) {
+    game.vertical.tradeOffer = null;
+    game.vertical.message = `${responder.name} rechazó la oferta por ${square.name}.`;
+    emitVerticalState(pin, game);
+    return { ok: true };
+  }
+
+  if (buyer.cash < offer.amount) {
+    return { ok: false, message: "El comprador no tiene efectivo suficiente." };
+  }
+
+  buyer.cash -= offer.amount;
+  seller.cash += offer.amount;
+  ownership.ownerClientId = buyer.clientId;
+  game.vertical.tradeOffer = null;
+  game.vertical.message = `${buyer.name} compró ${square.name} a ${seller.name} por $${offer.amount}.`;
+
+  const current = getCurrentVerticalPlayer(game);
+  if (current?.cash >= 0 && game.vertical.phase === "debt") {
+    game.vertical.phase = "await_end";
+    game.vertical.pendingCreditorClientId = null;
+  }
+
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
+function cancelVerticalTradeOffer(pin, player, offerId) {
+  const game = games.get(pin);
+  const proposer = game ? getVerticalPlayer(game, player.clientId) : null;
+  const offer = game?.vertical?.tradeOffer;
+
+  if (!game || game.status !== "vertical" || !proposer || !offer) {
+    return { ok: false, message: "No hay una negociación pendiente." };
+  }
+
+  if (offer.id !== String(offerId || "") || offer.proposerClientId !== proposer.clientId) {
+    return { ok: false, message: "Solo quien hizo la oferta puede cancelarla." };
+  }
+
+  const square = getVerticalTradeSquare(offer.squareId);
+  game.vertical.tradeOffer = null;
+  game.vertical.message = `${proposer.name} canceló la oferta por ${square?.name || "la propiedad"}.`;
+  emitVerticalState(pin, game);
+  return { ok: true };
+}
+
 function canBuildVerticalProperty(game, player, square, ownership) {
   if (!square || square.type !== "property" || !ownership) return false;
   if (ownership.ownerClientId !== player.clientId || ownership.mortgaged || ownership.improvements >= 3) return false;
@@ -5132,6 +5348,10 @@ function endVerticalTurn(pin, player) {
     return { ok: false, message: "Todavía tienes una acción pendiente." };
   }
 
+  if (game.vertical.tradeOffer) {
+    return { ok: false, message: "Resuelve la negociación pendiente antes del siguiente turno." };
+  }
+
   if (game.vertical.extraRoll && !current.inJail) {
     game.vertical.extraRoll = false;
     game.vertical.phase = "await_roll";
@@ -5163,6 +5383,14 @@ function declareVerticalBankruptcy(pin, player) {
   }
 
   const creditor = getVerticalPlayer(game, game.vertical.pendingCreditorClientId);
+  if (game.vertical.tradeOffer && (
+    game.vertical.tradeOffer.sellerClientId === current.clientId ||
+    game.vertical.tradeOffer.buyerClientId === current.clientId ||
+    game.vertical.tradeOffer.proposerClientId === current.clientId
+  )) {
+    game.vertical.tradeOffer = null;
+  }
+
   Object.keys(game.vertical.ownership).forEach((squareId) => {
     const ownership = game.vertical.ownership[squareId];
     if (ownership.ownerClientId !== current.clientId) return;
@@ -8073,6 +8301,33 @@ io.on("connection", (socket) => {
       : { ok: false, message: "No estás dentro de la partida." });
   });
 
+  socket.on("create_vertical_trade_offer", ({ pin, squareId, direction, counterpartyClientId, amount }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? createVerticalTradeOffer(cleanGamePin, player, { squareId, direction, counterpartyClientId, amount })
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
+  socket.on("respond_vertical_trade_offer", ({ pin, offerId, accept }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? respondVerticalTradeOffer(cleanGamePin, player, offerId, Boolean(accept))
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
+  socket.on("cancel_vertical_trade_offer", ({ pin, offerId }, callback) => {
+    const cleanGamePin = cleanPin(pin);
+    const game = games.get(cleanGamePin);
+    const player = game?.players.find((item) => item.id === socket.id);
+    callback(player
+      ? cancelVerticalTradeOffer(cleanGamePin, player, offerId)
+      : { ok: false, message: "No estás dentro de la partida." });
+  });
+
   socket.on("pay_vertical_jail_fine", ({ pin }, callback) => {
     const cleanGamePin = cleanPin(pin);
     const game = games.get(cleanGamePin);
@@ -8600,6 +8855,14 @@ io.on("connection", (socket) => {
 
       if (game.status === "vertical" && game.vertical) {
         const currentVerticalPlayer = getCurrentVerticalPlayer(game);
+        if (game.vertical.tradeOffer && (
+          game.vertical.tradeOffer.sellerClientId === disconnectingPlayer.clientId ||
+          game.vertical.tradeOffer.buyerClientId === disconnectingPlayer.clientId ||
+          game.vertical.tradeOffer.proposerClientId === disconnectingPlayer.clientId
+        )) {
+          game.vertical.tradeOffer = null;
+          game.vertical.message = "La negociaciÃ³n se cancelÃ³ porque un jugador se desconectÃ³.";
+        }
 
         if (currentVerticalPlayer?.clientId === disconnectingPlayer.clientId) {
           if (currentVerticalPlayer.cash < 0) {
@@ -8765,6 +9028,9 @@ module.exports = {
     getVerticalRent,
     getVerticalFinancials,
     ownsVerticalCompany,
+    createVerticalTradeOffer,
+    respondVerticalTradeOffer,
+    cancelVerticalTradeOffer,
     drawLastCards,
     takeInitialLastCard,
     createInactiveLastCardCall,

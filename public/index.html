@@ -905,6 +905,47 @@
         class="vertical-players-carousel"
         aria-label="Balance financiero de los jugadores"
       ></div>
+
+      <div id="verticalTradeModal" class="vertical-trade-modal hidden" role="dialog" aria-modal="true" aria-labelledby="verticalTradeTitle">
+        <div class="vertical-trade-panel">
+          <button id="closeVerticalTradeModalBtn" class="vertical-trade-close" type="button" aria-label="Cerrar">×</button>
+          <p class="small-title">Negociación</p>
+          <h2 id="verticalTradeTitle"></h2>
+          <p id="verticalTradeSummary" class="vertical-trade-summary"></p>
+
+          <div id="verticalTradeCompose" class="vertical-trade-compose hidden">
+            <label id="verticalTradeCounterpartyLabel" for="verticalTradeCounterpartySelect">Jugador</label>
+            <select id="verticalTradeCounterpartySelect"></select>
+
+            <label for="verticalTradeAmountInput">Monto negociado</label>
+            <input
+              id="verticalTradeAmountInput"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              step="1"
+              placeholder="Monto"
+            />
+
+            <button id="sendVerticalTradeOfferBtn" class="primary-btn" type="button">Enviar oferta</button>
+          </div>
+
+          <div id="verticalTradeIncoming" class="vertical-trade-incoming hidden">
+            <ul id="verticalTradeDetails" class="vertical-trade-details"></ul>
+            <div class="vertical-trade-response-actions">
+              <button id="rejectVerticalTradeOfferBtn" class="secondary-btn" type="button">Rechazar</button>
+              <button id="acceptVerticalTradeOfferBtn" class="primary-btn" type="button">Aceptar</button>
+            </div>
+          </div>
+
+          <div id="verticalTradeOutgoing" class="vertical-trade-outgoing hidden">
+            <p class="waiting-text">Esperando respuesta...</p>
+            <button id="cancelVerticalTradeOfferBtn" class="secondary-btn" type="button">Cancelar oferta</button>
+          </div>
+
+          <p id="verticalTradeStatusText" class="answer-status"></p>
+        </div>
+      </div>
     </section>
 
     <!-- Resultado de Integración vertical -->

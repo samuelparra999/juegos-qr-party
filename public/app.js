@@ -17,6 +17,7 @@ let selectedCachoFace = 2;
 let cachoActionPending = false;
 let currentVerticalState = null;
 let verticalActionPending = false;
+let verticalTradeDraft = null;
 let selectedVerticalSquareId = null;
 let lastVerticalFocusedPosition = null;
 let selectedConversaMode = "random";
@@ -329,6 +330,22 @@ const verticalResultLeaderControls = document.getElementById("verticalResultLead
 const continueVerticalResultBtn = document.getElementById("continueVerticalResultBtn");
 const verticalWinnerText = document.getElementById("verticalWinnerText");
 const verticalResultList = document.getElementById("verticalResultList");
+const verticalTradeModal = document.getElementById("verticalTradeModal");
+const closeVerticalTradeModalBtn = document.getElementById("closeVerticalTradeModalBtn");
+const verticalTradeTitle = document.getElementById("verticalTradeTitle");
+const verticalTradeSummary = document.getElementById("verticalTradeSummary");
+const verticalTradeCompose = document.getElementById("verticalTradeCompose");
+const verticalTradeCounterpartyLabel = document.getElementById("verticalTradeCounterpartyLabel");
+const verticalTradeCounterpartySelect = document.getElementById("verticalTradeCounterpartySelect");
+const verticalTradeAmountInput = document.getElementById("verticalTradeAmountInput");
+const sendVerticalTradeOfferBtn = document.getElementById("sendVerticalTradeOfferBtn");
+const verticalTradeIncoming = document.getElementById("verticalTradeIncoming");
+const verticalTradeDetails = document.getElementById("verticalTradeDetails");
+const rejectVerticalTradeOfferBtn = document.getElementById("rejectVerticalTradeOfferBtn");
+const acceptVerticalTradeOfferBtn = document.getElementById("acceptVerticalTradeOfferBtn");
+const verticalTradeOutgoing = document.getElementById("verticalTradeOutgoing");
+const cancelVerticalTradeOfferBtn = document.getElementById("cancelVerticalTradeOfferBtn");
+const verticalTradeStatusText = document.getElementById("verticalTradeStatusText");
 
 // ÚLTIMA CARTA
 const startLastCardBtn = document.getElementById("startLastCardBtn");
@@ -1353,6 +1370,22 @@ function emitVerticalAction(eventName, payload = {}) {
   });
 }
 
+function emitVerticalTrade(eventName, payload = {}) {
+  if (!currentGame || verticalActionPending) return;
+
+  verticalActionPending = true;
+  renderVerticalTradeModal(currentVerticalState);
+  renderVerticalControls();
+  socket.emit(eventName, { pin: currentGame.pin, ...payload }, (response) => {
+    if (response.ok) return;
+
+    verticalActionPending = false;
+    renderVerticalTradeModal(currentVerticalState);
+    renderVerticalControls();
+    showToast(response.message || "No se pudo completar la negociación.");
+  });
+}
+
 startVerticalBtn.addEventListener("click", () => {
   if (!currentGame) return;
   startVerticalBtn.disabled = true;
@@ -1369,6 +1402,48 @@ skipVerticalPurchaseBtn.addEventListener("click", () => emitVerticalAction("skip
 payVerticalJailBtn.addEventListener("click", () => emitVerticalAction("pay_vertical_jail_fine"));
 endVerticalTurnBtn.addEventListener("click", () => emitVerticalAction("end_vertical_turn"));
 declareVerticalBankruptcyBtn.addEventListener("click", () => emitVerticalAction("declare_vertical_bankruptcy"));
+
+closeVerticalTradeModalBtn.addEventListener("click", () => {
+  if (currentVerticalState?.tradeOffer) return;
+  verticalTradeDraft = null;
+  renderVerticalTradeModal(currentVerticalState);
+});
+
+sendVerticalTradeOfferBtn.addEventListener("click", () => {
+  if (!verticalTradeDraft) return;
+  const amount = Number(verticalTradeAmountInput.value);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    verticalTradeStatusText.textContent = "Escribe un monto mayor que cero.";
+    return;
+  }
+  const counterpartyClientId = verticalTradeDraft.direction === "sell"
+    ? verticalTradeCounterpartySelect.value
+    : verticalTradeDraft.counterpartyClientId;
+  emitVerticalTrade("create_vertical_trade_offer", {
+    squareId: verticalTradeDraft.squareId,
+    direction: verticalTradeDraft.direction,
+    counterpartyClientId,
+    amount
+  });
+});
+
+acceptVerticalTradeOfferBtn.addEventListener("click", () => {
+  const offer = currentVerticalState?.tradeOffer;
+  if (!offer) return;
+  emitVerticalTrade("respond_vertical_trade_offer", { offerId: offer.id, accept: true });
+});
+
+rejectVerticalTradeOfferBtn.addEventListener("click", () => {
+  const offer = currentVerticalState?.tradeOffer;
+  if (!offer) return;
+  emitVerticalTrade("respond_vertical_trade_offer", { offerId: offer.id, accept: false });
+});
+
+cancelVerticalTradeOfferBtn.addEventListener("click", () => {
+  const offer = currentVerticalState?.tradeOffer;
+  if (!offer) return;
+  emitVerticalTrade("cancel_vertical_trade_offer", { offerId: offer.id });
+});
 
 continueVerticalResultBtn.addEventListener("click", () => {
   if (!currentGame) return;
@@ -3352,6 +3427,32 @@ function createVerticalManageButton(label, action, square, className = "secondar
   return button;
 }
 
+function openVerticalTradeComposer(direction, square) {
+  if (!currentVerticalState || verticalActionPending) return;
+
+  verticalTradeDraft = {
+    direction,
+    squareId: square.id,
+    counterpartyClientId: direction === "buy" ? square.ownerClientId : null
+  };
+  verticalTradeStatusText.textContent = "";
+  verticalTradeAmountInput.value = "";
+  renderVerticalTradeModal(currentVerticalState);
+}
+
+function createVerticalTradeButton(label, direction, square, className = "secondary-btn") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `vertical-asset-btn ${className}`;
+  button.textContent = label;
+  button.disabled = verticalActionPending;
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openVerticalTradeComposer(direction, square);
+  });
+  return button;
+}
+
 function createVerticalSquareCard(square, index) {
   const card = document.createElement("article");
   card.className = "vertical-square-card";
@@ -3429,6 +3530,8 @@ function createVerticalSquareCard(square, index) {
 
   const controls = document.createElement("div");
   controls.className = "vertical-asset-actions";
+  if (square.canOfferBuy) controls.appendChild(createVerticalTradeButton("Comprar", "buy", square, "primary-btn"));
+  if (square.canOfferSell) controls.appendChild(createVerticalTradeButton("Vender", "sell", square));
   if (square.canBuild) controls.appendChild(createVerticalManageButton(`Instalar ${square.equipment} ${square.equipmentName} · ${formatVerticalMoney(square.improvementCost)}`, "build", square, "primary-btn"));
   if (square.canSellImprovement) controls.appendChild(createVerticalManageButton("Vender equipo", "sell", square));
   if (square.canMortgage) controls.appendChild(createVerticalManageButton(`Hipotecar · ${formatVerticalMoney(square.mortgageValue)}`, "mortgage", square));
@@ -3546,6 +3649,106 @@ function renderVerticalControls() {
   toggle(declareVerticalBankruptcyBtn, state.canDeclareBankruptcy);
 }
 
+function appendVerticalTradeDetail(label, value) {
+  const item = document.createElement("li");
+  const name = document.createElement("strong");
+  name.textContent = label;
+  const text = document.createElement("span");
+  text.textContent = value;
+  item.append(name, text);
+  verticalTradeDetails.appendChild(item);
+}
+
+function renderVerticalTradeModal(state) {
+  if (!verticalTradeModal) return;
+
+  const offer = state?.tradeOffer || null;
+  if (offer) verticalTradeDraft = null;
+  const draft = offer ? null : verticalTradeDraft;
+  const open = Boolean((offer && (offer.isProposer || offer.isResponder)) || draft);
+  verticalTradeModal.classList.toggle("hidden", !open);
+  if (!open) {
+    verticalTradeCompose.classList.add("hidden");
+    verticalTradeIncoming.classList.add("hidden");
+    verticalTradeOutgoing.classList.add("hidden");
+    verticalTradeStatusText.textContent = "";
+    verticalTradeAmountInput.value = "";
+    return;
+  }
+
+  verticalTradeCompose.classList.add("hidden");
+  verticalTradeIncoming.classList.add("hidden");
+  verticalTradeOutgoing.classList.add("hidden");
+  closeVerticalTradeModalBtn.classList.toggle("hidden", Boolean(offer));
+  sendVerticalTradeOfferBtn.disabled = verticalActionPending;
+  acceptVerticalTradeOfferBtn.disabled = verticalActionPending;
+  rejectVerticalTradeOfferBtn.disabled = verticalActionPending;
+  cancelVerticalTradeOfferBtn.disabled = verticalActionPending;
+
+  if (draft) {
+    const square = state.board.find((item) => item.id === draft.squareId);
+    if (!square) {
+      verticalTradeDraft = null;
+      verticalTradeModal.classList.add("hidden");
+      return;
+    }
+
+    const isSell = draft.direction === "sell";
+    verticalTradeTitle.textContent = isSell ? `Vender ${square.name}` : `Comprar ${square.name}`;
+    verticalTradeSummary.textContent = isSell
+      ? "Selecciona comprador y monto para enviar la oferta."
+      : `Envía una oferta a ${square.ownerName || "el propietario"}.`;
+    verticalTradeCompose.classList.remove("hidden");
+    verticalTradeCounterpartyLabel.classList.toggle("hidden", !isSell);
+    verticalTradeCounterpartySelect.classList.toggle("hidden", !isSell);
+    verticalTradeCounterpartySelect.innerHTML = "";
+
+    if (isSell) {
+      state.players
+        .filter((player) => !player.isYou && !player.bankrupt)
+        .forEach((player) => {
+          const option = document.createElement("option");
+          option.value = player.clientId;
+          option.textContent = `${player.name} · efectivo ${formatVerticalMoney(player.financials.cash)}`;
+          verticalTradeCounterpartySelect.appendChild(option);
+        });
+      sendVerticalTradeOfferBtn.disabled = verticalActionPending || !verticalTradeCounterpartySelect.children.length;
+    }
+
+    if (!verticalTradeAmountInput.value) {
+      verticalTradeAmountInput.value = String(square.price || 1);
+    }
+    return;
+  }
+
+  verticalTradeTitle.textContent = offer.direction === "sell"
+    ? `${offer.sellerName} quiere vender`
+    : `${offer.buyerName} quiere comprar`;
+  verticalTradeSummary.textContent =
+    `${offer.squareName} · ${offer.companyName} · ${formatVerticalMoney(offer.amount)}`;
+
+  if (offer.isResponder) {
+    verticalTradeIncoming.classList.remove("hidden");
+    verticalTradeDetails.innerHTML = "";
+    appendVerticalTradeDetail("Vendedor", offer.sellerName);
+    appendVerticalTradeDetail("Comprador", offer.buyerName);
+    appendVerticalTradeDetail("Monto", formatVerticalMoney(offer.amount));
+    appendVerticalTradeDetail(
+      "Hipoteca",
+      offer.mortgaged ? `Sí, se transfiere (${formatVerticalMoney(offer.mortgageValue)})` : "No"
+    );
+    appendVerticalTradeDetail("Mejoras", offer.improvements ? String(offer.improvements) : "Ninguna");
+    return;
+  }
+
+  if (offer.isProposer) {
+    verticalTradeOutgoing.classList.remove("hidden");
+    return;
+  }
+
+  verticalTradeModal.classList.add("hidden");
+}
+
 function renderVerticalGame(state) {
   if (!state) return;
   isLeader = currentGame?.leaderId === socket.id;
@@ -3575,6 +3778,7 @@ function renderVerticalGame(state) {
   renderVerticalBoard(state, positionChanged || activeScreen !== verticalScreen);
   renderVerticalPlayers(state);
   renderVerticalControls();
+  renderVerticalTradeModal(state);
   lastVerticalFocusedPosition = current?.position ?? null;
   showScreen(verticalScreen);
 }
@@ -3583,6 +3787,8 @@ function renderVerticalResult(data) {
   isLeader = data.game?.leaderId === socket.id;
   currentVerticalState = null;
   verticalActionPending = false;
+  verticalTradeDraft = null;
+  renderVerticalTradeModal(null);
   selectedVerticalSquareId = null;
   lastVerticalFocusedPosition = null;
   continueVerticalResultBtn.disabled = false;
